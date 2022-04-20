@@ -7,20 +7,13 @@ t_bot = telebot.TeleBot('telebot')
 t_bot.config['api_key'] = telegram_bot_token
 
 vk = vk_api.VkApi(token=group_token)
-vk._auth_token()
+vk.auth()
 vk.get_api()
 longpoll = VkBotLongPoll(vk, group_id)
 
 
-def upload_photos(photos):
-    if len(photos):
-        t_bot.send_photo()
-
-
-
 def send_msg(text):
     t_bot.send_message(chat_id=telegram_chat_id, text=text)
-
 
 
 try:
