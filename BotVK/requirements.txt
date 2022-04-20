@@ -1,0 +1,4 @@
+loguru
+environs
+vk_api
+telebot
