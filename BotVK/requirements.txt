@@ -1,4 +1,5 @@
 loguru
 environs
 vk_api
-telebot
+pyTelegramBotAPI
+wget==3.2

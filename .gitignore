@@ -2,6 +2,7 @@
 chromedriver.exe
 *.db
 database/test_data.sql
+.cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
