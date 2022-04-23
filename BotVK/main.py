@@ -40,7 +40,7 @@ class Post:
     text = ''
     photo = []
     video = []
-    docs = []
+    # docs = []
     user_id = None
     user_info = None
     date = None
@@ -53,7 +53,7 @@ class Post:
         self.text = ''
         self.photo = []
         self.video = []
-        self.docs = []
+        # self.docs = []
         self.user_id = None
         self.user_info = None
         self.date = None
@@ -128,23 +128,52 @@ def get_user_info(user_id):
     return user_info
 
 
+# @logger.catch()
 def send_post(post: Post):
     count_of_media = len(post.photo) + len(post.video)
-    if count_of_media > 1:
+
+    images = [(lambda f: telebot.types.InputMediaPhoto(open(f, 'rb')))(f) for f in post.photo]
+    video = [(lambda f: telebot.types.InputMediaVideo(open(f, 'rb')))(f) for f in post.video]
+
+    media = []
+    media.extend(images)
+    media.extend(video)
+
+    user_name = post.user_info.get('name')
+    user_url = post.user_info.get('url')
+    mes_text = f'Новый пост от пользователя <a href="{user_url}">{user_name}</a>:\n{post.text}'
+
+    media_messages = []
+
+    if len(media) > 1:
         media_message = t_bot.send_media_group(
             chat_id=telegram_chat_id,
-            media=[(lambda f: telebot.types.InputMediaPhoto(open(f, 'rb')))(f) for f in post.photo],
+            media=media,
             disable_notification=True
         )
+        media_messages.append(media_message)
+    else:
+        if len(images) == 1:
+            media_message = t_bot.send_photo(
+                chat_id=telegram_chat_id,
+                photo=images[0]
+            )
+            media_messages.append(media_message)
+            # media.remove(images[0])
+        if len(video) == 1:
+            media_message = t_bot.send_video(
+                chat_id=telegram_chat_id,
+                video=video[0]
+            )
+            media_messages.append(media_message)
+            # media.remove(video[0])
 
-        user_name = post.user_info.get('name')
-        user_url = post.user_info.get('url')
-        text_message = t_bot.send_message(
-            chat_id=telegram_chat_id,
-            text=f'Новый пост от пользователя <a href="{user_url}">{user_name}</a>:\n{post.text}'
-        )
+    text_message = t_bot.send_message(
+        chat_id=telegram_chat_id,
+        text=mes_text
+    )
 
-        return text_message, media_message
+    return text_message, media_messages
 
 
 try:
@@ -154,17 +183,6 @@ try:
             new_post = Post()
             new_post.pars_wall_post(event)
             send_post(new_post)
-
-            # photos = []
-            # text = event.object['text']
-            # if 'attachments' in str(event):
-            #     for attachment in event.object['attachments']:
-            #         if attachment['type'] == 'photo':
-            #             pass
-            #         else:
-            #             pass
-            #     photos.clear()
-            # send_msg(text)
 
 except Exception as ex:
     logger.error(ex)
