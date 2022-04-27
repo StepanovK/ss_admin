@@ -22,6 +22,7 @@ CREATE TABLE attachments
                    description varchar,
                    preview_url varchar,
                    url varchar,
+                   file_name varchar,
                    user_id integer,
                    FOREIGN KEY (user_id) REFERENCES users(id)
                    );
