@@ -5,7 +5,7 @@ import psycopg2.extras
 from config import logger
 
 parser = argparse.ArgumentParser(description='DatabaseCreator')
-parser.add_argument("--resetdb", default=0, help="This is the 'resetdb' variable")
+parser.add_argument("--recreatedb", default=0, help="recreate database")
 
 
 def get_pg_connection():
@@ -41,7 +41,7 @@ def get_bd_connection():
         return None
 
 
-def reset_database():
+def recreate_database():
     conn = get_pg_connection()
     conn.autocommit = True
     logger.info('Обновление базы данных:')
@@ -93,5 +93,5 @@ def add_test_data():
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    if str(args.resetdb) == '1':
-        reset_database()
+    if str(args.recreatedb) == '1':
+        recreate_database()
