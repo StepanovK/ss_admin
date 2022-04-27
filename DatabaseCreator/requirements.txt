@@ -1,0 +1,4 @@
+argparse
+environs
+psycopg2
+loguru
