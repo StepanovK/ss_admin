@@ -109,7 +109,7 @@ CREATE TABLE suggested_posts
                    is_deleted boolean NOT NULL,
                    is_posted boolean NOT NULL,
                    is_rejected boolean NOT NULL,
-                   admin_id boolean NOT NULL,
+                   admin_id integer,
                    FOREIGN KEY ("user_id") REFERENCES users(id)
                   );
 
