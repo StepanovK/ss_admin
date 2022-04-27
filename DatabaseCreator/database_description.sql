@@ -107,6 +107,9 @@ CREATE TABLE suggested_posts
                    "date" varchar NOT NULL,
                    "text" text NOT NULL,
                    is_deleted boolean NOT NULL,
+                   is_posted boolean NOT NULL,
+                   is_rejected boolean NOT NULL,
+                   admin_id boolean NOT NULL,
                    FOREIGN KEY ("user_id") REFERENCES users(id)
                   );
 
