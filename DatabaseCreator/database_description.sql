@@ -57,6 +57,13 @@ CREATE TABLE posts_likes
                    );
 
 
+CREATE TABLE posts_hashtags
+                   (post_id integer NOT NULL,
+                   hashtag varchar(100) NOT NULL,
+                   FOREIGN KEY ("post_id") REFERENCES posts(id) ON DELETE CASCADE
+                   );
+
+
 CREATE TABLE comments
                    (id integer primary key NOT NULL,
                    user_id integer,
@@ -92,3 +99,28 @@ CREATE TABLE comments_likes
                    );
 
 
+CREATE TABLE suggested_posts
+                   (id integer primary key NOT NULL,
+                   user_id integer,
+                   signed_id integer,
+                   "date" varchar NOT NULL,
+                   "text" text NOT NULL,
+                   is_deleted boolean NOT NULL,
+                   FOREIGN KEY ("user_id") REFERENCES users(id)
+                  );
+
+
+CREATE TABLE suggested_posts_attachments
+                   (post_id integer NOT NULL,
+                   attachment_id integer NOT NULL,
+                   is_deleted boolean NOT NULL,
+                   FOREIGN KEY ("post_id") REFERENCES suggested_posts(id) ON DELETE CASCADE,
+                   FOREIGN KEY ("attachment_id") REFERENCES attachments(id) ON DELETE CASCADE
+                   );
+
+
+CREATE TABLE suggested_posts_hashtags
+                   (post_id integer NOT NULL,
+                   hashtag varchar(100) NOT NULL,
+                   FOREIGN KEY ("post_id") REFERENCES suggested_posts(id) ON DELETE CASCADE
+                   );
