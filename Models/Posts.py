@@ -3,6 +3,10 @@ from base import BaseModel
 from Users import User
 
 
+# https://peewee.readthedocs.io/en/latest/peewee/example.html
+# https://www.youtube.com/watch?v=YyOvitek6H8
+
+
 class Post(BaseModel):
     id = IntegerField(unique=True)
     # first_name = CharField(default='', null=True)
