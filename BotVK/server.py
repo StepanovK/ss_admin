@@ -13,7 +13,6 @@ from pathlib import Path
 from Models.VK_Objects import User
 
 
-
 class Server:
     vk_link = 'https://vk.com/'
 
@@ -62,7 +61,7 @@ class Server:
     def _start_polling(self):
         if self.vk is None:
             self._connect_vk()
-        self._longpoll = VkBotLongPoll(self.vk_api, self.group_id,)
+        self._longpoll = VkBotLongPoll(self.vk_api, self.group_id, )
 
         logger.info('Бот запущен')
 
@@ -97,7 +96,6 @@ def get_cache_dir() -> pathlib.Path:
 
 
 if __name__ == '__main__':
-
     server = Server(tg_token=config.telegram_bot_token,
                     tg_chat_id=config.telegram_chat_id,
                     vk_group_token=config.group_token,
