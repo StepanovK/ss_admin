@@ -2,8 +2,8 @@ CREATE TABLE users
                    (id integer primary key NOT NULL,
                    first_name varchar NOT NULL,
                    last_name varchar NOT NULL,
-                   birth_date varchar NOT NULL,
-                   subscription_date varchar NOT NULL,
+                   birth_date integer NOT NULL,
+                   subscription_date integer NOT NULL,
                    is_active boolean NOT NULL
                    );
 
@@ -51,7 +51,7 @@ CREATE TABLE posts_attachments
 CREATE TABLE posts_likes
                    (post_id integer NOT NULL,
                    user_id integer NOT NULL,
-                   "date" varchar NOT NULL,
+                   "date" integer NOT NULL,
                    is_deleted boolean NOT NULL,
                    FOREIGN KEY ("user_id") REFERENCES users(id) ON DELETE CASCADE,
                    FOREIGN KEY ("post_id") REFERENCES posts(id) ON DELETE CASCADE
@@ -72,7 +72,7 @@ CREATE TABLE comments
                    post_id integer NOT NULL,
                    replied_comment_id integer,
                    replied_to_user_id integer,
-                   "date" varchar NOT NULL,
+                   "date" integer NOT NULL,
                    "text" text NOT NULL,
                    is_deleted boolean NOT NULL,
                    FOREIGN KEY ("replied_comment_id") REFERENCES comments(id),
@@ -93,7 +93,7 @@ CREATE TABLE comments_attachments
 CREATE TABLE comments_likes
                    (comment_id integer NOT NULL,
                    user_id integer NOT NULL,
-                   "date" varchar NOT NULL,
+                   "date" integer NOT NULL,
                    is_deleted boolean NOT NULL,
                    FOREIGN KEY ("user_id") REFERENCES users(id) ON DELETE CASCADE,
                    FOREIGN KEY ("comment_id") REFERENCES comments(id) ON DELETE CASCADE
@@ -104,7 +104,7 @@ CREATE TABLE suggested_posts
                    (id integer primary key NOT NULL,
                    user_id integer,
                    signed_id integer,
-                   "date" varchar NOT NULL,
+                   "date" integer NOT NULL,
                    "text" text NOT NULL,
                    is_deleted boolean NOT NULL,
                    is_posted boolean NOT NULL,
