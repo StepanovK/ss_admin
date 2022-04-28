@@ -2,12 +2,16 @@ import pathlib
 
 import telebot
 import os
+import config
+
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-from config import logger
+from config import logger, config_db
 from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
+from Models.VK_Objects import User
+
 
 
 class Server:
@@ -58,8 +62,7 @@ class Server:
     def _start_polling(self):
         if self.vk is None:
             self._connect_vk()
-
-        self._longpoll = VkBotLongPoll(self.vk, self.group_id)
+        self._longpoll = VkBotLongPoll(self.vk_api, self.group_id,)
 
         logger.info('Бот запущен')
 
@@ -91,3 +94,12 @@ def get_cache_dir() -> pathlib.Path:
     cache_dir = Path(cache_dir).absolute()
 
     return cache_dir
+
+
+if __name__ == '__main__':
+
+    server = Server(tg_token=config.telegram_bot_token,
+                    tg_chat_id=config.telegram_chat_id,
+                    vk_group_token=config.group_token,
+                    vk_group_id=config.group_id)
+    server.run_in_loop()

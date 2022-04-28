@@ -1,52 +1,73 @@
-import telebot as telebot
-from vk_api import vk_api
-from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-import telebot
-from config import logger, telegram_chat_id, telegram_bot_token, group_token, group_id
-import os
-from wget import download
+import psycopg2
 
 
-def get_cache_dir():
-    path = '.cache'
-
-    if os.path.exists(path):
-        return os.path.abspath(path)
-    else:
-        try:
-            os.mkdir(path)
-            return os.path.abspath(path)
-        except OSError as _ex:
-            logger.error(f"Создать директорию {path} не удалось. {_ex}")
-            return ''
-
-
-cache_dir = get_cache_dir()
-
-vk_link = 'https://vk.com/'
-
-t_bot = telebot.TeleBot(telegram_bot_token, parse_mode='HTML')
-
-vk = vk_api.VkApi(token=group_token)
-longpoll = VkBotLongPoll(vk, group_id)
-vk = vk.get_api()
+def get_db_connection(config_bd):
+    try:
+        connection = psycopg2.connect(
+            host=config_bd.db_host,
+            port=config_bd.db_port,
+            user=config_bd.db_user,
+            password=config_bd.db_password,
+            database=config_bd.db_name
+        )
+        return connection
+    except Exception as ex:
+        connection_info = f'host={config.db_host}, port={config.db_port},' \
+                          f' user={config.db_user} password={config.db_password}'
+        logger.error(f"Проблема при подключении к базе данных {config.db_name}\n({connection_info}):", ex)
+        return None
 
 
-# https://github.com/qwertyadrian/TG_AutoPoster/blob/master/TG_AutoPoster/sender.py
+class User:
+
+    def __init__(self, id, config_db=None, db_connection=None):
+        self.id = id
+        self.first_name = ''
+        self.last_name = ''
+        self.birth_date = None
+        self.subscription_date = None
+        self.is_active = False
+        self._config_db = config_db
+        self._db_connection = db_connection
+
+    def read(self):
+        if self._config_db is None:
+            conn = self._db_connection
+        else:
+            conn = get_db_connection(self._config_db)
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""SELECT * from users where id = %s""", [self.id])
+            user_info = cursor.fetchone()
+            if user_info is not None:
+                self.first_name = user_info.first_name
+                self.last_name = user_info.last_name
+                self.birth_date = user_info.birth_date
+                self.subscription_date = user_info.subscription_date
+                self.is_active = user_info.is_active
+            else:
+                raise f'Can`t find user by id <{self.id}>'
+
+    def write(self):
+        if self._config_db is None:
+            conn = self._db_connection
+        else:
+            conn = get_db_connection(self._config_db)
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""SELECT * from users where id = %s""", [self.id])
+            user_info = cursor.fetchone()
+            if user_info is not None:
+                self.first_name = user_info.first_name
+                self.last_name = user_info.last_name
+                self.birth_date = user_info.birth_date
+                self.subscription_date = user_info.subscription_date
+                self.is_active = user_info.is_active
+            else:
+                raise f'Can`t find user by id <{self.id}>'
 
 
 class Post:
-    post_id = None
-    text = ''
-    photo = []
-    video = []
-    # docs = []
-    user_id = None
-    user_info = None
-    date = None
-    post_type = None
-    owner_id = None
-    link = ''
 
     def __init__(self):
         self.post_id = None

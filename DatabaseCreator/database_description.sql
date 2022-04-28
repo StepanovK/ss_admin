@@ -2,8 +2,8 @@ CREATE TABLE users
                    (id integer primary key NOT NULL,
                    first_name varchar NOT NULL,
                    last_name varchar NOT NULL,
-                   birth_date integer NOT NULL,
-                   subscription_date integer NOT NULL,
+                   birth_date integer,
+                   subscription_date integer,
                    is_active boolean NOT NULL
                    );
 
