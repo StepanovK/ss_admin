@@ -8,18 +8,16 @@ from Users import User
 
 
 class Post(BaseModel):
-    id = IntegerField(unique=True)
-    # first_name = CharField(default='', null=True)
-    # last_name = CharField(default='', null=True)
-    # birth_date = DateField()
-    # subscription_date = DateField()
-    # is_active = BooleanField(null=True)
+    id = IntegerField(unique=True, primary_key=True)
+    user_id = ForeignKeyField(User, on_delete='CASCADE', index=True)
+    signed_id = IntegerField(index=True)
+    date = DateField(formats=['%Y-%m-%d %H:%M:%S'])
+    text = TextField()
+    is_deleted = BooleanField()
 
     class Meta:
         table_name = 'posts'
         primary_key = 'id'
-
-
 
     def pars_wall_post(self, wall_post):
         pass
@@ -52,4 +50,3 @@ class Post(BaseModel):
         #                     # os.remove(photo)
         #
         # # @logger.catch()
-
