@@ -29,9 +29,9 @@ class Comment(BaseModel):
 
 class CommentLikes(BaseModel):
     comment = ForeignKeyField(Comment,
-                           on_delete='CASCADE',
-                           related_name='likes',
-                           backref='likes')
+                              on_delete='CASCADE',
+                              related_name='likes',
+                              backref='likes')
     user = ForeignKeyField(Post,
                            on_delete='CASCADE',
                            related_name='liked_comments',
