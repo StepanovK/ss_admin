@@ -4,13 +4,13 @@ from Users import User
 
 
 class Attachment(BaseModel):
-    id = IntegerField(unique=True, primary_key=True)
+    id = PrimaryKeyField()
     type = CharField(max_length=100, default='')
     description = TextField()
     preview_url = TextField()
     url = TextField()
     file_name = CharField()
-    user_id = ForeignKeyField(User)
+    user = ForeignKeyField(User, backref='attachments', null=True)
 
     class Meta:
         table_name = 'attachments'

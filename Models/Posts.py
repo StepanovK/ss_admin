@@ -9,8 +9,8 @@ from Users import User
 
 class Post(BaseModel):
     id = IntegerField(unique=True, primary_key=True)
-    user_id = ForeignKeyField(User, on_delete='CASCADE', index=True)
-    signed_id = IntegerField(index=True)
+    user = ForeignKeyField(User, on_delete='CASCADE', index=True, backref='posts')
+    signed = IntegerField(index=True)
     date = DateField(formats=['%Y-%m-%d %H:%M:%S'])
     text = TextField()
     is_deleted = BooleanField()
@@ -50,3 +50,28 @@ class Post(BaseModel):
         #                     # os.remove(photo)
         #
         # # @logger.catch()
+
+
+class PostHashtag(BaseModel):
+    post = ForeignKeyField(Post,
+                           on_delete='CASCADE',
+                           related_name='hashtags',
+                           backref='hashtags')
+    hashtag = TextField()
+
+    class Meta:
+        table_name = 'posts_hashtags'
+
+
+class PostLikes(BaseModel):
+    post = ForeignKeyField(Post,
+                           on_delete='CASCADE',
+                           related_name='likes',
+                           backref='likes')
+    user = ForeignKeyField(Post,
+                           on_delete='CASCADE',
+                           related_name='liked_posts',
+                           backref='liked_posts')
+
+    class Meta:
+        table_name = 'posts_hashtags'
