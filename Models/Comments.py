@@ -16,7 +16,7 @@ class Comment(BaseModel):
                            on_delete='CASCADE')
     replied_comment = IntegerField(null=True)
     replied_to_user = IntegerField(null=True)
-    date = DateTimeField()
+    date = DateTimeField(formats=['%Y-%m-%d %H:%M:%S'])
     text = TextField()
     is_deleted = BooleanField()
 
@@ -26,16 +26,3 @@ class Comment(BaseModel):
         indexes = ['user', 'post']
         order_by = ['post', 'date']
 
-
-class CommentLikes(BaseModel):
-    comment = ForeignKeyField(Comment,
-                              on_delete='CASCADE',
-                              related_name='likes',
-                              backref='likes')
-    user = ForeignKeyField(Post,
-                           on_delete='CASCADE',
-                           related_name='liked_comments',
-                           backref='liked_comments')
-
-    class Meta:
-        table_name = 'comments_likes'

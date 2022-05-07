@@ -63,15 +63,3 @@ class PostHashtag(BaseModel):
         table_name = 'posts_hashtags'
 
 
-class PostLikes(BaseModel):
-    post = ForeignKeyField(Post,
-                           on_delete='CASCADE',
-                           related_name='likes',
-                           backref='likes')
-    user = ForeignKeyField(Post,
-                           on_delete='CASCADE',
-                           related_name='liked_posts',
-                           backref='liked_posts')
-
-    class Meta:
-        table_name = 'posts_hashtags'
