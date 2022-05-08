@@ -1,4 +1,4 @@
-from peewee import *
+import config
 from base import psql_db
 from Attachments import Attachment
 from Comments import Comment
