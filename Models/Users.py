@@ -8,7 +8,6 @@ class User(BaseModel):
     last_name = CharField(default='', null=True)
     city = CharField(default='', null=True)
     birth_date = DateField()
-    subscription_date = DateField()
     is_active = BooleanField(null=True)
 
     class Meta:

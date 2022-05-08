@@ -14,7 +14,7 @@ class Comment(BaseModel):
                            backref='comments',
                            related_name='comments',
                            on_delete='CASCADE')
-    replied_comment = IntegerField(null=True)
+    replied_comment = ForeignKeyField('self', null=True)
     replied_to_user = IntegerField(null=True)
     date = DateTimeField(formats=['%Y-%m-%d %H:%M:%S'])
     text = TextField()
