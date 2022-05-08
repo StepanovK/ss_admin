@@ -1,7 +1,5 @@
 from peewee import *
-from base import BaseModel
-from Users import User
-from Posts import Post, PostHashtag
+from Posts import Post, PostsHashtag
 
 
 # https://peewee.readthedocs.io/en/latest/peewee/example.html
@@ -19,7 +17,7 @@ class SuggestedPost(Post):
         table_name = 'suggested_posts'
 
 
-class SuggestedPostHashtag(PostHashtag):
+class SuggestedPostHashtag(PostsHashtag):
 
     class Meta:
         table_name = 'suggested_posts_hashtags'

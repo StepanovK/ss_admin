@@ -2,7 +2,7 @@ from environs import Env
 import loguru
 
 logger = loguru.logger
-logger.add('Logs/bot_log.log', format='{time} {level} {message}', rotation='512 KB', compression='zip')
+logger.add('Logs/Models.log', format='{time} {level} {message}', rotation='512 KB', compression='zip')
 
 env = Env()
 env.read_env()

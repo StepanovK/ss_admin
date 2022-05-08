@@ -21,7 +21,7 @@ class CommentsAttachment(BaseModel):
         order_by = ['comment']
 
 
-class CommentLikes(BaseModel):
+class CommentsLike(BaseModel):
     comment = ForeignKeyField(Comment,
                               on_delete='CASCADE',
                               related_name='likes',
@@ -50,7 +50,7 @@ class PostsAttachment(BaseModel):
         order_by = ['post']
 
 
-class PostLikes(BaseModel):
+class PostsLike(BaseModel):
     post = ForeignKeyField(Post,
                            on_delete='CASCADE',
                            related_name='likes',
@@ -61,7 +61,7 @@ class PostLikes(BaseModel):
                            backref='liked_posts')
 
     class Meta:
-        table_name = 'posts_hashtags'
+        table_name = 'posts_likes'
 
 
 class SuggestedPostsAttachment(BaseModel):

@@ -17,7 +17,6 @@ class Post(BaseModel):
 
     class Meta:
         table_name = 'posts'
-        primary_key = 'id'
 
     def pars_wall_post(self, wall_post):
         pass
@@ -52,7 +51,7 @@ class Post(BaseModel):
         # # @logger.catch()
 
 
-class PostHashtag(BaseModel):
+class PostsHashtag(BaseModel):
     post = ForeignKeyField(Post,
                            on_delete='CASCADE',
                            related_name='hashtags',

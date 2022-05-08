@@ -14,4 +14,3 @@ class Attachment(BaseModel):
 
     class Meta:
         table_name = 'attachments'
-        primary_key = 'id'

@@ -22,7 +22,6 @@ class Comment(BaseModel):
 
     class Meta:
         table_name = 'comments'
-        primary_key = 'id'
         indexes = ['user', 'post']
         order_by = ['post', 'date']
 

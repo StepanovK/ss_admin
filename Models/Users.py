@@ -12,4 +12,3 @@ class User(BaseModel):
 
     class Meta:
         table_name = 'users'
-        primary_key = 'id'
