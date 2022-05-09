@@ -1,9 +1,9 @@
 from peewee import *
-from base import BaseModel
-from Attachments import Attachment
-from Posts import Post
-from SuggestedPosts import SuggestedPost
-from Comments import Comment
+from Models.base import BaseModel
+from Models.Attachments import Attachment
+from Models.Posts import Post
+from Models.SuggestedPosts import SuggestedPost
+from Models.Comments import Comment
 
 
 class CommentsAttachment(BaseModel):

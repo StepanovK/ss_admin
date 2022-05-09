@@ -1,5 +1,5 @@
 from peewee import *
-from Posts import Post, PostsHashtag
+from Models.Posts import Post, PostsHashtag
 
 
 # https://peewee.readthedocs.io/en/latest/peewee/example.html

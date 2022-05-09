@@ -1,7 +1,7 @@
 from peewee import *
-from base import BaseModel
-from Users import User
-from Posts import Post
+from Models.base import BaseModel
+from Models.Users import User
+from Models.Posts import Post
 
 
 class Comment(BaseModel):

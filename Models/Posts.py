@@ -1,6 +1,6 @@
 from peewee import *
-from base import BaseModel
-from Users import User
+from Models.base import BaseModel
+from Models.Users import User
 
 
 # https://peewee.readthedocs.io/en/latest/peewee/example.html
