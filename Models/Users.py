@@ -18,7 +18,7 @@ class User(BaseModel):
         table_name = 'users'
 
     @classmethod
-    def get_user(cls, vk_id: int, vk_connection=None):
+    def get_or_create_user(cls, vk_id: int, vk_connection=None):
         try:
             user = cls.get_by_id(vk_id)
         except User.DoesNotExist:

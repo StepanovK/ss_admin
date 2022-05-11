@@ -30,7 +30,7 @@ class Post(BaseModel):
     def pars_wall_post(self, wall_post, vk_connection):
         self.id = wall_post['id']
         self.text = wall_post['text']
-        self.user = User.get_user(wall_post['from_id'], vk_connection)
+        self.user = User.get_or_create_user(wall_post['from_id'], vk_connection)
         self.date = datetime.datetime.fromtimestamp(wall_post['date'])
         self.owner_id = str(wall_post['owner_id'])
 
