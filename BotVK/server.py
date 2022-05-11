@@ -10,7 +10,7 @@ from config import logger, config_db
 from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from Models.VK_Objects import User
+from Models.SuggestedPosts import SuggestedPost
 
 
 class Server:
@@ -44,7 +44,7 @@ class Server:
     def _connect_vk(self):
         try:
             self.vk_api = vk_api.VkApi(token=self.group_token)
-            self.vk = self.vk_api.get_api()
+            self.vk_connection = self.vk_api.get_api()
         except Exception as err:
             logger.error(f'Не удалось подключиться к ВК по причине: {err}')
 
@@ -59,7 +59,7 @@ class Server:
             data.unlink()
 
     def _start_polling(self):
-        if self.vk is None:
+        if self.vk_connection is None:
             self._connect_vk()
         self._longpoll = VkBotLongPoll(self.vk_api, self.group_id, )
 
@@ -68,15 +68,16 @@ class Server:
         for event in self._longpoll.listen():
 
             if event.type == VkBotEventType.WALL_POST_NEW:
-                pass
+                new_post = SuggestedPost()
+                new_post.pars_wall_post(event.object, self.vk_connection)
 
             self._clear_cache_dir()
 
     def run(self):
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        # try:
+        self._start_polling()
+        # except Exception as ex:
+        #     logger.error(ex)
 
     def run_in_loop(self):
         while True:
