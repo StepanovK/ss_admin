@@ -11,6 +11,7 @@ from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from Models.SuggestedPosts import SuggestedPost
+import vk_obj_parser
 
 
 class Server:
@@ -67,17 +68,19 @@ class Server:
 
         for event in self._longpoll.listen():
 
+            logger.info(f'Новое событие {event.type}')
             if event.type == VkBotEventType.WALL_POST_NEW:
                 new_post = SuggestedPost()
-                new_post.pars_wall_post(event.object, self.vk_connection)
+                vk_obj_parser.parse_wall_post(new_post, event.object, self.vk_connection)
+                logger.info(f'Добавлен пост в предложку {new_post}, вложений: {len(new_post.attachments)}')
 
             self._clear_cache_dir()
 
     def run(self):
-        # try:
-        self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        try:
+            self._start_polling()
+        except Exception as ex:
+            logger.error(ex)
 
     def run_in_loop(self):
         while True:

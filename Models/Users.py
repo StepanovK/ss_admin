@@ -6,12 +6,12 @@ import datetime
 
 class User(BaseModel):
     id = PrimaryKeyField()
-    first_name = CharField(default='', null=True)
-    last_name = CharField(default='', null=True)
-    city = CharField(default='', null=True)
+    first_name = CharField(100, default='', null=True)
+    last_name = CharField(100, default='', null=True)
+    city = CharField(100, default='', null=True)
     sex = CharField(10, null=True)
     birth_date = DateField(null=True)
-    domain = CharField(default='')
+    domain = CharField(100, default='')
     is_active = BooleanField(default=True)
 
     class Meta:
@@ -44,7 +44,8 @@ class User(BaseModel):
             'user_info_was_found': False
         }
         fields = 'id, first_name,last_name, photo_max, last_seen, domain, ' \
-                 'city, can_write_private_message, online, sex, bdate'
+                 'city, can_write_private_message, online, sex, bdate, ' \
+                 'photo_max_orig, photo_50'
         try:
             response = vk_connection.users.get(user_ids=user_id, fields=fields)
             if isinstance(response, list) and len(response) > 0:

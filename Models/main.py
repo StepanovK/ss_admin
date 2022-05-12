@@ -3,7 +3,7 @@ import psycopg2
 import psycopg2.extras
 from Models.config import logger
 from Models.base import db
-from Models.Attachments import Attachment
+from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Posts import Post, PostsHashtag
 from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike, SuggestedPostsAttachment
@@ -15,7 +15,7 @@ from Models.Users import User
 def create_all_tables():
     models = [
         User,
-        Attachment,
+        UploadedFile,
         Post,
         PostsHashtag,
         PostsAttachment,
