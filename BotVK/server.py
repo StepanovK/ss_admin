@@ -72,7 +72,8 @@ class Server:
             if event.type == VkBotEventType.WALL_POST_NEW:
                 new_post = SuggestedPost()
                 vk_obj_parser.parse_wall_post(new_post, event.object, self.vk_connection)
-                logger.info(f'Добавлен пост в предложку {new_post}, вложений: {len(new_post.attachments)}')
+                logger.info(
+                    f'Добавлен пост в предложку от {new_post.user} {new_post}, вложений: {len(new_post.attachments)}')
 
             self._clear_cache_dir()
 

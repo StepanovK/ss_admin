@@ -19,6 +19,9 @@ class UploadedFile(BaseModel):
     class Meta:
         table_name = 'uploaded_files'
 
+    def __str__(self):
+        return self.get_enum_format_name()
+
     def generate_file_name(self):
         self.file_name = self.get_enum_format_name()
 

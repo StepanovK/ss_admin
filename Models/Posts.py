@@ -18,6 +18,9 @@ class Post(BaseModel):
 
     vk_link = 'https://vk.com/'
 
+    def __str__(self):
+        return self.get_url()
+
     class Meta:
         table_name = 'posts'
 
