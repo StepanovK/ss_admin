@@ -46,7 +46,10 @@ def parse_wall_post(post: Union[Post, SuggestedPost], wall_post, vk_connection):
 def parse_vk_attachment(uploaded_file: UploadedFile, vk_attachment):
     attachment_type = vk_attachment.get('type')
     uploaded_file.type = attachment_type
-    if attachment_type == 'doc' and 'doc' in vk_attachment:
+    if attachment_type == 'audio' and 'audio' in vk_attachment:
+        audio_info = vk_attachment.get('audio')
+        parse_vk_audio_attachment(uploaded_file, audio_info)
+    elif attachment_type == 'doc' and 'doc' in vk_attachment:
         doc_info = vk_attachment.get('doc')
         parse_vk_doc_attachment(uploaded_file, doc_info)
     elif attachment_type == 'photo' and 'photo' in vk_attachment:
@@ -57,10 +60,20 @@ def parse_vk_attachment(uploaded_file: UploadedFile, vk_attachment):
         parse_vk_video_attachment(uploaded_file, video_info)
 
 
+def parse_vk_audio_attachment(uploaded_file: UploadedFile, vk_audio_info: dict):
+    uploaded_file.vk_id = vk_audio_info.get('id')
+    uploaded_file.date = datetime.datetime.fromtimestamp(vk_audio_info.get('date', 0))
+    uploaded_file.owner_id = vk_audio_info.get('owner_id', '')
+    title = vk_audio_info.get('title', '')
+    artist = vk_audio_info.get('artist', '')
+    uploaded_file.file_name = f'{artist} - {title}' if artist != '' else title
+    uploaded_file.url = vk_audio_info.get('track_code')
+
+
 def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
     uploaded_file.vk_id = vk_doc_info.get('id')
     uploaded_file.date = datetime.datetime.fromtimestamp(vk_doc_info.get('date', 0))
-    uploaded_file.access_key = vk_doc_info.get('access_key', '')
+    uploaded_file.access_key = vk_doc_info.get('access_key')
     uploaded_file.owner_id = vk_doc_info.get('owner_id', '')
     uploaded_file.file_name = vk_doc_info.get('title', '')
     uploaded_file.platform = vk_doc_info.get('ext')
@@ -76,7 +89,7 @@ def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
 def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
     uploaded_file.vk_id = vk_photo_info.get('id', 0)
     uploaded_file.date = datetime.datetime.fromtimestamp(vk_photo_info.get('date', 0))
-    uploaded_file.access_key = vk_photo_info.get('access_key', '')
+    uploaded_file.access_key = vk_photo_info.get('access_key')
     uploaded_file.owner_id = vk_photo_info.get('owner_id', '')
     uploaded_file.generate_file_name()
     sizes = vk_photo_info.get('sizes', [])
@@ -91,7 +104,7 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
 def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
     uploaded_file.vk_id = vk_video_info.get('id', 0)
     uploaded_file.date = datetime.datetime.fromtimestamp(vk_video_info.get('date', 0))
-    uploaded_file.access_key = vk_video_info.get('access_key', '')
+    uploaded_file.access_key = vk_video_info.get('access_key')
     uploaded_file.owner_id = vk_video_info.get('owner_id', '')
     uploaded_file.description = vk_video_info.get('description', '')
     uploaded_file.platform = vk_video_info.get('platform')
