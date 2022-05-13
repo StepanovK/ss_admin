@@ -46,12 +46,34 @@ def parse_wall_post(post: Union[Post, SuggestedPost], wall_post, vk_connection):
 def parse_vk_attachment(uploaded_file: UploadedFile, vk_attachment):
     attachment_type = vk_attachment.get('type')
     uploaded_file.type = attachment_type
-    if attachment_type == 'photo' and 'photo' in vk_attachment:
+    if attachment_type == 'doc' and 'doc' in vk_attachment:
+        doc_info = vk_attachment.get('doc')
+        parse_vk_doc_attachment(uploaded_file, doc_info)
+    elif attachment_type == 'photo' and 'photo' in vk_attachment:
         photo_info = vk_attachment.get('photo')
         parse_vk_photo_attachment(uploaded_file, photo_info)
+    elif attachment_type == 'video' and 'video' in vk_attachment:
+        video_info = vk_attachment.get('video')
+        parse_vk_video_attachment(uploaded_file, video_info)
 
 
-def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info):
+def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
+    uploaded_file.vk_id = vk_doc_info.get('id')
+    uploaded_file.date = datetime.datetime.fromtimestamp(vk_doc_info.get('date', 0))
+    uploaded_file.access_key = vk_doc_info.get('access_key', '')
+    uploaded_file.owner_id = vk_doc_info.get('owner_id', '')
+    uploaded_file.file_name = vk_doc_info.get('title', '')
+    uploaded_file.platform = vk_doc_info.get('ext')
+    uploaded_file.url = vk_doc_info.get('url')
+    previews = vk_doc_info.get('preview', {})
+    photos = previews.get('photo', {})
+    sizes = photos.get('sizes', [])
+    if len(sizes) > 0:
+        max_size = sizes[-1]
+        uploaded_file.preview_url = max_size.get('src', '')
+
+
+def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
     uploaded_file.vk_id = vk_photo_info.get('id', 0)
     uploaded_file.date = datetime.datetime.fromtimestamp(vk_photo_info.get('date', 0))
     uploaded_file.access_key = vk_photo_info.get('access_key', '')
@@ -60,10 +82,27 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info):
     sizes = vk_photo_info.get('sizes', [])
     if len(sizes) > 0:
         max_size = sizes[-1]
-        uploaded_file.url = max_size.get('url')
+        uploaded_file.url = max_size.get('url', '')
     if len(sizes) > 1:
         min_size = sizes[0]
-        uploaded_file.preview_url = min_size.get('url')
+        uploaded_file.preview_url = min_size.get('url', '')
+
+
+def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
+    uploaded_file.vk_id = vk_video_info.get('id', 0)
+    uploaded_file.date = datetime.datetime.fromtimestamp(vk_video_info.get('date', 0))
+    uploaded_file.access_key = vk_video_info.get('access_key', '')
+    uploaded_file.owner_id = vk_video_info.get('owner_id', '')
+    uploaded_file.description = vk_video_info.get('description', '')
+    uploaded_file.platform = vk_video_info.get('platform')
+    uploaded_file.file_name = vk_video_info.get('title', '')
+    uploaded_file.url = vk_video_info.get('track_code', '')
+    if uploaded_file.file_name == '':
+        uploaded_file.generate_file_name()
+    sizes = vk_video_info.get('image', [])
+    if len(sizes) > 0:
+        max_size = sizes[-1]
+        uploaded_file.preview_url = max_size.get('url', '')
 
 
 def get_or_create_user(vk_id: int, vk_connection=None):

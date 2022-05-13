@@ -75,13 +75,13 @@ class Server:
                 logger.info(
                     f'Добавлен пост в предложку от {new_post.user} {new_post}, вложений: {len(new_post.attachments)}')
 
-            self._clear_cache_dir()
+            # self._clear_cache_dir()
 
     def run(self):
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        # try:
+        self._start_polling()
+        # except Exception as ex:
+        #     logger.error(ex)
 
     def run_in_loop(self):
         while True:

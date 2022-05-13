@@ -15,6 +15,7 @@ class UploadedFile(BaseModel):
     date = DateTimeField(null=True)
     access_key = CharField(null=True)
     owner_id = CharField(50, default='')
+    platform = CharField(50, null=True)
 
     class Meta:
         table_name = 'uploaded_files'
