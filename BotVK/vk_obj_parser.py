@@ -7,6 +7,18 @@ import datetime
 from config import logger
 
 
+def add_post(owner_id: int, post_id: int, vk_connection):
+    found_post = None
+    if post_id is not None and int(post_id) != 0:
+        try:
+            posts = vk_connection.wall.getById(posts=Post.generate_id(owner_id, post_id))
+            for post in posts:
+                found_post = parse_wall_post(post)
+        except Exception as ex:
+            logger.error(f'Не удалось получить данные поста по причине: {ex}')
+    return found_post
+
+
 def parse_wall_post(wall_post: dict, vk_connection=None):
     post_attributes = get_wall_post_attributes(wall_post)
 
@@ -24,6 +36,8 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
     if post_attributes['user_id']:
         user = get_or_create_user(post_attributes['user_id'], vk_connection)
         post.user = user
+    else:
+        post.anonymously = True
 
     post.save()
 
@@ -153,6 +167,50 @@ def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
     if len(sizes) > 0:
         max_size = sizes[-1]
         uploaded_file.preview_url = max_size.get('url', '')
+
+
+def parse_like_add(action, vk_connection=None):
+    if action['object_type'] == 'post':
+        owner_id = action['object_owner_id']
+        object_id = action['object_id']
+        try:
+            liked_object = Post.get(owner_id=owner_id, vk_id=object_id)
+        except Post.DoesNotExist:
+            liked_object = add_post(owner_id, object_id, vk_connection)
+    # TODO Добавить лайки комментов
+    # elif action['object_type'] == 'comment':
+    #     try:
+    #         liked_object = Comm.get(owner_id=action['object_owner_id'], vk_id=action['object_id'])
+    #     except Post.DoesNotExist:
+    #         liked_object = None
+    else:
+        liked_object = None
+
+    if liked_object is not None:
+        user = get_or_create_user(action['liker_id'], vk_connection)
+        Relations.add_like(liked_object, user)
+
+
+def parse_like_remove(action, vk_connection=None):
+    if action['object_type'] == 'post':
+        owner_id = action['object_owner_id']
+        object_id = action['object_id']
+        try:
+            liked_object = Post.get(owner_id=owner_id, vk_id=object_id)
+        except Post.DoesNotExist:
+            liked_object = add_post(owner_id, object_id, vk_connection)
+    # TODO Добавить лайки комментов
+    # elif action['object_type'] == 'comment':
+    #     try:
+    #         liked_object = Comm.get(owner_id=action['object_owner_id'], vk_id=action['object_id'])
+    #     except Post.DoesNotExist:
+    #         liked_object = None
+    else:
+        liked_object = None
+
+    if liked_object is not None:
+        user = get_or_create_user(action['liker_id'], vk_connection)
+        Relations.remove_like(liked_object, user)
 
 
 def get_or_create_user(vk_id: int, vk_connection=None):
