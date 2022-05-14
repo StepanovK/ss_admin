@@ -12,7 +12,10 @@ def add_post(owner_id: int, post_id: int, vk_connection):
     if post_id is not None and int(post_id) != 0:
         try:
             posts = vk_connection.wall.getById(posts=Post.generate_id(owner_id, post_id))
-            for post in posts:
+            if len(posts) == 1:
+                post = posts[0]
+                likers = vk_connection.wall.getLikes(owner_id=owner_id, post_id=post_id, count=1000)
+                post['likers'] = likers.get('users', [])
                 found_post = parse_wall_post(post)
         except Exception as ex:
             logger.error(f'Не удалось получить данные поста по причине: {ex}')
@@ -42,6 +45,8 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
     post.save()
 
     parce_post_attachments(post, wall_post.get('attachments', []))
+
+    parce_post_likes(post, wall_post.get('likers', []), vk_connection)
 
     return post
 
@@ -85,6 +90,14 @@ def parce_post_attachments(post: Post, attachments: list):
                     media_file.user = post.user
                     media_file.save()
                 Relations.add_attachment(post, media_file)
+
+
+def parce_post_likes(post: Post, likers: list, vk_connection=None):
+    for liker in likers:
+        user_id = liker.get('uid')
+        if isinstance(user_id, int) and user_id > 0:
+            user = get_or_create_user(user_id, vk_connection)
+            Relations.add_like(post, user)
 
 
 def parse_vk_attachment(vk_attachment):

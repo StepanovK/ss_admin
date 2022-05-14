@@ -10,7 +10,6 @@ from config import logger, config_db
 from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from Models.Posts import Post
 import vk_obj_parser
 
 
