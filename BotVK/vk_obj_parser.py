@@ -1,69 +1,118 @@
+from Models.Admins import Admin
 from Models.Users import User
 from Models.UploadedFiles import UploadedFile
-from Models.Posts import Post
-from Models.SuggestedPosts import SuggestedPost
+from Models.Posts import Post, PostStatus
 import Models.Relations as Relations
-from typing import Union
 import datetime
 from config import logger
 
 
-def parse_wall_post(post: Union[Post, SuggestedPost], wall_post, vk_connection):
-    post.id = wall_post['id']
-    post.text = wall_post['text']
-    user = get_or_create_user(wall_post['from_id'], vk_connection)
-    post.user = user
-    post.date = datetime.datetime.fromtimestamp(wall_post['date'])
-    post.owner_id = str(wall_post['owner_id'])
+def parse_wall_post(wall_post: dict, vk_connection=None):
+    post_attributes = get_wall_post_attributes(wall_post)
 
-    post.save(force_insert=True)
+    post_id = Post.generate_id(vk_id=post_attributes['vk_id'], owner_id=post_attributes['owner_id'])
 
-    for attachment in wall_post.get('attachments', []):
+    post, post_created = Post.get_or_create(id=post_id)
+    post.vk_id = post_attributes['vk_id']
+    post.owner_id = post_attributes['owner_id']
+    post.text = post_attributes['text']
+    post.date = post_attributes['date']
+    post.marked_as_ads = post_attributes['marked_as_ads']
+    post.suggest_status = post_attributes['suggest_status']
+    post.posted_by = post_attributes['admin']
+
+    if post_attributes['user_id']:
+        user = get_or_create_user(post_attributes['user_id'], vk_connection)
+        post.user = user
+
+    post.save()
+
+    parce_post_attachments(post, wall_post.get('attachments', []))
+
+    return post
+
+
+def get_wall_post_attributes(wall_post: dict):
+    post_attributes = {
+        'vk_id': wall_post.get('id', 0),
+        'owner_id': str(wall_post.get('owner_id', '')),
+        'text': wall_post.get('text', ''),
+        'date': datetime.datetime.fromtimestamp(wall_post.get('date', 0)),
+        'marked_as_ads': bool(wall_post.get('marked_as_ads', False)),
+        'suggest_status': None,
+        'admin': None,
+        'user_id': None
+    }
+
+    suggest_status = PostStatus.SUGGESTED.value if wall_post.get('post_type', '') == 'suggest' else None
+    post_attributes['suggest_status'] = suggest_status
+
+    from_id = wall_post.get('from_id', 0)
+    post_attributes['user_id'] = from_id if isinstance(from_id, int) and from_id > 0 else None
+
+    signer_id = wall_post.get('signer_id', 0)
+    if post_attributes['user_id'] is None and isinstance(signer_id, int) and signer_id > 0:
+        post_attributes['user_id'] = signer_id
+
+    created_by = wall_post.get('created_by')
+    if suggest_status is None and isinstance(created_by, int) and created_by > 0:
+        post_attributes['admin'], _ = Admin.get_or_create(id=created_by, user=get_or_create_user(vk_id=created_by))
+
+    return post_attributes
+
+
+def parce_post_attachments(post: Post, attachments: list):
+    for attachment in attachments:
         attachment_type = attachment.get('type')
         if attachment_type in UploadedFile.available_types():
-            media_file = UploadedFile.create(user=user)
-            parse_vk_attachment(media_file, attachment)
-            media_file.save()
-
-            Relations.add_attachment(post, media_file)
-
-            # sizes = attachment.get('photo', {}).get('sizes', [])
-            # if len(sizes) > 0:
-            #     max_size = sizes[-1]
-            #     # try:
-            #     #     photo = download(max_size['url'], out=cache_dir)
-            #     #     photo = photo.replace('/', '\\')
-            #     # except Exception as _ex:
-            #     #     photo = None
-            #     #     # logger.error(f'Ошибка при загрузки фото: \n{attachment} \n{_ex}')
-            #     # if photo:
-            #     #     self.photo.append(photo)
-            #     #     # with open(photo, 'rb') as photo_file:
-            #     #     #     self.photo.append(photo_file)
-            #     #     # os.remove(photo)
+            media_file = parse_vk_attachment(attachment)
+            if media_file is not None:
+                if media_file.user is None:
+                    media_file.user = post.user
+                    media_file.save()
+                Relations.add_attachment(post, media_file)
 
 
-def parse_vk_attachment(uploaded_file: UploadedFile, vk_attachment):
+def parse_vk_attachment(vk_attachment):
     attachment_type = vk_attachment.get('type')
-    uploaded_file.type = attachment_type
     if attachment_type == 'audio' and 'audio' in vk_attachment:
-        audio_info = vk_attachment.get('audio')
-        parse_vk_audio_attachment(uploaded_file, audio_info)
+        vk_attachment_info = vk_attachment.get('audio')
+        parse_method = parse_vk_audio_attachment
     elif attachment_type == 'doc' and 'doc' in vk_attachment:
-        doc_info = vk_attachment.get('doc')
-        parse_vk_doc_attachment(uploaded_file, doc_info)
+        vk_attachment_info = vk_attachment.get('doc')
+        parse_method = parse_vk_doc_attachment
     elif attachment_type == 'photo' and 'photo' in vk_attachment:
-        photo_info = vk_attachment.get('photo')
-        parse_vk_photo_attachment(uploaded_file, photo_info)
+        vk_attachment_info = vk_attachment.get('photo')
+        parse_method = parse_vk_photo_attachment
     elif attachment_type == 'video' and 'video' in vk_attachment:
-        video_info = vk_attachment.get('video')
-        parse_vk_video_attachment(uploaded_file, video_info)
+        vk_attachment_info = vk_attachment.get('video')
+        parse_method = parse_vk_video_attachment
+    else:
+        logger.warning(f'Не удалось обработать вложение {attachment_type}')
+        return
+    main_attributes = get_main_attachment_attributes(vk_attachment_info)
+
+    uploaded_file, created = UploadedFile.get_or_create(type=attachment_type,
+                                                        vk_id=main_attributes['vk_id'],
+                                                        owner_id=main_attributes['owner_id'])
+    uploaded_file.date = main_attributes['date']
+    uploaded_file.access_key = main_attributes['access_key']
+    parse_method(uploaded_file, vk_attachment_info)
+    uploaded_file.save()
+    return uploaded_file
+
+
+def get_main_attachment_attributes(vk_attachment_info: dict):
+    attachment_attributes = {
+        'vk_id': vk_attachment_info.get('id'),
+        'date': datetime.datetime.fromtimestamp(vk_attachment_info.get('date', 0)),
+        'access_key': vk_attachment_info.get('access_key'),
+        'owner_id': vk_attachment_info.get('owner_id')
+    }
+    return attachment_attributes
 
 
 def parse_vk_audio_attachment(uploaded_file: UploadedFile, vk_audio_info: dict):
-    uploaded_file.vk_id = vk_audio_info.get('id')
-    uploaded_file.date = datetime.datetime.fromtimestamp(vk_audio_info.get('date', 0))
-    uploaded_file.owner_id = vk_audio_info.get('owner_id', '')
     title = vk_audio_info.get('title', '')
     artist = vk_audio_info.get('artist', '')
     uploaded_file.file_name = f'{artist} - {title}' if artist != '' else title
@@ -71,10 +120,6 @@ def parse_vk_audio_attachment(uploaded_file: UploadedFile, vk_audio_info: dict):
 
 
 def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
-    uploaded_file.vk_id = vk_doc_info.get('id')
-    uploaded_file.date = datetime.datetime.fromtimestamp(vk_doc_info.get('date', 0))
-    uploaded_file.access_key = vk_doc_info.get('access_key')
-    uploaded_file.owner_id = vk_doc_info.get('owner_id', '')
     uploaded_file.file_name = vk_doc_info.get('title', '')
     uploaded_file.platform = vk_doc_info.get('ext')
     uploaded_file.url = vk_doc_info.get('url')
@@ -87,10 +132,6 @@ def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
 
 
 def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
-    uploaded_file.vk_id = vk_photo_info.get('id', 0)
-    uploaded_file.date = datetime.datetime.fromtimestamp(vk_photo_info.get('date', 0))
-    uploaded_file.access_key = vk_photo_info.get('access_key')
-    uploaded_file.owner_id = vk_photo_info.get('owner_id', '')
     uploaded_file.generate_file_name()
     sizes = vk_photo_info.get('sizes', [])
     if len(sizes) > 0:
@@ -102,10 +143,6 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
 
 
 def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
-    uploaded_file.vk_id = vk_video_info.get('id', 0)
-    uploaded_file.date = datetime.datetime.fromtimestamp(vk_video_info.get('date', 0))
-    uploaded_file.access_key = vk_video_info.get('access_key')
-    uploaded_file.owner_id = vk_video_info.get('owner_id', '')
     uploaded_file.description = vk_video_info.get('description', '')
     uploaded_file.platform = vk_video_info.get('platform')
     uploaded_file.file_name = vk_video_info.get('title', '')

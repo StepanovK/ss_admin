@@ -14,7 +14,7 @@ class UploadedFile(BaseModel):
     user = ForeignKeyField(User, backref='uploaded_files', related_name='uploaded_files', null=True)
     date = DateTimeField(null=True)
     access_key = CharField(null=True)
-    owner_id = CharField(50, default='')
+    owner_id = CharField(50, null=True)
     platform = CharField(50, null=True)
 
     class Meta:

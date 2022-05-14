@@ -10,7 +10,7 @@ from config import logger, config_db
 from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from Models.SuggestedPosts import SuggestedPost
+from Models.Posts import Post
 import vk_obj_parser
 
 
@@ -70,10 +70,11 @@ class Server:
 
             logger.info(f'Новое событие {event.type}')
             if event.type == VkBotEventType.WALL_POST_NEW:
-                new_post = SuggestedPost()
-                vk_obj_parser.parse_wall_post(new_post, event.object, self.vk_connection)
-                logger.info(
-                    f'Добавлен пост в предложку от {new_post.user} {new_post}, вложений: {len(new_post.attachments)}')
+                new_post = vk_obj_parser.parse_wall_post(event.object, self.vk_connection)
+                str_from_user = '' if new_post.user is None else f'от {new_post.user} '
+                str_attachments = '' if len(new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
+                str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
+                logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
 
             # self._clear_cache_dir()
 

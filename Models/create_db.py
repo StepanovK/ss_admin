@@ -3,17 +3,18 @@ import psycopg2
 import psycopg2.extras
 from Models.config import logger
 from Models.base import db
+from Models.Admins import Admin
 from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Posts import Post, PostsHashtag
-from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike, SuggestedPostsAttachment
+from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike
 from Models.Subscriptions import Subscription
-from Models.SuggestedPosts import SuggestedPost
 from Models.Users import User
 
 
 def create_all_tables():
     models = [
+        Admin,
         User,
         UploadedFile,
         Post,
@@ -23,9 +24,7 @@ def create_all_tables():
         Comment,
         CommentsAttachment,
         CommentsLike,
-        Subscription,
-        SuggestedPost,
-        SuggestedPostsAttachment
+        Subscription
     ]
     with db:
         db.create_tables(models)
