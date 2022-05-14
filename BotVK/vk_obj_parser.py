@@ -2,9 +2,18 @@ from Models.Admins import Admin
 from Models.Users import User
 from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post, PostStatus
+from Models.Comments import Comment
 import Models.Relations as Relations
 import datetime
 from config import logger
+
+
+def get_post(owner_id, object_id, vk_connection):
+    try:
+        post = Post.get(owner_id=owner_id, vk_id=object_id)
+    except Post.DoesNotExist:
+        post = add_post(owner_id, object_id, vk_connection)
+    return post
 
 
 def add_post(owner_id: int, post_id: int, vk_connection):
@@ -182,14 +191,60 @@ def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
         uploaded_file.preview_url = max_size.get('url', '')
 
 
+def parse_comment(comment_obj: dict, vk_connection):
+    comment_attributes = get_comment_attributes(comment_obj)
+    post = get_post(comment_attributes['owner_id'], comment_attributes['post_id'], vk_connection)
+    comment, comment_created = Comment.get_or_create(post=post, vk_id=comment_attributes['vk_id'])
+    comment.owner_id = comment_attributes['owner_id']
+    comment.text = comment_attributes['text']
+    comment.date = comment_attributes['date']
+    # comment.replied_comment = post_attributes['marked_as_ads']
+
+    if comment_attributes['user_id']:
+        user = get_or_create_user(comment_attributes['user_id'], vk_connection)
+        comment.user = user
+
+    if comment_attributes['replied_to_user']:
+        replied_to_user = get_or_create_user(comment_attributes['replied_to_user'], vk_connection)
+        comment.replied_to_user = replied_to_user
+
+    comment.save()
+    #
+    # parce_post_attachments(post, wall_post.get('attachments', []))
+    #
+    # parce_post_likes(post, wall_post.get('likers', []), vk_connection)
+
+    return comment
+
+
+def get_comment_attributes(comment_obj: dict):
+    attributes = {
+        'vk_id': comment_obj.get('id', 0),
+        'owner_id': str(comment_obj.get('post_owner_id', 0)),
+        'post_id': str(comment_obj.get('post_id', 0)),
+        'text': comment_obj.get('text', ''),
+        'date': datetime.datetime.fromtimestamp(comment_obj.get('date', 0)),
+        'replied_comment': str(comment_obj.get('reply_to_comment', 0)),
+        'reply_to_user': str(comment_obj.get('reply_to_user', 0)),
+        'user_id': None,
+        'replied_to_user': None
+    }
+
+    from_id = comment_obj.get('from_id', 0)
+    attributes['user_id'] = from_id if isinstance(from_id, int) and from_id > 0 else None
+
+    replied_to_user = comment_obj.get('reply_to_user', 0)
+    attributes['replied_to_user'] = replied_to_user if isinstance(replied_to_user,
+                                                                  int) and replied_to_user > 0 else None
+
+    return attributes
+
+
 def parse_like_add(action, vk_connection=None):
     if action['object_type'] == 'post':
         owner_id = action['object_owner_id']
         object_id = action['object_id']
-        try:
-            liked_object = Post.get(owner_id=owner_id, vk_id=object_id)
-        except Post.DoesNotExist:
-            liked_object = add_post(owner_id, object_id, vk_connection)
+        liked_object = get_post(owner_id, object_id, vk_connection)
     # TODO Добавить лайки комментов
     # elif action['object_type'] == 'comment':
     #     try:

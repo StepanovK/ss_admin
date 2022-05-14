@@ -97,6 +97,8 @@ class Server:
                 vk_obj_parser.parse_like_add(event.object, self.vk_connection_admin)
             elif event.type == 'like_remove':
                 vk_obj_parser.parse_like_remove(event.object, self.vk_connection_admin)
+            elif event.type == VkBotEventType.WALL_REPLY_NEW:
+                vk_obj_parser.parse_comment(event.object, self.vk_connection_admin)
             # self._clear_cache_dir()
 
     def run(self):

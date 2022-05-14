@@ -5,23 +5,22 @@ from Models.Posts import Post
 
 
 class Comment(BaseModel):
-    id = IntegerField(primary_key=True)
-    user = ForeignKeyField(User,
-                           backref='comments',
-                           related_name='comments', )
-    group = IntegerField(null=True)
-    post = ForeignKeyField(Post,
-                           backref='comments',
-                           related_name='comments',
-                           on_delete='CASCADE')
+    id = PrimaryKeyField()
+    vk_id = IntegerField()
+    user = ForeignKeyField(User, backref='comments', null=True)
+    post = ForeignKeyField(Post, backref='comments', on_delete='CASCADE', null=True)
     replied_comment = ForeignKeyField('self', null=True)
-    replied_to_user = IntegerField(null=True)
-    date = DateTimeField(formats=['%Y-%m-%d %H:%M:%S'])
-    text = TextField()
-    is_deleted = BooleanField()
+    replied_to_user = ForeignKeyField(User, null=True)
+    date = DateTimeField(formats=['%Y-%m-%d %H:%M:%S'], null=True)
+    text = TextField(default='')
+    is_deleted = BooleanField(default=False)
 
     class Meta:
         table_name = 'comments'
-        indexes = ['user', 'post']
+        indexes = ['user', 'post', 'vk_id']
         order_by = ['post', 'date']
 
+    def get_url(self):
+        str_thread = '' if self.replied_comment is None else f'&thread={self.replied_comment.vk_id}'
+        url = f'{self.post}?reply={self.vk_id}{str_thread}'
+        return url
