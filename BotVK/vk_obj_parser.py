@@ -294,11 +294,13 @@ def parse_like_add(action, vk_connection=None):
         object_id = action['object_id']
         liked_object = get_post(owner_id, object_id, vk_connection)
     # TODO Добавить лайки комментов
-    # elif action['object_type'] == 'comment':
-    #     try:
-    #         liked_object = Comm.get(owner_id=action['object_owner_id'], vk_id=action['object_id'])
-    #     except Post.DoesNotExist:
-    #         liked_object = None
+    elif action['object_type'] == 'comment':
+        try:
+            liked_object = get_comment(owner_id=action['object_owner_id'],
+                                       object_id=action['object_id'],
+                                       vk_connection=vk_connection)
+        except Post.DoesNotExist:
+            liked_object = None
     else:
         liked_object = None
 
@@ -316,11 +318,13 @@ def parse_like_remove(action, vk_connection=None):
         except Post.DoesNotExist:
             liked_object = add_post(owner_id, object_id, vk_connection)
     # TODO Добавить лайки комментов
-    # elif action['object_type'] == 'comment':
-    #     try:
-    #         liked_object = Comm.get(owner_id=action['object_owner_id'], vk_id=action['object_id'])
-    #     except Post.DoesNotExist:
-    #         liked_object = None
+    elif action['object_type'] == 'comment':
+        try:
+            liked_object = get_comment(owner_id=action['object_owner_id'],
+                                       object_id=action['object_id'],
+                                       vk_connection=vk_connection)
+        except Post.DoesNotExist:
+            liked_object = None
     else:
         liked_object = None
 
