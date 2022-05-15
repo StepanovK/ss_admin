@@ -4,7 +4,7 @@ from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 
-from Parser import comments, likes, posts
+from Parser import comments, likes, posts, subscriptions
 
 
 class Server:
@@ -73,6 +73,11 @@ class Server:
                 comments.parse_delete_comment(event.object, self.vk_connection_admin)
             elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
                 comments.parse_restore_comment(event.object, self.vk_connection_admin)
+            elif event.type == VkBotEventType.GROUP_JOIN:
+                subscriptions.parse_subscription(event, self.vk_connection_admin, True)
+            elif event.type == VkBotEventType.GROUP_LEAVE:
+                subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+
 
     def run(self):
         # try:
