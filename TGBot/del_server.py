@@ -1,22 +1,38 @@
+import pathlib
+
+import telebot
+import os
 import config
-from config import logger
+
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+from config import logger, config_db
 from time import sleep
+from tempfile import TemporaryDirectory
+from pathlib import Path
 
-from Parser import comments, likes, posts
+from Parser import attachments, comments, likes, posts, users
 
 
 class Server:
     vk_link = 'https://vk.com/'
 
     def __init__(self,
+                 tg_token: str,
+                 tg_chat_id: int,
                  vk_group_token: str,
                  admin_token: str,
                  admin_phone: str,
                  admin_pass: str,
-                 vk_group_id: int
+                 vk_group_id: int,
+                 cache_dir: str = None
                  ):
+        self.cache_dir = cache_dir if cache_dir else get_cache_dir()
+        try:
+            os.chdir(self.cache_dir)
+        except FileNotFoundError:
+            self.cache_dir.mkdir()
+
         self.group_token = vk_group_token
         self.group_id = vk_group_id
         self.admin_token = admin_token
@@ -29,6 +45,11 @@ class Server:
         self._longpoll = None
         self._connect_vk()
         self._connect_vk_admin()
+
+        self.tg_token = tg_token
+        self.tg_chat_id = tg_chat_id
+        self.t_bot = None
+        self._connect_telegram()
 
     def _connect_vk(self):
         try:
@@ -46,6 +67,16 @@ class Server:
             self.vk_connection_admin = self.vk_api_admin.get_api()
         except Exception as err:
             logger.error(f'Не удалось подключиться к ВК под админом по причине: {err}')
+
+    def _connect_telegram(self):
+        try:
+            self.t_bot = telebot.TeleBot(self.tg_token, parse_mode='HTML')
+        except Exception as err:
+            logger.error(f'Не удалось подключиться к telegram по причине: {err}')
+
+    def _clear_cache_dir(self):
+        for data in self.cache_dir.iterdir():
+            data.unlink()
 
     def _start_polling(self):
         if self.vk_connection is None:
@@ -73,6 +104,7 @@ class Server:
                 comments.parse_delete_comment(event.object, self.vk_connection_admin)
             elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
                 comments.parse_restore_comment(event.object, self.vk_connection_admin)
+            # self._clear_cache_dir()
 
     def run(self):
         # try:
@@ -86,8 +118,21 @@ class Server:
             sleep(60)
 
 
+def get_cache_dir() -> pathlib.Path:
+    if os.name != "nt":
+        tmp_dir = TemporaryDirectory()
+        cache_dir = Path(tmp_dir.name)
+    else:
+        cache_dir = Path.cwd() / ".cache"
+    cache_dir = Path(cache_dir).absolute()
+
+    return cache_dir
+
+
 if __name__ == '__main__':
-    server = Server(vk_group_token=config.group_token,
+    server = Server(tg_token=config.telegram_bot_token,
+                    tg_chat_id=config.telegram_chat_id,
+                    vk_group_token=config.group_token,
                     admin_token=config.admin_token,
                     admin_phone=config.admin_phone,
                     admin_pass=config.admin_pass,
