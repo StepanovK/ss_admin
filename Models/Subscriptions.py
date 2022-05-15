@@ -4,7 +4,7 @@ from Models.Users import User
 
 
 class Subscription(BaseModel):
-    group = IntegerField(null=True)
+    group_id = IntegerField(null=True)
     user = ForeignKeyField(User, backref='subscriptions')
     date = DateTimeField(formats=['%Y-%m-%d'], null=True)
     is_subscribed = BooleanField(default=True)
@@ -14,4 +14,4 @@ class Subscription(BaseModel):
 
     def __str__(self):
         state = 'ПОДПИСАН' if self.is_subscribed else 'ОТПИСАН'
-        return f'{self.group} от {self.date} {state}'
+        return f'{self.date:%Y-%m-%d} {state} на {self.group_id} '
