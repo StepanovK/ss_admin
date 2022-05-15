@@ -8,7 +8,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Posts import Post, PostsHashtag
 from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike
-from Models.Subscribers import Subscriber
+from Models.Subscriptions import Subscription
 from Models.Users import User
 
 
@@ -24,7 +24,7 @@ def create_all_tables():
         Comment,
         CommentsAttachment,
         CommentsLike,
-        Subscriber
+        Subscription
     ]
     with db:
         db.create_tables(models)
