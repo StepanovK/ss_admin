@@ -6,6 +6,7 @@ from Models.Comments import Comment
 import Models.Relations as Relations
 import datetime
 from config import logger
+from typing import Union
 
 
 def get_post(owner_id, object_id, vk_connection):
@@ -19,15 +20,16 @@ def get_post(owner_id, object_id, vk_connection):
 def add_post(owner_id: int, post_id: int, vk_connection):
     found_post = None
     if post_id is not None and int(post_id) != 0:
+        full_id = Post.generate_id(owner_id, post_id)
         try:
-            posts = vk_connection.wall.getById(posts=Post.generate_id(owner_id, post_id))
+            posts = vk_connection.wall.getById(posts=full_id)
             if len(posts) == 1:
                 post = posts[0]
                 likers = vk_connection.wall.getLikes(owner_id=owner_id, post_id=post_id, count=1000)
                 post['likers'] = likers.get('users', [])
                 found_post = parse_wall_post(post)
         except Exception as ex:
-            logger.error(f'Не удалось получить данные поста по причине: {ex}')
+            logger.error(f'Не удалось получить данные поста {full_id} по причине: {ex}')
     return found_post
 
 
@@ -53,7 +55,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
 
     post.save()
 
-    parce_post_attachments(post, wall_post.get('attachments', []))
+    parce_added_attachments(post, wall_post.get('attachments', []))
 
     parce_post_likes(post, wall_post.get('likers', []), vk_connection)
 
@@ -89,24 +91,16 @@ def get_wall_post_attributes(wall_post: dict):
     return post_attributes
 
 
-def parce_post_attachments(post: Post, attachments: list):
+def parce_added_attachments(post_or_comment: Union[Post, Comment], attachments: list):
     for attachment in attachments:
         attachment_type = attachment.get('type')
         if attachment_type in UploadedFile.available_types():
             media_file = parse_vk_attachment(attachment)
             if media_file is not None:
                 if media_file.user is None:
-                    media_file.user = post.user
+                    media_file.user = post_or_comment.user
                     media_file.save()
-                Relations.add_attachment(post, media_file)
-
-
-def parce_post_likes(post: Post, likers: list, vk_connection=None):
-    for liker in likers:
-        user_id = liker.get('uid')
-        if isinstance(user_id, int) and user_id > 0:
-            user = get_or_create_user(user_id, vk_connection)
-            Relations.add_like(post, user)
+                Relations.add_attachment(post_or_comment, media_file)
 
 
 def parse_vk_attachment(vk_attachment):
@@ -191,44 +185,90 @@ def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
         uploaded_file.preview_url = max_size.get('url', '')
 
 
-def parse_comment(comment_obj: dict, vk_connection):
-    comment_attributes = get_comment_attributes(comment_obj)
-    post = get_post(comment_attributes['owner_id'], comment_attributes['post_id'], vk_connection)
-    comment, comment_created = Comment.get_or_create(post=post, vk_id=comment_attributes['vk_id'])
-    comment.owner_id = comment_attributes['owner_id']
-    comment.text = comment_attributes['text']
-    comment.date = comment_attributes['date']
-    # comment.replied_comment = post_attributes['marked_as_ads']
+def get_comment(owner_id, object_id, vk_connection):
+    try:
+        comment = Comment.get(owner_id=owner_id, vk_id=object_id)
+    except Comment.DoesNotExist:
+        comment = add_comment(owner_id, object_id, vk_connection)
+    return comment
 
-    if comment_attributes['user_id']:
-        user = get_or_create_user(comment_attributes['user_id'], vk_connection)
+
+def add_comment(owner_id: int, object_id: int, vk_connection):
+    found_comment = None
+    if object_id is not None and int(object_id) != 0:
+        try:
+            vk_objects = vk_connection.wall.getComment(owner_id=owner_id, comment_id=object_id)
+            items = vk_objects.get('items', [])
+            if len(items) == 1:
+                found_comment = parse_comment(items[0], vk_connection)
+        except Exception as ex:
+            logger.error(f'Не удалось получить данные комментария {object_id} по причине: {ex}')
+    return found_comment
+
+
+def parse_comment(comment_obj: dict, vk_connection):
+    comment_attr = get_comment_attributes(comment_obj)
+    post = get_post(comment_attr['owner_id'], comment_attr['post_id'], vk_connection)
+    comment, comment_created = Comment.get_or_create(post=post,
+                                                     owner_id=comment_attr['owner_id'],
+                                                     vk_id=comment_attr['vk_id'])
+    comment.text = comment_attr['text']
+    comment.date = comment_attr['date']
+
+    if comment_attr['user_id']:
+        user = get_or_create_user(comment_attr['user_id'], vk_connection)
         comment.user = user
 
-    if comment_attributes['replied_to_user']:
-        replied_to_user = get_or_create_user(comment_attributes['replied_to_user'], vk_connection)
+    if comment_attr['replied_comment']:
+        replied_comment = get_comment(comment_attr['owner_id'],
+                                      comment_attr['replied_comment'],
+                                      vk_connection)
+        comment.replied_comment = replied_comment
+
+    if comment_attr['replied_to_user']:
+        replied_to_user = get_or_create_user(comment_attr['replied_to_user'], vk_connection)
         comment.replied_to_user = replied_to_user
 
     comment.save()
-    #
-    # parce_post_attachments(post, wall_post.get('attachments', []))
-    #
-    # parce_post_likes(post, wall_post.get('likers', []), vk_connection)
+
+    parce_added_attachments(comment, comment_obj.get('attachments', []))
 
     return comment
+
+
+def parse_delete_comment(comment_obj: dict, vk_connection):
+    comment = get_comment(owner_id=comment_obj['owner_id'],
+                          object_id=comment_obj['id'],
+                          vk_connection=vk_connection)
+    if comment is not None:
+        comment.is_deleted = True
+        comment.save()
+
+
+def parse_restore_comment(comment_obj: dict, vk_connection):
+    comment = get_comment(owner_id=comment_obj['owner_id'],
+                          object_id=comment_obj['id'],
+                          vk_connection=vk_connection)
+    if comment is not None and comment.is_deleted:
+        comment.is_deleted = False
+        comment.save()
 
 
 def get_comment_attributes(comment_obj: dict):
     attributes = {
         'vk_id': comment_obj.get('id', 0),
-        'owner_id': str(comment_obj.get('post_owner_id', 0)),
-        'post_id': str(comment_obj.get('post_id', 0)),
+        'owner_id': comment_obj.get('post_owner_id', 0),
+        'post_id': comment_obj.get('post_id', 0),
         'text': comment_obj.get('text', ''),
         'date': datetime.datetime.fromtimestamp(comment_obj.get('date', 0)),
-        'replied_comment': str(comment_obj.get('reply_to_comment', 0)),
-        'reply_to_user': str(comment_obj.get('reply_to_user', 0)),
+        'replied_comment': comment_obj.get('reply_to_comment', 0),
+        'reply_to_user': comment_obj.get('reply_to_user', 0),
         'user_id': None,
         'replied_to_user': None
     }
+
+    if attributes['owner_id'] == 0:
+        attributes['owner_id'] = comment_obj.get('owner_id', 0)
 
     from_id = comment_obj.get('from_id', 0)
     attributes['user_id'] = from_id if isinstance(from_id, int) and from_id > 0 else None
@@ -238,6 +278,14 @@ def get_comment_attributes(comment_obj: dict):
                                                                   int) and replied_to_user > 0 else None
 
     return attributes
+
+
+def parce_post_likes(post: Post, likers: list, vk_connection=None):
+    for liker in likers:
+        user_id = liker.get('uid')
+        if isinstance(user_id, int) and user_id > 0:
+            user = get_or_create_user(user_id, vk_connection)
+            Relations.add_like(post, user)
 
 
 def parse_like_add(action, vk_connection=None):
