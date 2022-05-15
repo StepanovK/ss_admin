@@ -78,7 +78,6 @@ class Server:
             elif event.type == VkBotEventType.GROUP_LEAVE:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
 
-
     def run(self):
         # try:
         self._start_polling()

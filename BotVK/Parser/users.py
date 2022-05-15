@@ -15,7 +15,7 @@ def get_or_create_user(vk_id: int, vk_connection=None):
     return user
 
 
-def vk_get_user_info(user_id: int, vk_connection):
+def vk_get_user_info(user_id: int, vk_connection, loaded_info: dict = None):
     user_info = {
         'id': user_id,
         'first_name': '',
@@ -32,9 +32,13 @@ def vk_get_user_info(user_id: int, vk_connection):
              'city, can_write_private_message, online, sex, bdate, ' \
              'photo_max_orig, photo_50'
     try:
-        response = vk_connection.users.get(user_ids=user_id, fields=fields)
-        if isinstance(response, list) and len(response) > 0:
-            user_info.update(response[0])
+        if loaded_info is None:
+            response = vk_connection.users.get(user_ids=user_id, fields=fields)
+            if isinstance(response, list) and len(response) > 0:
+                loaded_info = response[0]
+
+        if loaded_info is not None:
+            user_info.update(loaded_info)
             city = user_info['city']
             user_info['city'] = city.get('title', '') if isinstance(city, dict) else str(city)
             sex = user_info.get('sex', 0)
@@ -47,15 +51,15 @@ def vk_get_user_info(user_id: int, vk_connection):
                     user_info['birth_date'] = datetime.date(int(time_parts[2]), int(time_parts[1]),
                                                             int(time_parts[0]))
                 elif len(time_parts) == 2:
-                    user_info['birth_date'] = datetime.date(1900, int(time_parts[1]), int(time_parts[0]))
+                    user_info['birth_date'] = datetime.date(1904, int(time_parts[1]), int(time_parts[0]))
 
     except Exception as ex:
         logger.error(f"Ошибка получения информации о пользователе id{user_id}: {ex}")
     return user_info
 
 
-def update_user_info_from_vk(user: User, vk_id: int, vk_connection):
-    user_info = vk_get_user_info(vk_id, vk_connection)
+def update_user_info_from_vk(user: User, vk_id: int, vk_connection, loaded_info: dict = None ):
+    user_info = vk_get_user_info(vk_id, vk_connection, loaded_info)
     if user_info.get('user_info_was_found', False):
         user.first_name = user_info.get('first_name')
         user.last_name = user_info.get('last_name')
@@ -64,3 +68,4 @@ def update_user_info_from_vk(user: User, vk_id: int, vk_connection):
         user.sex = user_info.get('sex', '')
         user.is_active = user_info.get('deactivated') is None
         user.domain = user_info.get('domain', '')
+
