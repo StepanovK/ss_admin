@@ -1,10 +1,10 @@
-import config
-from config import logger
+import BotVK.config as config
+from BotVK.config import logger
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 
-from Parser import comments, likes, posts, subscriptions
+from BotVK.Parser import comments, likes, posts, subscriptions
 
 
 class Server:

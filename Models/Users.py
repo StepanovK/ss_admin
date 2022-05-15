@@ -1,6 +1,6 @@
 from peewee import *
 from Models.base import BaseModel
-from config import logger
+from BotVK.config import logger
 import datetime
 
 
