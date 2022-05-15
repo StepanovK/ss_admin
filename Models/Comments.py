@@ -27,4 +27,4 @@ class Comment(BaseModel):
         return url
 
     def __str__(self):
-        return self.vk_id
+        return str(self.vk_id)
