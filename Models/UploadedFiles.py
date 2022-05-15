@@ -31,4 +31,4 @@ class UploadedFile(BaseModel):
 
     @staticmethod
     def available_types():
-        return ['photo', 'video', 'audio', 'doc', 'page']
+        return ['photo', 'video', 'audio', 'doc', 'page', 'poll']

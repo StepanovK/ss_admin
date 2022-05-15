@@ -5,6 +5,7 @@ import Models.Relations as Relations
 from BotVK.config import logger
 from typing import Union
 import datetime
+import json
 
 
 def parce_added_attachments(post_or_comment: Union[Post, Comment], attachments: list):
@@ -33,6 +34,9 @@ def parse_vk_attachment(vk_attachment):
     elif attachment_type == 'video' and 'video' in vk_attachment:
         vk_attachment_info = vk_attachment.get('video')
         parse_method = parse_vk_video_attachment
+    elif attachment_type == 'poll' and 'poll' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('poll')
+        parse_method = parse_vk_poll_attachment
     else:
         logger.warning(f'Не удалось обработать вложение {attachment_type}')
         return
@@ -86,6 +90,21 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
     if len(sizes) > 1:
         min_size = sizes[0]
         uploaded_file.preview_url = min_size.get('url', '')
+
+
+def parse_vk_poll_attachment(uploaded_file: UploadedFile, vk_poll_info: dict):
+    question = vk_poll_info.get('question')
+    answers = []
+    for answer in vk_poll_info.get('answers', []):
+        answers.append(answer.get('text', ''))
+    str_answers = '; '.join(answers)
+    uploaded_file.file_name = f'{question} ({str_answers})'
+    uploaded_file.description = json.dumps(vk_poll_info)
+
+    images = vk_poll_info.get('photo', {}).get('images', [])
+    if len(images) > 0:
+        max_size = images[-1]
+        uploaded_file.preview_url = max_size.get('url', '')
 
 
 def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
