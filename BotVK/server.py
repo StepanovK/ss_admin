@@ -10,7 +10,8 @@ from config import logger, config_db
 from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
-import vk_obj_parser
+
+from Parser import attachments, comments, likes, posts, users
 
 
 class Server:
@@ -88,21 +89,21 @@ class Server:
 
             logger.info(f'Новое событие {event.type}')
             if event.type == VkBotEventType.WALL_POST_NEW:
-                new_post = vk_obj_parser.parse_wall_post(event.object, self.vk_connection_admin)
+                new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
                 str_from_user = '' if new_post.user is None else f'от {new_post.user} '
                 str_attachments = '' if len(new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
                 str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
                 logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
             elif event.type == 'like_add':
-                vk_obj_parser.parse_like_add(event.object, self.vk_connection_admin)
+                likes.parse_like_add(event.object, self.vk_connection_admin)
             elif event.type == 'like_remove':
-                vk_obj_parser.parse_like_remove(event.object, self.vk_connection_admin)
+                likes.parse_like_remove(event.object, self.vk_connection_admin)
             elif event.type == VkBotEventType.WALL_REPLY_NEW:
-                vk_obj_parser.parse_comment(event.object, self.vk_connection_admin)
+                comments.parse_comment(event.object, self.vk_connection_admin)
             elif event.type == VkBotEventType.WALL_REPLY_DELETE:
-                vk_obj_parser.parse_delete_comment(event.object, self.vk_connection_admin)
+                comments.parse_delete_comment(event.object, self.vk_connection_admin)
             elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
-                vk_obj_parser.parse_restore_comment(event.object, self.vk_connection_admin)
+                comments.parse_restore_comment(event.object, self.vk_connection_admin)
             # self._clear_cache_dir()
 
     def run(self):
