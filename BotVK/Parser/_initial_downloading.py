@@ -4,9 +4,12 @@ from BotVK import config
 import datetime
 
 from BotVK.Parser import subscriptions
+from BotVK.Parser import posts
 from BotVK.Parser import users
 from BotVK.config import logger
 from Models.Users import User
+
+temp_file_name = 'current_offset_of_posts.tmp'
 
 
 def load_all(vk_connection, group_id):
@@ -39,7 +42,39 @@ def load_subscribers(vk_connection, group_id):
 
 
 def load_posts(vk_connection, group_id):
-    pass
+    offset = get_current_offset_of_posts()
+    while True:
+        logger.info(f'offset={offset}')
+        vk_posts = vk_connection.wall.get(owner_id=-group_id, offset=offset, count=100)['items']
+        if len(vk_posts) == 0:
+            break
+        for vk_post in vk_posts:
+            likers = vk_connection.wall.getLikes(owner_id=-group_id, post_id=vk_post['id'], count=1000)
+            vk_post['likers'] = likers.get('users', [])
+            found_post = posts.parse_wall_post(vk_post)
+
+
+        offset += 100
+        update_current_offset_of_posts(offset)
+
+
+
+def update_current_offset_of_posts(offset):
+    with open(temp_file_name, 'w') as tmp_file:
+        tmp_file.write(str(offset))
+        tmp_file.close()
+
+
+def get_current_offset_of_posts():
+    offset = 0
+    try:
+        with open(temp_file_name, 'r') as tmp_file:
+            str_offset = tmp_file.read()
+            offset = 0 if str_offset == '' else int(str_offset)
+            tmp_file.close()
+    except FileNotFoundError:
+        pass
+    return offset
 
 
 if __name__ == '__main__':
