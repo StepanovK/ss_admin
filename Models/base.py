@@ -2,7 +2,7 @@ from peewee import *
 import BotVK.config as config
 
 db = PostgresqlDatabase(database=config.db_name, user=config.db_user, password=config.db_password,
-                             host=config.db_host, port=config.db_port)
+                        host=config.db_host, port=config.db_port)
 
 
 class BaseModel(Model):
