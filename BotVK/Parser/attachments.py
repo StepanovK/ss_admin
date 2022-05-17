@@ -1,5 +1,5 @@
 from Models.UploadedFiles import UploadedFile
-from Models.Posts import Post, PostStatus
+from Models.Posts import Post
 from Models.Comments import Comment
 import Models.Relations as Relations
 from BotVK.config import logger

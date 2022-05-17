@@ -5,10 +5,6 @@ from Models.Admins import Admin
 import enum
 
 
-# https://peewee.readthedocs.io/en/latest/peewee/example.html
-# https://www.youtube.com/watch?v=YyOvitek6H8
-
-
 class Post(BaseModel):
     id = CharField(100, primary_key=True)
     vk_id = IntegerField(null=True)

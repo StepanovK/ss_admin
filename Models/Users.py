@@ -1,7 +1,5 @@
 from peewee import *
 from Models.base import BaseModel
-from BotVK.config import logger
-import datetime
 
 
 class User(BaseModel):
