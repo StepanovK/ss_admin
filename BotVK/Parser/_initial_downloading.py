@@ -15,13 +15,13 @@ temp_file_name = 'current_offset_of_posts.tmp'
 
 
 def load_all(vk_connection, group_id):
-    logger.info('Загрузка подписчиков начата')
-    load_subscribers(vk_connection, group_id)
-    logger.info('Загрузка подписчиков завершена')
-
-    logger.info('Загрузка постов начата')
-    load_posts(vk_connection, group_id)
-    logger.info('Загрузка постов завершена')
+    # logger.info('Загрузка подписчиков начата')
+    # load_subscribers(vk_connection, group_id)
+    # logger.info('Загрузка подписчиков завершена')
+    #
+    # logger.info('Загрузка постов начата')
+    # load_posts(vk_connection, group_id)
+    # logger.info('Загрузка постов завершена')
 
     logger.info('Загрузка комментариев начата')
     load_comments(vk_connection, group_id)
@@ -51,7 +51,8 @@ def users_fields():
 def load_posts(vk_connection, group_id):
     offset = get_current_offset_of_posts()
     while True:
-        logger.info(f'offset={offset}')
+        if offset != 0:
+            logger.info(f'Загрузка постов начата со смещением = {offset}')
         vk_posts = vk_connection.wall.get(owner_id=-group_id,
                                           offset=offset,
                                           count=100)['items']
@@ -70,7 +71,7 @@ def load_posts(vk_connection, group_id):
 def load_comments(vk_connection, group_id):
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
-                                    Post.owner_id == str(-group_id)).order_by(Post.vk_id):
+                                    Post.owner_id == -group_id).order_by(Post.vk_id):
         offset = 0
         count = 0
         while True:
@@ -81,12 +82,16 @@ def load_comments(vk_connection, group_id):
                                                          offset=offset,
                                                          sort='asc',
                                                          extended=1,
-                                                         fields=users_fields())
+                                                         fields=users_fields(),
+                                                         thread_items_count=10)
             for user_info in vk_comments['profiles']:
                 user = add_user_by_info(vk_connection, user_info)
             for vk_comment in vk_comments['items']:
                 comment = comments.parse_comment(vk_comment, vk_connection)
                 count += 1
+                for vk_comment_in_thread in vk_comment.get('thread', {}).get('items', []):
+                    comment_in_thread = comments.parse_comment(vk_comment_in_thread, vk_connection)
+                    count += 1
             offset += count_for_get
             if vk_comments['count'] < count_for_get:
                 break
