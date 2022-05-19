@@ -15,13 +15,13 @@ temp_file_name = 'current_offset_of_posts.tmp'
 
 
 def load_all(vk_connection, group_id):
-    # logger.info('Загрузка подписчиков начата')
-    # load_subscribers(vk_connection, group_id)
-    # logger.info('Загрузка подписчиков завершена')
-    #
-    # logger.info('Загрузка постов начата')
-    # load_posts(vk_connection, group_id)
-    # logger.info('Загрузка постов завершена')
+    logger.info('Загрузка подписчиков начата')
+    load_subscribers(vk_connection, group_id)
+    logger.info('Загрузка подписчиков завершена')
+
+    logger.info('Загрузка постов начата')
+    load_posts(vk_connection, group_id)
+    logger.info('Загрузка постов завершена')
 
     logger.info('Загрузка комментариев начата')
     load_comments(vk_connection, group_id)
