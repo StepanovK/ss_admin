@@ -27,6 +27,7 @@ class Post(BaseModel):
     class Meta:
         table_name = 'posts'
         indexes = ['vk_id', 'owner_id', 'user']
+        order_by = ['date']
 
     def get_url(self):
         url = f'{self.VK_LINK}wall{self.id}'
