@@ -66,7 +66,7 @@ def parse_vk_audio_attachment(uploaded_file: UploadedFile, vk_audio_info: dict):
     title = vk_audio_info.get('title', '')
     artist = vk_audio_info.get('artist', '')
     uploaded_file.file_name = f'{artist} - {title}' if artist != '' else title
-    uploaded_file.url = vk_audio_info.get('track_code')
+    uploaded_file.url = vk_audio_info.get('track_code', '')
 
 
 def parse_vk_doc_attachment(uploaded_file: UploadedFile, vk_doc_info: dict):
