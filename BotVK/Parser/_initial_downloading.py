@@ -74,24 +74,34 @@ def load_comments(vk_connection, group_id):
                                     Post.owner_id == -group_id).order_by(Post.vk_id):
         offset = 0
         count = 0
+        params = {'owner_id': -group_id,
+                  'post_id': post.vk_id,
+                  'need_likes': 1,
+                  'count': count_for_get,
+                  'sort': 'asc',
+                  'extended': 1,
+                  'fields': users_fields(),
+                  'thread_items_count': 10}
         while True:
-            vk_comments = vk_connection.wall.getComments(owner_id=-group_id,
-                                                         post_id=post.vk_id,
-                                                         need_likes=1,
-                                                         count=count_for_get,
-                                                         offset=offset,
-                                                         sort='asc',
-                                                         extended=1,
-                                                         fields=users_fields(),
-                                                         thread_items_count=10)
+            vk_comments = vk_connection.wall.getComments(offset=offset, **params)
             for user_info in vk_comments['profiles']:
                 user = add_user_by_info(vk_connection, user_info)
             for vk_comment in vk_comments['items']:
                 comment = comments.parse_comment(vk_comment, vk_connection)
                 count += 1
-                for vk_comment_in_thread in vk_comment.get('thread', {}).get('items', []):
+
+                thread = vk_comment.get('thread', {})
+                comments_in_thread = []
+                if 1 < thread.get('count', 0) < 10:
+                    comments_in_thread = thread.get('items', [])
+                elif thread.get('count', 0) > 10:
+                    vk_comment_with_thread = vk_connection.wall.getComments(comment_id=vk_comment['id'], **params)
+                    comments_in_thread = vk_comment_with_thread.get('items', [])
+
+                for vk_comment_in_thread in comments_in_thread:
                     comment_in_thread = comments.parse_comment(vk_comment_in_thread, vk_connection)
                     count += 1
+
             offset += count_for_get
             if vk_comments['count'] < count_for_get:
                 break
