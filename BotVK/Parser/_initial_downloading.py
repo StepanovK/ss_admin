@@ -52,13 +52,16 @@ def load_posts(vk_connection, group_id):
     offset = get_current_offset_of_posts()
     while True:
         logger.info(f'offset={offset}')
-        vk_posts = vk_connection.wall.get(owner_id=-group_id, offset=offset, count=100)['items']
+        vk_posts = vk_connection.wall.get(owner_id=-group_id,
+                                          offset=offset,
+                                          count=100)['items']
         if len(vk_posts) == 0:
             break
         for vk_post in vk_posts:
             likers = vk_connection.wall.getLikes(owner_id=-group_id, post_id=vk_post['id'], count=1000)
             vk_post['likers'] = likers.get('users', [])
-            found_post = posts.parse_wall_post(vk_post)
+            post = posts.parse_wall_post(vk_post)
+            print(f'Загружен пост {post}')
 
         offset += 100
         update_current_offset_of_posts(offset)
@@ -68,8 +71,8 @@ def load_comments(vk_connection, group_id):
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
                                     Post.owner_id == str(-group_id)).order_by(Post.vk_id):
-        print(post)
         offset = 0
+        count = 0
         while True:
             vk_comments = vk_connection.wall.getComments(owner_id=-group_id,
                                                          post_id=post.vk_id,
@@ -83,9 +86,13 @@ def load_comments(vk_connection, group_id):
                 user = add_user_by_info(vk_connection, user_info)
             for vk_comment in vk_comments['items']:
                 comment = comments.parse_comment(vk_comment, vk_connection)
+                count += 1
             offset += count_for_get
             if vk_comments['count'] < count_for_get:
                 break
+
+        if count > 0:
+            print(f'Загружено {count} комментов {post}')
 
 
 def add_user_by_info(vk_connection, user_info):
