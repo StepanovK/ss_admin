@@ -63,7 +63,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
 def get_wall_post_attributes(wall_post: dict):
     post_attributes = {
         'vk_id': wall_post.get('id', 0),
-        'owner_id': str(wall_post.get('owner_id', '')),
+        'owner_id': wall_post.get('owner_id'),
         'text': wall_post.get('text', ''),
         'date': datetime.datetime.fromtimestamp(wall_post.get('date', 0)),
         'marked_as_ads': bool(wall_post.get('marked_as_ads', False)),
