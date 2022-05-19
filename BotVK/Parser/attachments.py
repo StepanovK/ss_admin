@@ -93,12 +93,7 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
 
 
 def parse_vk_poll_attachment(uploaded_file: UploadedFile, vk_poll_info: dict):
-    question = vk_poll_info.get('question')
-    answers = []
-    for answer in vk_poll_info.get('answers', []):
-        answers.append(answer.get('text', ''))
-    str_answers = '; '.join(answers)
-    uploaded_file.file_name = f'{question} ({str_answers})'
+    uploaded_file.file_name = get_file_name_for_poll_object(vk_poll_info)
     uploaded_file.description = json.dumps(vk_poll_info)
 
     images = vk_poll_info.get('photo', {}).get('images', [])
@@ -118,3 +113,26 @@ def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
     if len(sizes) > 0:
         max_size = sizes[-1]
         uploaded_file.preview_url = max_size.get('url', '')
+
+
+def get_file_name_for_poll_object(vk_poll_info):
+    """
+    Метод возвращает имя в виде "Вопрос (Ответ1, Ответ2,.... ОтветН)", обрезая ответы так,
+     чтобы влезло в длину имени файла (255 символов)
+    :param vk_poll_info:
+    :return:
+    """
+    free_length = 255
+    question = vk_poll_info.get('question')
+    free_length -= len(question)
+    answers = []
+    for answer in vk_poll_info.get('answers', []):
+        answers.append(answer.get('text', ''))
+    answers_separator = '; '
+    free_length_for_answers = free_length - 3 + len(answers_separator)  # - пробел и две скобки + лишний разделитель
+    free_length_for_answer = free_length_for_answers // len(answers) if len(answers) > 0 else 0
+    for i in range(len(answers)):
+        answers[i] = answers[i][0:free_length_for_answer - len(answers_separator)]
+    str_answers = answers_separator.join(answers)
+    file_name = f'{question} ({str_answers})'
+    return file_name
