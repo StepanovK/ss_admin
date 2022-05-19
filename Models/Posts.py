@@ -9,7 +9,7 @@ class Post(BaseModel):
     id = CharField(100, primary_key=True)
     vk_id = IntegerField(null=True)
     user = ForeignKeyField(User, on_delete='CASCADE', index=True, backref='posts', null=True)
-    owner_id = IntegerField(30, null=True)
+    owner_id = IntegerField(null=True)
     date = DateTimeField(formats=['%Y-%m-%d %H:%M:%S'], null=True)
     text = TextField(default='')
     marked_as_ads = BooleanField(default=False)
