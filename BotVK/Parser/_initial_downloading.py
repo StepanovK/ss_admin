@@ -13,13 +13,13 @@ from Models.Posts import Post
 
 
 def load_all(vk_connection, group_id):
-    logger.info('Загрузка подписчиков начата')
-    load_subscribers(vk_connection, group_id)
-    logger.info('Загрузка подписчиков завершена')
-
-    logger.info('Загрузка постов начата')
-    load_posts(vk_connection, group_id)
-    logger.info('Загрузка постов завершена')
+    # logger.info('Загрузка подписчиков начата')
+    # load_subscribers(vk_connection, group_id)
+    # logger.info('Загрузка подписчиков завершена')
+    #
+    # logger.info('Загрузка постов начата')
+    # load_posts(vk_connection, group_id)
+    # logger.info('Загрузка постов завершена')
 
     logger.info('Загрузка комментариев начата')
     load_comments(vk_connection, group_id)
@@ -109,7 +109,7 @@ def load_comments(vk_connection, group_id):
                     count += 1
 
             offset += count_for_get
-            if vk_comments['count'] < count_for_get:
+            if len(vk_comments['items']) < count_for_get:
                 break
 
         if count > 0:
