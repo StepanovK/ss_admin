@@ -11,8 +11,6 @@ from BotVK.config import logger
 from Models.Users import User
 from Models.Posts import Post
 
-temp_file_name = 'current_offset_of_posts.tmp'
-
 
 def load_all(vk_connection, group_id):
     logger.info('Загрузка подписчиков начата')
@@ -49,7 +47,9 @@ def users_fields():
 
 
 def load_posts(vk_connection, group_id):
-    offset = get_current_offset_of_posts()
+    temp_file_name = 'current_offset_of_posts.tmp'
+
+    offset = get_current_offset_in_file(temp_file_name)
     while True:
         if offset != 0:
             logger.info(f'Загрузка постов начата со смещением = {offset}')
@@ -65,13 +65,19 @@ def load_posts(vk_connection, group_id):
             print(f'Загружен пост {post}')
 
         offset += 100
-        update_current_offset_of_posts(offset)
+        update_current_offset_in_file(offset, temp_file_name)
 
 
 def load_comments(vk_connection, group_id):
+    temp_file_name = 'current_offset_of_posts_for_comments.tmp'
+    post_offset = get_current_offset_in_file(temp_file_name)
+    if post_offset != 0:
+        logger.info(f'Загрузка комментов начата с поста с id={post_offset}')
+
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
-                                    Post.owner_id == -group_id).order_by(Post.vk_id):
+                                    Post.owner_id == -group_id,
+                                    Post.vk_id > post_offset).order_by(Post.vk_id):
         offset = 0
         count = 0
         params = {'owner_id': -group_id,
@@ -108,6 +114,7 @@ def load_comments(vk_connection, group_id):
 
         if count > 0:
             print(f'Загружено {count} комментов {post}')
+            update_current_offset_in_file(post.vk_id, temp_file_name)
 
 
 def add_user_by_info(vk_connection, user_info):
@@ -118,13 +125,13 @@ def add_user_by_info(vk_connection, user_info):
     return user
 
 
-def update_current_offset_of_posts(offset):
+def update_current_offset_in_file(offset, temp_file_name):
     with open(temp_file_name, 'w') as tmp_file:
         tmp_file.write(str(offset))
         tmp_file.close()
 
 
-def get_current_offset_of_posts():
+def get_current_offset_in_file(temp_file_name):
     offset = 0
     try:
         with open(temp_file_name, 'r') as tmp_file:
