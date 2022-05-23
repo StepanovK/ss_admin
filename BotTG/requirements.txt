@@ -1,0 +1,5 @@
+loguru
+environs
+pyTelegramBotAPI
+wget==3.2
+schedule

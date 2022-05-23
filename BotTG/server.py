@@ -10,6 +10,11 @@ from time import sleep
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
+from Models.Posts import Post, PostStatus
+
+from threading import Thread
+import schedule
+
 
 class TgServer:
     def __init__(self,
@@ -28,6 +33,9 @@ class TgServer:
         self.t_bot = None
         self._connect_telegram()
 
+        # TODO: переписать получение новых постов на kafka
+        self.tmp_alarmed_posts = []
+
     def _connect_telegram(self):
         try:
             self.t_bot = telebot.TeleBot(self.tg_token, parse_mode='HTML')
@@ -39,21 +47,54 @@ class TgServer:
             data.unlink()
 
     def _start_polling(self):
+        logger.info(f'Обработка событий ТГ начата')
+
         for event in self.t_bot.get_updates():
             pass
 
-            # self._clear_cache_dir()
+    def _start_vk_event_detector(self):
+        schedule.clear()
+        schedule.every(10).seconds.do(self._check_new_vk_events)
+        while True:
+            try:
+                schedule.run_pending()
+            except Exception as err:
+                logger.error(f'Не удалось выполнить получение новых событий из ВК по причине: {err}')
+
+    def _check_new_vk_events(self):
+        # TODO: переписать получение ID новых постов из сообщений kafka
+        logger.info(f'Получение новостей. Получены посты: {self.tmp_alarmed_posts}')
+        new_posts = Post.select().where(Post.suggest_status == PostStatus.SUGGESTED.value)
+
+        for post in new_posts:
+            if post.vk_id in self.tmp_alarmed_posts:
+                continue
+
+            logger.info(f'Сообщаем про пост: {post}')
+
+            mes_text = f'Новый пост {post} от пользователя {post.user} в предложке!\n' \
+                       f'Текст поста:\n' \
+                       f'{post.text}'
+
+            text_message = self.t_bot.send_message(
+                chat_id=self.tg_chat_id,
+                text=mes_text
+            )
+
+            self.tmp_alarmed_posts.append(post.vk_id)
+
+        # self._clear_cache_dir()
 
     def run(self):
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
-
-    def run_in_loop(self):
-        while True:
-            self.run()
-            sleep(60)
+        polling = Thread(target=self._start_polling)
+        updating = Thread(target=self._start_vk_event_detector)
+        polling.start()
+        updating.start()
+        # try:
+        #     polling.start()
+        #     updating.start()
+        # except Exception as ex:
+        #     logger.error(ex)
 
 
 def get_cache_dir() -> pathlib.Path:
@@ -69,5 +110,5 @@ def get_cache_dir() -> pathlib.Path:
 
 if __name__ == '__main__':
     server = TgServer(tg_token=config.telegram_bot_token,
-                    tg_chat_id=config.telegram_chat_id,)
-    server.run_in_loop()
+                      tg_chat_id=config.telegram_chat_id, )
+    server.run()
