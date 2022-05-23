@@ -7,6 +7,8 @@ logger.add('Logs/bot_log.log', format='{time} {level} {message}', rotation='512 
 env = Env()
 env.read_env()
 
+group_id = env.int("group_id")
+group_token = env.str("group_token")
 admin_token = env.str("admin_token")
 admin_phone = env.str("admin_phone")
 admin_pass = env.str("admin_pass")
