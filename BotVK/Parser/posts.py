@@ -44,6 +44,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
     post.marked_as_ads = post_attributes['marked_as_ads']
     post.suggest_status = post_attributes['suggest_status']
     post.posted_by = post_attributes['admin']
+    post.geo = post_attributes['geo']
 
     if post_attributes['user_id']:
         user = users.get_or_create_user(post_attributes['user_id'], vk_connection)
@@ -69,7 +70,8 @@ def get_wall_post_attributes(wall_post: dict):
         'marked_as_ads': bool(wall_post.get('marked_as_ads', False)),
         'suggest_status': None,
         'admin': None,
-        'user_id': None
+        'user_id': None,
+        'geo': wall_post.get('geo', {}).get('coordinates'),
     }
 
     suggest_status = PostStatus.SUGGESTED.value if wall_post.get('post_type', '') == 'suggest' else None
@@ -86,5 +88,4 @@ def get_wall_post_attributes(wall_post: dict):
     if suggest_status is None and isinstance(created_by, int) and created_by > 0:
         post_attributes['admin'], _ = Admin.get_or_create(id=created_by,
                                                           user=users.get_or_create_user(vk_id=created_by))
-
     return post_attributes

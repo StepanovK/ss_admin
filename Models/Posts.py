@@ -18,6 +18,7 @@ class Post(BaseModel):
     suggest_status = CharField(30, null=True)
     posted_by = ForeignKeyField(Admin, null=True, on_delete='SET NULL')
     posted_in = ForeignKeyField('self', null=True, on_delete='SET NULL')
+    geo = CharField(null=True)
 
     VK_LINK = 'https://vk.com/'
 
