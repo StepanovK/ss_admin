@@ -1,13 +1,13 @@
-from BotVK.server import Server
-from BotVK import config
+from BotVKListener.server import Server
+from BotVKListener import config
 
 import datetime
 
-from BotVK.Parser import subscriptions
-from BotVK.Parser import posts
-from BotVK.Parser import users
-from BotVK.Parser import comments
-from BotVK.config import logger
+from BotVKListener.Parser import subscriptions
+from BotVKListener.Parser import posts
+from BotVKListener.Parser import users
+from BotVKListener.Parser import comments
+from BotVKListener.config import logger
 from Models.Users import User
 from Models.Posts import Post
 

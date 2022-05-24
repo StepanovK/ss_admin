@@ -1,9 +1,9 @@
 import Models.Relations as Relations
 from Models.Posts import Post
-from BotVK.Parser import comments
-from BotVK.Parser import users
-from BotVK.Parser import posts
-from BotVK.config import logger
+from BotVKListener.Parser import comments
+from BotVKListener.Parser import users
+from BotVKListener.Parser import posts
+from BotVKListener.config import logger
 
 
 def parce_post_likes(post: Post, likers: list, vk_connection=None):

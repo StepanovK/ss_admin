@@ -1,9 +1,9 @@
-from BotVK.Parser import users
-from BotVK.Parser import posts
-from BotVK.Parser import attachments
+from BotVKListener.Parser import users
+from BotVKListener.Parser import posts
+from BotVKListener.Parser import attachments
 from Models.Comments import Comment
 import datetime
-from BotVK.config import logger
+from BotVKListener.config import logger
 
 
 def get_comment(owner_id, object_id, vk_connection):
