@@ -7,8 +7,12 @@ logger.add('Logs/bot_log.log', format='{time} {level} {message}', rotation='512 
 env = Env()
 env.read_env()
 
-telegram_bot_token = env.str("telegram_bot_token")
-telegram_chat_id = env.int("telegram_chat_id")
+group_id = env.int("group_id")
+group_token = env.str("group_token")
+admin_token = env.str("admin_token")
+admin_phone = env.str("admin_phone")
+admin_pass = env.str("admin_pass")
+chat_for_suggest = env.int("chat_for_suggest")
 
 db_host = env.str("db_host")
 db_port = env.int("db_port")
