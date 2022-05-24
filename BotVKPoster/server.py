@@ -3,6 +3,8 @@ from BotVKPoster.config import logger
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
+from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from BotVKPoster.PosterModels import create_db
 
 
 class Server:
@@ -56,6 +58,12 @@ class Server:
 
         for event in self._longpoll.listen():
             logger.info(f'Новое событие {event.type}')
+            if event.type == VkBotEventType.MESSAGE_NEW:
+                if event.from_chat:
+                    if str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
+                        if event.object['message']['text'] == 'create_db':
+                            create_db.create_all_tables()
+
             # if event.type == VkBotEventType.WALL_POST_NEW:
             #     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
             #     str_from_user = '' if new_post.user is None else f'от {new_post.user} '

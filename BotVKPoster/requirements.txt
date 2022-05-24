@@ -1,3 +1,4 @@
 loguru
 environs
 vk_api
+peewee
