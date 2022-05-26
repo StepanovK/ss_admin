@@ -3,6 +3,8 @@ from BotVKListener.config import logger
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
+# import pika
+from Models.Posts import PostStatus
 
 from BotVKListener.Parser import comments, likes, posts, subscriptions
 
@@ -15,13 +17,22 @@ class Server:
                  admin_token: str,
                  admin_phone: str,
                  admin_pass: str,
-                 vk_group_id: int
+                 vk_group_id: int,
+                 rabbitmq_host: str = '',
+                 rabbitmq_port: int = 0,
+                 queue_name_prefix: str = ''
                  ):
         self.group_token = vk_group_token
         self.group_id = vk_group_id
+
         self.admin_token = admin_token
         self.admin_phone = admin_phone
         self.admin_pass = admin_pass
+
+        self.rabbitmq_host = rabbitmq_host
+        self.rabbitmq_port = rabbitmq_port
+        self.queue_name_prefix = queue_name_prefix
+
         self.vk_api = None
         self.vk_connection = None
         self.vk_api_admin = None
@@ -63,6 +74,8 @@ class Server:
                 str_attachments = '' if len(new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
                 str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
                 logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
+                if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
+                    pass
             elif event.type == 'like_add':
                 likes.parse_like_add(event.object, self.vk_connection_admin)
             elif event.type == 'like_remove':
@@ -95,5 +108,9 @@ if __name__ == '__main__':
                     admin_token=config.admin_token,
                     admin_phone=config.admin_phone,
                     admin_pass=config.admin_pass,
-                    vk_group_id=config.group_id)
+                    vk_group_id=config.group_id,
+                    rabbitmq_host=config.rabbitmq_host,
+                    rabbitmq_port=config.rabbitmq_port,
+                    queue_name_prefix=config.queue_name_prefix
+                    )
     server.run_in_loop()

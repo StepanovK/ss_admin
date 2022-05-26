@@ -19,6 +19,10 @@ db_user = env.str("db_user")
 db_password = env.str("db_password")
 db_name = env.str("db_name")
 
+rabbitmq_host = env.str("rabbitmq_host")
+rabbitmq_port = env.int("rabbitmq_port")
+queue_name_prefix = env.str("queue_name_prefix")
+
 config_db = {
     'db_host': db_host,
     'db_port': db_port,
