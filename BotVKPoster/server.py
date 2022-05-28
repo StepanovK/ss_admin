@@ -5,6 +5,7 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from BotVKPoster.PosterModels import create_db
+import pika
 
 
 class Server:
@@ -16,13 +17,22 @@ class Server:
                  admin_phone: str,
                  admin_pass: str,
                  vk_group_id: int,
-                 chat_for_suggest: int
+                 chat_for_suggest: int,
+                 rabbitmq_host: str = '',
+                 rabbitmq_port: int = 0,
+                 queue_name_prefix: str = ''
                  ):
         self.group_token = vk_group_token
         self.group_id = vk_group_id
+
         self.admin_token = admin_token
         self.admin_phone = admin_phone
         self.admin_pass = admin_pass
+
+        self.rabbitmq_host = rabbitmq_host
+        self.rabbitmq_port = rabbitmq_port
+        self.queue_name_prefix = queue_name_prefix
+
         self.vk_api = None
         self.vk_connection = None
         self.vk_api_admin = None
@@ -91,6 +101,29 @@ class Server:
         # except Exception as ex:
         #     logger.error(ex)
 
+    def start_consuming(self):
+        conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
+        connection = pika.BlockingConnection(conn_params)
+        channel = connection.channel()
+        queue = f'{self.queue_name_prefix}_new_suggested_post'
+        channel.queue_declare(queue=queue,
+                              durable=True)
+
+        print("Waiting for messages. To exit press CTRL+C")
+
+        def callback(ch, method, properties, body):
+            print(body)
+
+        channel.basic_consume(queue=queue, on_message_callback=callback)
+
+        try:
+            channel.start_consuming()
+        except KeyboardInterrupt:
+            channel.stop_consuming()
+        except Exception as ex:
+            channel.stop_consuming()
+            logger.error(f'При получении сообщений rabbitmq возникла ошибка: {ex}')
+
     def run_in_loop(self):
         while True:
             self.run()
@@ -103,5 +136,10 @@ if __name__ == '__main__':
                     admin_phone=config.admin_phone,
                     admin_pass=config.admin_pass,
                     vk_group_id=config.group_id,
-                    chat_for_suggest=config.chat_for_suggest)
+                    chat_for_suggest=config.chat_for_suggest,
+                    rabbitmq_host=config.rabbitmq_host,
+                    rabbitmq_port=config.rabbitmq_port,
+                    queue_name_prefix=config.queue_name_prefix
+                    )
+    server.start_consuming()
     server.run_in_loop()

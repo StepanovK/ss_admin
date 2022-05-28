@@ -3,7 +3,7 @@ from BotVKListener.config import logger
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
-# import pika
+import pika
 from Models.Posts import PostStatus
 
 from BotVKListener.Parser import comments, likes, posts, subscriptions
@@ -75,7 +75,7 @@ class Server:
                 str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
                 logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
                 if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
-                    pass
+                    self._send_alarm(message_type='new_suggested_post', message=new_post.id)
             elif event.type == 'like_add':
                 likes.parse_like_add(event.object, self.vk_connection_admin)
             elif event.type == 'like_remove':
@@ -90,6 +90,18 @@ class Server:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, True)
             elif event.type == VkBotEventType.GROUP_LEAVE:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+
+    def _send_alarm(self, message_type: str, message: str):
+        conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
+        connection = pika.BlockingConnection(conn_params)
+        channel = connection.channel()
+        channel.queue_declare(queue=f'{self.queue_name_prefix}_{message_type}',
+                              durable=True)
+        channel.basic_publish(exchange='',
+                              routing_key=self.queue_name_prefix,
+                              body=message.encode(),
+                              properties=pika.BasicProperties(delivery_mode=2))
+        connection.close()
 
     def run(self):
         # try:
