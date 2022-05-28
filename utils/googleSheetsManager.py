@@ -1,17 +1,17 @@
 import os
+import re
+from datetime import datetime
 from pprint import pprint
 
 import apiclient.discovery
 import httplib2
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
-
-load_dotenv()
+import config
 
 
 class GoogleSheetsManager:
-    secret_key = os.environ.get("secret")
-    print(secret_key)
+    secret_key = config.secret_key_google
     templates = eval(secret_key)
     credentials = ServiceAccountCredentials._from_parsed_json_keyfile(
         templates,
@@ -40,7 +40,7 @@ class GoogleSheetsManager:
         header = sheet_values[0]
         result_list = [dict(zip(header, elem)) for elem in sheet_values[1:]]
 
-        pprint(result_list)
+        # pprint(result_list)
         return result_list
 
     def set_data_to_sheet(self, list_name, data):
@@ -67,12 +67,29 @@ class GoogleSheetsManager:
                  "values": values}
             ]
         }).execute()
-        print(results)
         return results
+
+    @staticmethod
+    def take_data_from_raw_dict(data_dict):
+        for elem in data_dict:
+            if re.search(r"(0?[1-9]|[12][0-9]|3[01])[\/\-\.](0?[1-9]|1[012])[\/\-\.](0?20[0-9][0-9]|[0-9][0-9])",
+                         data_dict[elem]):
+                if len(re.search(
+                        r"(0?[1-9]|[12][0-9]|3[01])[\/\-\.](0?[1-9]|1[012])[\/\-\.](0?20[0-9][0-9]|[0-9][0-9])",
+                        data_dict[elem]).group(3)) == 4:
+                    data_dict[elem] = datetime.date(datetime.strptime(data_dict[elem], '%d.%m.%Y'))
+                else:
+                    data_dict[elem] = datetime.date(datetime.strptime(data_dict[elem], '%d.%m.%y'))
+            elif re.search(r"(true)|(false)", data_dict[elem], re.IGNORECASE):
+                data_dict[elem] = eval(data_dict[elem].capitalize())
+            elif data_dict[elem].strip() in ["", "-"]:
+                data_dict[elem] = None
+        return data_dict
 
 
 if __name__ == "__main__":
-    spreadsheetId = os.environ.get("spreadsheetId")
+    spreadsheetId = config.spreadsheetId
     sheet = GoogleSheetsManager(spreadsheetId)
-    sheet.get_sheet_values("Реклама")
+    for elem in sheet.get_sheet_values("ads_test"):
+        pprint(sheet.take_data_from_raw_dict(elem))
     # sheet.get_sheet_values("Стандартные ответы")
