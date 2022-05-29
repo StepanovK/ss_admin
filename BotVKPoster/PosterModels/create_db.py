@@ -1,4 +1,4 @@
-from BotVKPoster.config import logger
+from utils.config import logger
 from BotVKPoster.PosterModels.base import db
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 
