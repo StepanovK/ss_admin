@@ -73,13 +73,13 @@ class Server:
         conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
         connection = pika.BlockingConnection(conn_params)
         channel = connection.channel()
-        queue = f'{self.queue_name_prefix}_new_suggested_post'
-        channel.queue_declare(queue=queue,
+        queue_name = f'{self.queue_name_prefix}_new_suggested_post'
+        channel.queue_declare(queue=queue_name,
                               durable=True)
 
         print("Waiting for messages. To exit press CTRL+C")
 
-        channel.basic_consume(queue=queue,
+        channel.basic_consume(queue=queue_name,
                               on_message_callback=self._callback,
                               auto_ack=True)
 

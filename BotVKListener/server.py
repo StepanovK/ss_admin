@@ -65,10 +65,11 @@ class Server:
                                                 credentials=credentials)
         connection = pika.BlockingConnection(conn_params)
         channel = connection.channel()
-        channel.queue_declare(queue=f'{self.queue_name_prefix}_{message_type}',
+        queue_name = f'{self.queue_name_prefix}_{message_type}'
+        channel.queue_declare(queue=queue_name,
                               durable=True)
         channel.basic_publish(exchange='',
-                              routing_key=self.queue_name_prefix,
+                              routing_key=queue_name,
                               body=message.encode(),
                               properties=pika.BasicProperties(delivery_mode=2))
         connection.close()
