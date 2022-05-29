@@ -2,7 +2,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Comments import Comment
 import Models.Relations as Relations
-from BotVKListener.config import logger
+from utils.config import logger
 from typing import Union
 import datetime
 import json

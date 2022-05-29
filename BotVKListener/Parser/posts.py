@@ -1,6 +1,6 @@
 from Models.Admins import Admin
 from Models.Posts import Post, PostStatus
-from BotVKListener.config import logger
+from utils.config import logger
 from BotVKListener.Parser import attachments
 from BotVKListener.Parser import likes
 from BotVKListener.Parser import users

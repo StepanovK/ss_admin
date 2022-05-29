@@ -7,7 +7,7 @@ import apiclient.discovery
 import httplib2
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
-import config
+import utils.config as config
 
 
 class GoogleSheetsManager:

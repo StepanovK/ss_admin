@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta, date
 from utils.config import group_id, logger, spreadsheetId
 from utils.googleSheetsManager import GoogleSheetsManager
-from utils.connection_holder import ConnectionsHolder
+from utils.connection_holder import VKConnectionsHolder
 
 
 class ADSPost:
@@ -22,7 +22,7 @@ class ADSPost:
         self.extra_tariff: bool = False
         self.who_posted: str = None
         self.is_deleted: bool = False
-        self._vk = ConnectionsHolder().vk_client
+        self._vk = VKConnectionsHolder().vk_admin_client
         self._group_id = group_id
 
     def take_data_from_dict(self, data_dict):
@@ -99,7 +99,7 @@ class ADSManager:
         self.date_delta = datetime.date(datetime.now()) - timedelta(30)  #
 
     def __get_ads_posts(self):
-        raw_ads_posts = self._google_sheet.get_sheet_values("Реклама")
+        raw_ads_posts = self._google_sheet.get_sheet_values("ads_test")
         for raw_post in raw_ads_posts:
             raw_response = self._google_sheet.take_data_from_raw_dict(raw_post)
             response = ADSPost().take_data_from_dict(raw_response)
