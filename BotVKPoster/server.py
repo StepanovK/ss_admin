@@ -101,6 +101,9 @@ class Server:
         # except Exception as ex:
         #     logger.error(ex)
 
+    def _callback(self, ch, method, properties, body):
+        print(body)
+
     def start_consuming(self):
         conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
         connection = pika.BlockingConnection(conn_params)
@@ -111,10 +114,9 @@ class Server:
 
         print("Waiting for messages. To exit press CTRL+C")
 
-        def callback(ch, method, properties, body):
-            print(body)
-
-        channel.basic_consume(queue=queue, on_message_callback=callback)
+        channel.basic_consume(queue=queue,
+                              on_message_callback=self._callback,
+                              auto_ack=True)
 
         try:
             channel.start_consuming()

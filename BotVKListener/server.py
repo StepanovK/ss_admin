@@ -92,7 +92,10 @@ class Server:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
 
     def _send_alarm(self, message_type: str, message: str):
-        conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
+        credentials = pika.PlainCredentials('guest', 'guest')
+        conn_params = pika.ConnectionParameters(host=self.rabbitmq_host,
+                                                port=self.rabbitmq_port,
+                                                credentials=credentials)
         connection = pika.BlockingConnection(conn_params)
         channel = connection.channel()
         channel.queue_declare(queue=f'{self.queue_name_prefix}_{message_type}',
