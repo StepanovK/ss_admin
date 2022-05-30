@@ -4,14 +4,16 @@ from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
 from BotVKPoster.PosterModels import create_db
 from utils.connection_holder import VKConnectionsHolder
+from BotVKPoster import keyboards
 import pika
 import datetime
 import json
 import random
-from Models.Posts import Post
-from Models.Relations import PostsAttachment, PostsLike
+from Models.Posts import Post, PostsHashtag, PostStatus
+from Models.Relations import PostsAttachment
 
 
 class Server:
@@ -43,63 +45,67 @@ class Server:
         Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
         """
         while True:
+            # https://habr.com/ru/post/512412/
             logger.info('Проверка событий ВК')
             for event in self._longpoll.check():
                 logger.info(f'обработка события ВК {event.type}')
-                if event.type == VkBotEventType.MESSAGE_NEW:
-                    if event.from_chat:
-                        if str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
-                            if event.object['message']['text'] == 'create_db':
-                                create_db.create_all_tables()
 
+                if event.type == VkBotEventType.MESSAGE_EVENT:
+                    payload = event.object.get('payload', {})
+                    if 'command' in payload:
+                        self._proces_button_click(payload=payload,
+                                                  message_id=event.object.get('conversation_message_id'),
+                                                  admin_id=event.object.get('user_id'))
+                elif event.type == VkBotEventType.MESSAGE_NEW:
+                    if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
+                        if event.object.message['text'] == 'create_db':
+                            create_db.create_all_tables()
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
                 logger.info('Проверка событий очереди')
-                self.start_consuming()
+                self._start_consuming()
                 last_broker_update = datetime.datetime.now()
 
-        #
-        # logger.info('Бот запущен')
-        #
-        # for event in self._longpoll.listen():
-        #     logger.info(f'Новое событие {event.type}')
-        #     if event.type == VkBotEventType.MESSAGE_NEW:
-        #         if event.from_chat:
-        #             if str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
-        #                 if event.object['message']['text'] == 'create_db':
-        #                     create_db.create_all_tables()
+    def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
+        if payload['command'] == 'public_post':
+            new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
+            self._update_message_post(post_id=payload['post_id'])
 
-        # if event.type == VkBotEventType.WALL_POST_NEW:
-        #     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
-        #     str_from_user = '' if new_post.user is None else f'от {new_post.user} '
-        #     str_attachments = '' if len(new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
-        #     str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
-        #     logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
-        # elif event.type == 'like_add':
-        #     likes.parse_like_add(event.object, self.vk_connection_admin)
-        # elif event.type == 'like_remove':
-        #     likes.parse_like_remove(event.object, self.vk_connection_admin)
-        # elif event.type == VkBotEventType.WALL_REPLY_NEW:
-        #     comments.parse_comment(event.object, self.vk_connection_admin)
-        # elif event.type == VkBotEventType.WALL_REPLY_DELETE:
-        #     comments.parse_delete_comment(event.object, self.vk_connection_admin)
-        # elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
-        #     comments.parse_restore_comment(event.object, self.vk_connection_admin)
-        # elif event.type == VkBotEventType.GROUP_JOIN:
-        #     subscriptions.parse_subscription(event, self.vk_connection_admin, True)
-        # elif event.type == VkBotEventType.GROUP_LEAVE:
-        #     subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+    def _publish_post(self, post_id: str, admin_id: int = None):
+        try:
+            post = Post.get(id=post_id)
+        except Post.PostDoesNotExist:
+            logger.warning(f'Не найден пост с ID={post_id}')
+            return
 
-    def _get_keyboard(self, keyboard_name, post_id):
-        # print(os.listdir("./"))
-        keyboard = open(f'keyboards/{keyboard_name}.json', "r", encoding="UTF-8").read()
-        keyboard = json.loads(keyboard)
-        for elem in keyboard['buttons']:
-            elem[0]['action']['payload']["post_id"] = str(post_id)
-        keyboard = json.dumps(keyboard, ensure_ascii=False)
-        return keyboard
+        message = post.text
 
-    def start_consuming(self):
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            message = message + '\n' + '\n'.join(hashtags)
+
+        attachment = [str(att.attachment) for att in post.attachments]
+
+        new_post = self.vk_admin.wall.post(owner_id=-self.group_id,
+                                           signed=0 if post.anonymously else 1,
+                                           post_id=post.vk_id,
+                                           message=message,
+                                           attachments=attachment)
+        new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
+
+        post.suggest_status = PostStatus.POSTED.value
+        post.is_deleted = True
+        post.save()
+
+        new_post_info = PublishedPost.create(
+            suggested_post_id=post_id,
+            published_post_id=new_post_id,
+            admin_id=admin_id
+        )
+
+        return new_post_id
+
+    def _start_consuming(self):
         conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
         connection = pika.BlockingConnection(conn_params)
         channel = connection.channel()
@@ -113,33 +119,79 @@ class Server:
             else:
                 message_text = message.decode()
                 logger.info(f'Получено новое сообщение от брокера {message_text}')
-                self.add_new_message_post(message_text)
+                self._add_new_message_post(message_text)
 
         connection.close()
 
-    def add_new_message_post(self, post_id):
+    def _add_new_message_post(self, post_id):
 
         try:
             post = Post.get(id=post_id)
-        except Post.PostDoesNotExist:
+        except Post.DoesNotExist:
             logger.warning(f'Не найден пост с ID={post_id}')
             return
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
-                                           message=self._get_post_present(post),
-                                           keyboard=self._get_keyboard("new_post", post_id),
+                                           message=self._get_post_description(post),
+                                           keyboard=keyboards.main_menu_keyboard(post),
                                            random_id=random.randint(10 ** 5, 10 ** 6),
                                            attachment=[str(att.attachment) for att in post.attachments])
 
         message_of_post = MessageOfSuggestedPost.create(post_id=post_id, message_id=message_id)
 
+    def _update_message_post(self, post_id):
+
+        try:
+            post = Post.get(id=post_id)
+        except Post.DoesNotExist:
+            logger.warning(f'Не найден пост с ID={post_id}')
+            return
+
+        try:
+            message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
+            message_id = message_of_post.message_id
+        except MessageOfSuggestedPost.DoesNotExist:
+            logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
+            return
+
+        message_id = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+                                           conversation_message_id=message_id,
+                                           message=self._get_post_description(post),
+                                           keyboard=keyboards.main_menu_keyboard(post),
+                                           attachment=[str(att.attachment) for att in post.attachments])
+
     @staticmethod
-    def _get_post_present(post):
-        present = f'Новый пост от {post.user}\n' \
-                  f'{post}\n' \
-                  f'текст:\n' \
-                  f'{post.text}\n'
-        return present
+    def _get_post_description(post: Post):
+
+        if post.suggest_status == PostStatus.SUGGESTED.value:
+            text_status = f'Новый пост {post}'
+        elif post.suggest_status == PostStatus.POSTED.value:
+            if post.posted_in:
+                post_url = str(post.posted_in)
+            else:
+                try:
+                    new_post_record = PublishedPost.get(suggested_post_id=post.id)
+                    post_url = Post.generate_url(post_id=new_post_record.published_post_id)
+                except Exception as ex:
+                    logger.error(f'Ошибка получения информации об опубликованном посте для {post}: {ex}')
+                    post_url = ''
+
+            text_status = '[ОПУБЛИКОВАН] ' + post_url
+        elif post.suggest_status == PostStatus.REJECTED.value:
+            text_status = '[ОТКЛОНЁН]'
+        else:
+            text_status = f'Неизвестный пост {post}'
+
+        represent = f'{text_status}\n' \
+                    f'автор: {post.user}\n' \
+                    f'текст:\n' \
+                    f'{post.text}\n'
+
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            represent = represent + '\n' + '\n'.join(hashtags)
+
+        return represent
 
     def run(self):
         # try:
