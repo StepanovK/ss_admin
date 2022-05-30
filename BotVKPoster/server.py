@@ -38,8 +38,10 @@ class Server:
         time_to_update_broker = 10
         last_broker_update = None
 
-        # События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
-        # Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
+        """
+        События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
+        Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
+        """
         while True:
             logger.info('Проверка событий ВК')
             for event in self._longpoll.check():
