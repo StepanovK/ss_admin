@@ -1,6 +1,6 @@
 import utils.config as config
 from utils.config import logger
-from vk_api import vk_api
+from utils.db_helper import queri_to_list
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
@@ -10,10 +10,13 @@ from utils.connection_holder import VKConnectionsHolder
 from BotVKPoster import keyboards
 import pika
 import datetime
-import json
 import random
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.Relations import PostsAttachment
+from Models.Users import User
+from Models.Comments import Comment
+from Models.Relations import PostsLike, CommentsLike
+from Models.Subscriptions import Subscription
 
 
 class Server:
@@ -88,6 +91,8 @@ class Server:
         elif payload['command'] == 'remove_hashtag':
             self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        if payload['command'] == 'show_user_info':
+            self._show_user_info(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
         try:
@@ -198,6 +203,73 @@ class Server:
             return
         for ht in PostsHashtag.select().where(PostsHashtag.post == post, PostsHashtag.hashtag == hashtag):
             ht.delete_instance()
+
+    def _show_user_info(self, post_id, message_id: int = None):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        subscribe_history = Subscription.select().where(Subscription.user == post.user).order_by(Subscription.date)
+        subscribe_history_list = []
+        for subscribe in subscribe_history:
+            state = 'ПОДПИСАН' if subscribe.is_subscribed else 'ОТПИСАН'
+            if subscribe.date is None:
+                date_sub = '<Неизвестно когда>'
+            elif subscribe.date == datetime.date(2000, 1, 1):
+                date_sub = 'Давно'
+            else:
+                date_sub = f'{subscribe.date:%Y-%m-%d}'
+            subscribe_history_list.append(f'{date_sub} {state}')
+
+        mes_text = f'Информация о пользователе {post.user}:\n'
+
+        if len(subscribe_history_list) == 0:
+            mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'
+        else:
+            mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
+
+        published_posts = post.user.posts.where(Post.suggest_status == None).order_by(Post.date.desc()).limit(3)
+        published_posts_list = []
+        for users_post in published_posts:
+            published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
+        if len(published_posts_list) > 0:
+            mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
+
+        rejected_posts = post.user.posts.where((Post.suggest_status == PostStatus.REJECTED.value) | (
+                Post.suggest_status == PostStatus.SUGGESTED.value)).order_by(
+            Post.date.desc()).limit(3)
+        rejected_posts_list = []
+        for users_post in rejected_posts:
+            rejected_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
+        if len(rejected_posts_list) > 0:
+            mes_text += '\nПоследние неопубликованные посты:\n' + '\n'.join(rejected_posts_list) + '\n'
+
+        count_of_comments = len(post.user.comments)
+        if count_of_comments > 0:
+            mes_text += f'\nНаписал комментариев: {count_of_comments}\n'
+
+        count_of_posts_likes = len(PostsLike.select().where(PostsLike.user == post.user))
+        count_of_self_posts_likes = len(
+            PostsLike.select().join(Post).where(
+                (PostsLike.user == post.user) & (PostsLike.liked_object.user == post.user)))
+        if count_of_posts_likes > 0:
+            mes_text += f'\nЛайкнул постов: {count_of_posts_likes}'
+            mes_text += '\n' if count_of_self_posts_likes == 0 else f' (в т.ч. своих: {count_of_self_posts_likes})\n'
+
+        count_of_comments_likes = len(CommentsLike.select().where(CommentsLike.user == post.user))
+        count_of_self_com_likes = len(
+            CommentsLike.select().join(Comment).where(
+                (CommentsLike.user == post.user) & (CommentsLike.liked_object.user == post.user)))
+        if count_of_comments_likes > 0:
+            mes_text += f'\nЛайкнул комментариев: {count_of_comments_likes}'
+            mes_text += '\n' if count_of_self_com_likes == 0 else f' (в т.ч. своих: {count_of_self_com_likes})\n'
+
+        try:
+            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+                                           conversation_message_id=message_id,
+                                           message=mes_text,
+                                           keyboard=keyboards.user_info_menu(post))
+        except Exception as ex:
+            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
 
     @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
