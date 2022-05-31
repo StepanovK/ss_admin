@@ -52,6 +52,14 @@ class Server:
 
                 if event.type == VkBotEventType.MESSAGE_EVENT:
                     payload = event.object.get('payload', {})
+                    if 'post_id' in payload:
+                        """
+                        ID сообщения при его отправке не совпадает с реальным ID сообщения.
+                        Придётся фиксировать соответствие при нажатии пользователем на кнопку 
+                        """
+                        message_of_post = MessageOfSuggestedPost.get_or_create(
+                            post_id=payload['post_id'],
+                            message_id=event.object.get('conversation_message_id'))
                     if 'command' in payload:
                         self._proces_button_click(payload=payload,
                                                   message_id=event.object.get('conversation_message_id'),
@@ -69,7 +77,7 @@ class Server:
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'public_post':
             new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
-            self._update_message_post(post_id=payload['post_id'])
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
         try:
@@ -137,9 +145,7 @@ class Server:
                                            random_id=random.randint(10 ** 5, 10 ** 6),
                                            attachment=[str(att.attachment) for att in post.attachments])
 
-        message_of_post = MessageOfSuggestedPost.create(post_id=post_id, message_id=message_id)
-
-    def _update_message_post(self, post_id):
+    def _update_message_post(self, post_id, message_id: int = None):
 
         try:
             post = Post.get(id=post_id)
@@ -147,18 +153,22 @@ class Server:
             logger.warning(f'Не найден пост с ID={post_id}')
             return
 
-        try:
-            message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
-            message_id = message_of_post.message_id
-        except MessageOfSuggestedPost.DoesNotExist:
-            logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
-            return
+        if not message_id:
+            try:
+                message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
+                message_id = message_of_post.message_id
+            except MessageOfSuggestedPost.DoesNotExist:
+                logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
+                return
 
-        message_id = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+        try:
+            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
                                            conversation_message_id=message_id,
                                            message=self._get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            attachment=[str(att.attachment) for att in post.attachments])
+        except Exception as ex:
+            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
 
     @staticmethod
     def _get_post_description(post: Post):

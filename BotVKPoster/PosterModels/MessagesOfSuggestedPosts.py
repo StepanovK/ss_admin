@@ -3,7 +3,7 @@ from BotVKPoster.PosterModels.base import BaseModel
 
 
 class MessageOfSuggestedPost(BaseModel):
-    post_id = CharField(100)
+    post_id = CharField(100, primary_key=True)
     message_id = IntegerField(null=True)
 
     class Meta:
