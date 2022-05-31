@@ -1,5 +1,5 @@
 from BotVKListener.server import Server
-from BotVKListener import config
+from utils import config
 
 import datetime
 
@@ -7,7 +7,7 @@ from BotVKListener.Parser import subscriptions
 from BotVKListener.Parser import posts
 from BotVKListener.Parser import users
 from BotVKListener.Parser import comments
-from BotVKListener.config import logger
+from utils.config import logger
 from Models.Users import User
 from Models.Posts import Post
 
