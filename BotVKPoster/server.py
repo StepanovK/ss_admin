@@ -46,9 +46,9 @@ class Server:
         """
         while True:
             # https://habr.com/ru/post/512412/
-            logger.info('Проверка событий ВК')
+            # logger.info('Проверка событий ВК')
             for event in self._longpoll.check():
-                logger.info(f'обработка события ВК {event.type}')
+                # logger.info(f'обработка события ВК {event.type}')
 
                 if event.type == VkBotEventType.MESSAGE_EVENT:
                     payload = event.object.get('payload', {})
@@ -78,6 +78,16 @@ class Server:
         if payload['command'] == 'public_post':
             new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        if payload['command'] == 'show_main_menu':
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'edit_hashtags':
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'add_hashtag':
+            self._add_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'remove_hashtag':
+            self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
 
     def _publish_post(self, post_id: str, admin_id: int = None):
         try:
@@ -133,10 +143,8 @@ class Server:
 
     def _add_new_message_post(self, post_id):
 
-        try:
-            post = Post.get(id=post_id)
-        except Post.DoesNotExist:
-            logger.warning(f'Не найден пост с ID={post_id}')
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
             return
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
@@ -147,19 +155,10 @@ class Server:
 
     def _update_message_post(self, post_id, message_id: int = None):
 
-        try:
-            post = Post.get(id=post_id)
-        except Post.DoesNotExist:
-            logger.warning(f'Не найден пост с ID={post_id}')
+        post = self._get_post_by_id(post_id=post_id)
+        message_id = self._get_posts_message_id(post_id, message_id)
+        if not post or not message_id:
             return
-
-        if not message_id:
-            try:
-                message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
-                message_id = message_of_post.message_id
-            except MessageOfSuggestedPost.DoesNotExist:
-                logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
-                return
 
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
@@ -170,8 +169,56 @@ class Server:
         except Exception as ex:
             logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
 
+    def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
+        post = self._get_post_by_id(post_id=post_id)
+        message_id = self._get_posts_message_id(post_id, message_id)
+        if not post or not message_id:
+            return
+
+        text_message = self._get_post_description(post=post, with_hashtags=False)
+        text_message += '\nВыберите хэштеги:'
+        try:
+            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+                                           conversation_message_id=message_id,
+                                           message=text_message,
+                                           keyboard=keyboards.hashtag_menu(post, page),
+                                           attachment=[str(att.attachment) for att in post.attachments])
+        except Exception as ex:
+            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+
+    def _add_hashtag(self, post_id, hashtag):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        PostsHashtag.get_or_create(post=post, hashtag=hashtag)
+
+    def _remove_hashtag(self, post_id, hashtag):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        for ht in PostsHashtag.select().where(PostsHashtag.post == post, PostsHashtag.hashtag == hashtag):
+            ht.delete_instance()
+
     @staticmethod
-    def _get_post_description(post: Post):
+    def _get_posts_message_id(post_id, message_id: int = None):
+        if not message_id:
+            try:
+                message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
+                message_id = message_of_post.message_id
+            except MessageOfSuggestedPost.DoesNotExist:
+                logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
+        return message_id
+
+    @staticmethod
+    def _get_post_by_id(post_id):
+        try:
+            return Post.get(id=post_id)
+        except Post.DoesNotExist:
+            logger.warning(f'Не найден пост с ID={post_id}')
+            return
+
+    @staticmethod
+    def _get_post_description(post: Post, with_hashtags: bool = True):
 
         if post.suggest_status == PostStatus.SUGGESTED.value:
             text_status = f'Новый пост {post}'
@@ -197,9 +244,10 @@ class Server:
                     f'текст:\n' \
                     f'{post.text}\n'
 
-        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-        if len(hashtags) > 0:
-            represent = represent + '\n' + '\n'.join(hashtags)
+        if with_hashtags:
+            hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+            if len(hashtags) > 0:
+                represent = represent + '\n' + '\n'.join(hashtags)
 
         return represent
 
