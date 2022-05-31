@@ -14,5 +14,5 @@ class Subscription(BaseModel):
 
     def __str__(self):
         state = 'ПОДПИСАН' if self.is_subscribed else 'ОТПИСАН'
-        date_sub = 'Очень давно' if self.date is None else f'{self.date:%Y-%m-%d}'
-        return f'{self.date:%Y-%m-%d} {state} на {self.group_id}'
+        date_sub = 'Неизвестно когда' if self.date is None else f'{self.date:%Y-%m-%d}'
+        return f'{date_sub} {state}'
