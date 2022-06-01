@@ -1,11 +1,15 @@
-from BotVKPoster.config import logger
+from utils.config import logger
 from BotVKPoster.PosterModels.base import db
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
+from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
 
 
 def create_all_tables():
     models = [
-        MessageOfSuggestedPost
+        MessageOfSuggestedPost,
+        PublishedPost,
+        SortedHashtag,
     ]
 
     with db:

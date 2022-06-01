@@ -1,6 +1,6 @@
 import datetime
 from Models.Users import User
-from BotVKListener.config import logger
+from utils.config import logger
 
 
 def get_or_create_user(vk_id: int, vk_connection=None):

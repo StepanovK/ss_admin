@@ -1,6 +1,6 @@
 from peewee import *
 
-db = SqliteDatabase('posting_statuses.sqlite')
+db = SqliteDatabase('PosterModels/posting_statuses.sqlite')
 
 
 class BaseModel(Model):

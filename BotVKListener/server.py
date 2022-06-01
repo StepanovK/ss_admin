@@ -1,10 +1,11 @@
-import BotVKListener.config as config
-from BotVKListener.config import logger
+import utils.config as config
+from utils.config import logger
 from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 import pika
 from Models.Posts import PostStatus
+from utils.connection_holder import VKConnectionsHolder
 
 from BotVKListener.Parser import comments, likes, posts, subscriptions
 
@@ -12,56 +13,22 @@ from BotVKListener.Parser import comments, likes, posts, subscriptions
 class Server:
     vk_link = 'https://vk.com/'
 
-    def __init__(self,
-                 vk_group_token: str,
-                 admin_token: str,
-                 admin_phone: str,
-                 admin_pass: str,
-                 vk_group_id: int,
-                 rabbitmq_host: str = '',
-                 rabbitmq_port: int = 0,
-                 queue_name_prefix: str = ''
-                 ):
-        self.group_token = vk_group_token
-        self.group_id = vk_group_id
+    def __init__(self):
+        self.group_id = config.group_id
 
-        self.admin_token = admin_token
-        self.admin_phone = admin_phone
-        self.admin_pass = admin_pass
+        self.rabbitmq_host = config.rabbitmq_host
+        self.rabbitmq_port = config.rabbitmq_port
+        self.queue_name_prefix = config.queue_name_prefix
 
-        self.rabbitmq_host = rabbitmq_host
-        self.rabbitmq_port = rabbitmq_port
-        self.queue_name_prefix = queue_name_prefix
+        self.chat_for_suggest = config.chat_for_suggest
 
-        self.vk_api = None
-        self.vk_connection = None
-        self.vk_api_admin = None
-        self.vk_connection_admin = None
-        self._longpoll = None
-        self._connect_vk()
-        self._connect_vk_admin()
-
-    def _connect_vk(self):
-        try:
-            self.vk_api = vk_api.VkApi(token=self.group_token)
-            self.vk_connection = self.vk_api.get_api()
-        except Exception as err:
-            logger.error(f'Не удалось подключиться к ВК по причине: {err}')
-
-    def _connect_vk_admin(self):
-        try:
-            self.vk_api_admin = vk_api.VkApi(
-                login=self.admin_phone,
-                password=self.admin_pass,
-                token=self.admin_token)
-            self.vk_connection_admin = self.vk_api_admin.get_api()
-        except Exception as err:
-            logger.error(f'Не удалось подключиться к ВК под админом по причине: {err}')
+        self.vk_api_admin = VKConnectionsHolder().vk_api_admin
+        self.vk_connection_admin = VKConnectionsHolder().vk_connection_admin
+        self.vk_api_group = VKConnectionsHolder().vk_api_group
+        self.vk_connection_group = VKConnectionsHolder().vk_connection_group
 
     def _start_polling(self):
-        if self.vk_connection is None:
-            self._connect_vk()
-        self._longpoll = VkBotLongPoll(self.vk_api, self.group_id, )
+        self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, )
 
         logger.info('Бот запущен')
 
@@ -92,13 +59,17 @@ class Server:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
 
     def _send_alarm(self, message_type: str, message: str):
-        conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
+        credentials = pika.PlainCredentials('guest', 'guest')
+        conn_params = pika.ConnectionParameters(host=self.rabbitmq_host,
+                                                port=self.rabbitmq_port,
+                                                credentials=credentials)
         connection = pika.BlockingConnection(conn_params)
         channel = connection.channel()
-        channel.queue_declare(queue=f'{self.queue_name_prefix}_{message_type}',
+        queue_name = f'{self.queue_name_prefix}_{message_type}'
+        channel.queue_declare(queue=queue_name,
                               durable=True)
         channel.basic_publish(exchange='',
-                              routing_key=self.queue_name_prefix,
+                              routing_key=queue_name,
                               body=message.encode(),
                               properties=pika.BasicProperties(delivery_mode=2))
         connection.close()
@@ -116,13 +87,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    server = Server(vk_group_token=config.group_token,
-                    admin_token=config.admin_token,
-                    admin_phone=config.admin_phone,
-                    admin_pass=config.admin_pass,
-                    vk_group_id=config.group_id,
-                    rabbitmq_host=config.rabbitmq_host,
-                    rabbitmq_port=config.rabbitmq_port,
-                    queue_name_prefix=config.queue_name_prefix
-                    )
+    server = Server()
     server.run_in_loop()

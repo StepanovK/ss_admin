@@ -31,12 +31,16 @@ class Post(BaseModel):
         order_by = ['date']
 
     def get_url(self):
-        url = f'{self.VK_LINK}wall{self.id}'
-        return url
+        return self.generate_url(self.id)
 
     @classmethod
     def generate_id(cls, owner_id, vk_id):
         return f'{owner_id}_{vk_id}'
+
+    @classmethod
+    def generate_url(cls, post_id):
+        url = f'{cls.VK_LINK}wall{post_id}'
+        return url
 
 
 class PostsHashtag(BaseModel):
@@ -44,6 +48,9 @@ class PostsHashtag(BaseModel):
                            on_delete='CASCADE',
                            backref='hashtags')
     hashtag = TextField()
+
+    def __str__(self):
+        return self.hashtag
 
     class Meta:
         table_name = 'posts_hashtags'

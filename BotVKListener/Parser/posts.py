@@ -1,6 +1,6 @@
 from Models.Admins import Admin
 from Models.Posts import Post, PostStatus
-from BotVKListener.config import logger
+from utils.config import logger
 from BotVKListener.Parser import attachments
 from BotVKListener.Parser import likes
 from BotVKListener.Parser import users
@@ -39,7 +39,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
     post, post_created = Post.get_or_create(id=post_id)
     post.vk_id = post_attributes['vk_id']
     post.owner_id = post_attributes['owner_id']
-    post.text = post_attributes['text']
+    post.text = post_attributes['text'].strip()
     post.date = post_attributes['date']
     post.marked_as_ads = post_attributes['marked_as_ads']
     post.suggest_status = post_attributes['suggest_status']
