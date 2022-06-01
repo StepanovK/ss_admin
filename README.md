@@ -1,8 +1,8 @@
 # Бот для управления сообществом в ВК
 
-## Возможности
+## Уведомления о новых постах и работа с публикацией
 
-<details><summary>Добавление хэштегов</summary>
+<details><summary>Добавление хэштегов для новых постов</summary>
   
    ![new_post](https://user-images.githubusercontent.com/13664126/171338659-3c7264ed-41cc-469b-abee-52869ce60e29.gif)
   
