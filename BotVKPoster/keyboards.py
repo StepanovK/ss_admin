@@ -13,6 +13,14 @@ def main_menu_keyboard(post: Post):
         keyboard.add_callback_button(label='Опубликовать',
                                      color=VkKeyboardColor.PRIMARY,
                                      payload={"command": "publish_post", "post_id": post.id})
+        if post.anonymously:
+            keyboard.add_callback_button(label='анонимно',
+                                         color=VkKeyboardColor.PRIMARY,
+                                         payload={"command": "set_anonymously", "post_id": post.id, 'val': False})
+        else:
+            keyboard.add_callback_button(label='не анонимно',
+                                         color=VkKeyboardColor.SECONDARY,
+                                         payload={"command": "set_anonymously", "post_id": post.id, 'val': True})
         keyboard.add_line()
         keyboard.add_callback_button(label='Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,

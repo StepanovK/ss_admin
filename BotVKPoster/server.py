@@ -113,22 +113,28 @@ class Server:
             published_post = self._get_post_by_id(post_id=post_inf.published_post_id)
             suggested_post = self._get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
+                published_post.user = suggested_post.user
+                if post_inf.admin_id:
+                    admin_user, _ = User.get_or_create(id=post_inf.admin_id)
+                    published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
+                published_post.save()
+
+                post_inf.delete_instance()
+
                 suggested_post.posted_in = published_post
                 suggested_post.save()
-                post_inf.delete_instance()
-            if published_post and post_inf.admin_id:
-                admin_user, _ = User.get_or_create(id=post_inf.admin_id)
-                published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
-                published_post.save()
+
+                for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
+                    PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
             new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
-        if payload['command'] == 'reject_post':
+        elif payload['command'] == 'reject_post':
             self._reject_post(post_id=payload['post_id'], admin_id=admin_id)
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
-        if payload['command'] == 'show_main_menu':
+        elif payload['command'] == 'show_main_menu':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'edit_hashtags':
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -138,8 +144,11 @@ class Server:
         elif payload['command'] == 'remove_hashtag':
             self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
-        if payload['command'] == 'show_user_info':
+        elif payload['command'] == 'show_user_info':
             self._show_user_info(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'set_anonymously':
+            self._set_anonymously(post_id=payload['post_id'], value=payload['val'])
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
         post = self._get_post_by_id(post_id=post_id)
@@ -186,7 +195,7 @@ class Server:
         if not post:
             return
 
-        result = self.vk_admin.wall.delete(owner_id=self.group_id, post_id=post_id)
+        result = self.vk_admin.wall.delete(owner_id=-self.group_id, post_id=post.vk_id)
 
         if result == 1:
             post.suggest_status = PostStatus.REJECTED.value
@@ -255,6 +264,13 @@ class Server:
             return
         for ht in PostsHashtag.select().where(PostsHashtag.post == post, PostsHashtag.hashtag == hashtag):
             ht.delete_instance()
+
+    def _set_anonymously(self, post_id, value: bool = True):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        post.anonymously = value
+        post.save()
 
     def _show_user_info(self, post_id, message_id: int = None):
         post = self._get_post_by_id(post_id=post_id)
@@ -356,8 +372,8 @@ class Server:
                 except Exception as ex:
                     logger.error(f'Ошибка получения информации об опубликованном посте для {post}: {ex}')
                     post_url = ''
-
-            text_status = '[ОПУБЛИКОВАН] ' + post_url
+            anon_text = ' анонимно' if post.anonymously else ''
+            text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'
         elif post.suggest_status == PostStatus.REJECTED.value:
             text_status = '[ОТКЛОНЁН]'
         else:
