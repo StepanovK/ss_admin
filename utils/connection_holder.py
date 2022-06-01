@@ -3,7 +3,7 @@ from vk_api import vk_api
 import utils.config as config
 
 
-class VKConnectionsHolder(metaclass=Singleton):
+class ConnectionsHolder(metaclass=Singleton):
     def __init__(self):
         self._vk_api_group = None
         self._vk_connection_group = None
@@ -12,10 +12,10 @@ class VKConnectionsHolder(metaclass=Singleton):
 
     @staticmethod
     def close():
-        if VKConnectionsHolder.instance._vk_connection_group:
-            VKConnectionsHolder.instance._vk_connection_group = None
-        if VKConnectionsHolder.instance._vk_connection_admin:
-            VKConnectionsHolder.instance._vk_connection_admin = None
+        if ConnectionsHolder.instance._vk_connection_group:
+            ConnectionsHolder.instance._vk_connection_group = None
+        if ConnectionsHolder.instance._vk_connection_admin:
+            ConnectionsHolder.instance._vk_connection_admin = None
 
         config.logger.info("Connections closed")
 

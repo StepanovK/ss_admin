@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta, date
 from utils.config import group_id, logger, spreadsheetId
 from utils.googleSheetsManager import GoogleSheetsManager
-from utils.connection_holder import VKConnectionsHolder
+from utils.connection_holder import ConnectionsHolder
 
 
 class ADSPost:
@@ -22,7 +22,7 @@ class ADSPost:
         self.extra_tariff: bool = False
         self.who_posted: str = None
         self.is_deleted: bool = False
-        self._vk = VKConnectionsHolder().vk_connection_admin
+        self._vk = ConnectionsHolder().vk_connection_admin
         self._group_id = group_id
 
     def take_data_from_dict(self, data_dict):

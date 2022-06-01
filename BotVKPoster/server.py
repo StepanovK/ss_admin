@@ -7,7 +7,7 @@ from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggested
 from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
 from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
 from BotVKPoster.PosterModels import create_db
-from utils.connection_holder import VKConnectionsHolder
+from utils.connection_holder import ConnectionsHolder
 from BotVKPoster import keyboards
 import pika
 import datetime
@@ -33,10 +33,10 @@ class Server:
 
         self.chat_for_suggest = config.chat_for_suggest
 
-        self.vk_api_admin = VKConnectionsHolder().vk_api_admin
-        self.vk_admin = VKConnectionsHolder().vk_connection_admin
-        self.vk_api_group = VKConnectionsHolder().vk_api_group
-        self.vk = VKConnectionsHolder().vk_connection_group
+        self.vk_api_admin = ConnectionsHolder().vk_api_admin
+        self.vk_admin = ConnectionsHolder().vk_connection_admin
+        self.vk_api_group = ConnectionsHolder().vk_api_group
+        self.vk = ConnectionsHolder().vk_connection_group
 
     def _start_polling(self):
 
