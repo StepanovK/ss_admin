@@ -5,6 +5,7 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
+from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
 from BotVKPoster.PosterModels import create_db
 from utils.connection_holder import VKConnectionsHolder
 from BotVKPoster import keyboards
@@ -17,6 +18,7 @@ from Models.Users import User
 from Models.Comments import Comment
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
+from Models.Admins import Admin
 
 
 class Server:
@@ -43,13 +45,16 @@ class Server:
         time_to_update_broker = 10
         last_broker_update = None
 
+        time_to_update_published_posts = 30
+        last_published_posts_update = None
+
         """
         События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
         Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
+        С периодичностью time_to_update_published_posts в предложенных постах записывается ID опубликованных 
         """
         while True:
             # https://habr.com/ru/post/512412/
-            # logger.info('Проверка событий ВК')
             for event in self._longpoll.check():
                 # logger.info(f'обработка события ВК {event.type}')
 
@@ -60,7 +65,7 @@ class Server:
                         ID сообщения при его отправке не совпадает с реальным ID сообщения.
                         Придётся фиксировать соответствие при нажатии пользователем на кнопку 
                         """
-                        message_of_post = MessageOfSuggestedPost.get_or_create(
+                        message_of_post, _ = MessageOfSuggestedPost.get_or_create(
                             post_id=payload['post_id'],
                             message_id=event.object.get('conversation_message_id'))
                     if 'command' in payload:
@@ -71,62 +76,19 @@ class Server:
                     if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
                         if event.object.message['text'] == 'create_db':
                             create_db.create_all_tables()
+
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
-                logger.info('Проверка событий очереди')
+                logger.info('Проверка новых постов')
                 self._start_consuming()
                 last_broker_update = datetime.datetime.now()
 
-    def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
-        if payload['command'] == 'public_post':
-            new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
-            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
-        if payload['command'] == 'show_main_menu':
-            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
-        elif payload['command'] == 'edit_hashtags':
-            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
-        elif payload['command'] == 'add_hashtag':
-            self._add_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
-            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
-        elif payload['command'] == 'remove_hashtag':
-            self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
-            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
-        if payload['command'] == 'show_user_info':
-            self._show_user_info(post_id=payload['post_id'], message_id=message_id)
-
-    def _publish_post(self, post_id: str, admin_id: int = None):
-        try:
-            post = Post.get(id=post_id)
-        except Post.PostDoesNotExist:
-            logger.warning(f'Не найден пост с ID={post_id}')
-            return
-
-        message = post.text
-
-        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-        if len(hashtags) > 0:
-            message = message + '\n' + '\n'.join(hashtags)
-
-        attachment = [str(att.attachment) for att in post.attachments]
-
-        new_post = self.vk_admin.wall.post(owner_id=-self.group_id,
-                                           signed=0 if post.anonymously else 1,
-                                           post_id=post.vk_id,
-                                           message=message,
-                                           attachments=attachment)
-        new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
-
-        post.suggest_status = PostStatus.POSTED.value
-        post.is_deleted = True
-        post.save()
-
-        new_post_info = PublishedPost.create(
-            suggested_post_id=post_id,
-            published_post_id=new_post_id,
-            admin_id=admin_id
-        )
-
-        return new_post_id
+            now = datetime.datetime.now()
+            if not last_published_posts_update or (
+                    now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
+                logger.info('Обновление опубликованных постов')
+                self._update_published_posts()
+                last_published_posts_update = datetime.datetime.now()
 
     def _start_consuming(self):
         conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
@@ -145,6 +107,96 @@ class Server:
                 self._add_new_message_post(message_text)
 
         connection.close()
+
+    def _update_published_posts(self):
+        for post_inf in PublishedPost.select():
+            published_post = self._get_post_by_id(post_id=post_inf.published_post_id)
+            suggested_post = self._get_post_by_id(post_id=post_inf.suggested_post_id)
+            if published_post and suggested_post:
+                suggested_post.posted_in = published_post
+                suggested_post.save()
+                post_inf.delete_instance()
+            if published_post and post_inf.admin_id:
+                admin_user, _ = User.get_or_create(id=post_inf.admin_id)
+                published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
+                published_post.save()
+
+    def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
+        if payload['command'] == 'publish_post':
+            new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        if payload['command'] == 'reject_post':
+            self._reject_post(post_id=payload['post_id'], admin_id=admin_id)
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        if payload['command'] == 'show_main_menu':
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'edit_hashtags':
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'add_hashtag':
+            self._add_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'remove_hashtag':
+            self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
+            self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        if payload['command'] == 'show_user_info':
+            self._show_user_info(post_id=payload['post_id'], message_id=message_id)
+
+    def _publish_post(self, post_id: str, admin_id: int = None):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+
+        message = post.text
+
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            message = message + '\n' + '\n'.join(hashtags)
+
+        attachment = [str(att.attachment) for att in post.attachments]
+
+        try:
+            new_post = self.vk_admin.wall.post(owner_id=-self.group_id,
+                                               signed=0 if post.anonymously else 1,
+                                               post_id=post.vk_id,
+                                               message=message,
+                                               attachments=attachment)
+        except Exception as ex:
+            logger.warning(f'Не удалось опубликовать пост ID={post.vk_id}\n{ex}')
+            return
+
+        new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
+
+        post.suggest_status = PostStatus.POSTED.value
+        if admin_id:
+            admin_user, _ = User.get_or_create(id=admin_id)
+            post.posted_by, _ = Admin.get_or_create(user=admin_user)
+        post.is_deleted = True
+        post.save()
+
+        new_post_info = PublishedPost.create(
+            suggested_post_id=post_id,
+            published_post_id=new_post_id,
+            admin_id=admin_id
+        )
+
+        return new_post_id
+
+    def _reject_post(self, post_id: str, admin_id: int = None):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+
+        result = self.vk_admin.wall.delete(owner_id=self.group_id, post_id=post_id)
+
+        if result == 1:
+            post.suggest_status = PostStatus.REJECTED.value
+            post.is_deleted = True
+            if admin_id:
+                admin_user, _ = User.get_or_create(id=admin_id)
+                post.posted_by, _ = Admin.get_or_create(user=admin_user)
+            post.save()
+
+            SortedHashtag.delete().where(SortedHashtag.post_id == post.id)
 
     def _add_new_message_post(self, post_id):
 
