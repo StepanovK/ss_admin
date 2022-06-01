@@ -1,3 +1,17 @@
 # Бот для управления сообществом в ВК
-![new_post](https://user-images.githubusercontent.com/13664126/171335063-51c278e1-a6a3-4f0e-b136-995843f8d026.gif)
-![user_info](https://user-images.githubusercontent.com/13664126/171335070-64766fae-0b7f-48c6-a5bc-590123ad2510.gif)
+
+## Возможности
+
+<details><summary>Добавление хэштегов</summary>
+  
+   ![new_post](https://user-images.githubusercontent.com/13664126/171338659-3c7264ed-41cc-469b-abee-52869ce60e29.gif)
+  
+</details>
+  
+<details><summary>Просмотр информации об активности пользователя</summary>
+  
+  ![user_info](https://user-images.githubusercontent.com/13664126/171338666-6bfe1ca7-b8b2-4461-9518-56e32619150b.gif)
+  
+</details>
+ 
+
