@@ -1,6 +1,6 @@
 from utils.singleton import Singleton
 from vk_api import vk_api
-import config
+from utils.config import group_token, admin_token, admin_phone, admin_pass, logger
 
 
 class ConnectionsHolder(metaclass=Singleton):
@@ -15,17 +15,17 @@ class ConnectionsHolder(metaclass=Singleton):
         if ConnectionsHolder.instance._vk_admin_client:
             ConnectionsHolder.instance._vk_admin_client = None
 
-        config.logger.info("Connections closed")
+        logger.info("Connections closed")
 
     @property
     def vk_client(self):
         if not self._vk_client:
             try:
-                vk_api_ = vk_api.VkApi(token=config.group_token)
+                vk_api_ = vk_api.VkApi(token=group_token)
                 self._vk_client = vk_api_.get_api()
-                config.logger.info("Init VK client")
+                logger.info("Init VK client")
             except Exception as ex:
-                config.logger.error(f"Failed to init VK client: {ex}")
+                logger.error(f"Failed to init VK client: {ex}")
         return self._vk_client
 
     @property
@@ -33,12 +33,12 @@ class ConnectionsHolder(metaclass=Singleton):
         if not self._vk_admin_client:
             try:
                 vk_api_admin = vk_api.VkApi(
-                    login=config.admin_phone,
-                    password=config.admin_pass,
-                    token=config.admin_token)
+                    login=admin_phone,
+                    password=admin_pass,
+                    token=admin_token)
                 self._vk_admin_client = vk_api_admin.get_api()
-                config.logger.info("Init VK admin client")
+                logger.info("Init VK admin client")
             except Exception as ex:
-                config.logger.error(f"Failed to init VK admin client: {ex}")
+                logger.error(f"Failed to init VK admin client: {ex}")
         return self._vk_admin_client
 

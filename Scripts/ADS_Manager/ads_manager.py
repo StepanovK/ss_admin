@@ -22,7 +22,7 @@ class ADSPost:
         self.extra_tariff: bool = False
         self.who_posted: str = None
         self.is_deleted: bool = False
-        self._vk = ConnectionsHolder().vk_client
+        self._vk = ConnectionsHolder().vk_admin_client
         self._group_id = group_id
 
     def take_data_from_dict(self, data_dict):
