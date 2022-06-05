@@ -1,6 +1,5 @@
 import utils.config as config
 from utils.config import logger
-from utils.db_helper import queri_to_list
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
@@ -13,7 +12,6 @@ import pika
 import datetime
 import random
 from Models.Posts import Post, PostsHashtag, PostStatus
-from Models.Relations import PostsAttachment
 from Models.Users import User
 from Models.Comments import Comment
 from Models.Relations import PostsLike, CommentsLike

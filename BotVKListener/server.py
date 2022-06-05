@@ -1,6 +1,5 @@
 import utils.config as config
 from utils.config import logger
-from vk_api import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 import pika

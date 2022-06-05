@@ -1,5 +1,5 @@
 from BotVKListener.server import Server
-from utils import config
+import utils.config as config
 
 import datetime
 

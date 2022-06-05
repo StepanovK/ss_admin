@@ -1,11 +1,9 @@
-import os
 import re
 from datetime import datetime
 from pprint import pprint
 
 import apiclient.discovery
 import httplib2
-from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 import utils.config as config
 

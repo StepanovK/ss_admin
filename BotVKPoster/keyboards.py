@@ -1,7 +1,7 @@
-from vk_api.keyboard import VkKeyboard, VkKeyboardButton, VkKeyboardColor
-from Models.Posts import Post, PostStatus, PostsHashtag
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+from Models.Posts import Post, PostStatus
 from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
-import utils.config as config
+import config as config
 from utils.db_helper import queri_to_list
 import collections
 
