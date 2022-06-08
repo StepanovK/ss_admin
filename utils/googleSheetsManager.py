@@ -5,7 +5,7 @@ from pprint import pprint
 import apiclient.discovery
 import httplib2
 from oauth2client.service_account import ServiceAccountCredentials
-import utils.config as config
+import config as config
 
 
 class GoogleSheetsManager:

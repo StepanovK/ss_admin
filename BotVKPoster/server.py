@@ -1,5 +1,5 @@
-import utils.config as config
-from utils.config import logger
+import config as config
+from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost

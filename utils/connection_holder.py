@@ -1,6 +1,6 @@
 from utils.singleton import Singleton
 from vk_api import vk_api
-import utils.config as config
+import config as config
 
 
 class ConnectionsHolder(metaclass=Singleton):

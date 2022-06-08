@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta, date
-from utils.config import group_id, logger, spreadsheetId
+from config import group_id, logger, spreadsheetId
 from utils.googleSheetsManager import GoogleSheetsManager
 from utils.connection_holder import ConnectionsHolder
 
