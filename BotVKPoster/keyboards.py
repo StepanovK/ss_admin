@@ -1,7 +1,7 @@
-from vk_api.keyboard import VkKeyboard, VkKeyboardButton, VkKeyboardColor
-from Models.Posts import Post, PostStatus, PostsHashtag
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+from Models.Posts import Post, PostStatus
 from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
-import utils.config as config
+import config as config
 from utils.db_helper import queri_to_list
 import collections
 
@@ -12,7 +12,15 @@ def main_menu_keyboard(post: Post):
     if post.suggest_status == PostStatus.SUGGESTED.value:
         keyboard.add_callback_button(label='Опубликовать',
                                      color=VkKeyboardColor.PRIMARY,
-                                     payload={"command": "public_post", "post_id": post.id})
+                                     payload={"command": "publish_post", "post_id": post.id})
+        if post.anonymously:
+            keyboard.add_callback_button(label='анонимно',
+                                         color=VkKeyboardColor.PRIMARY,
+                                         payload={"command": "set_anonymously", "post_id": post.id, 'val': False})
+        else:
+            keyboard.add_callback_button(label='не анонимно',
+                                         color=VkKeyboardColor.SECONDARY,
+                                         payload={"command": "set_anonymously", "post_id": post.id, 'val': True})
         keyboard.add_line()
         keyboard.add_callback_button(label='Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,
@@ -27,7 +35,7 @@ def main_menu_keyboard(post: Post):
         keyboard.add_line()
         keyboard.add_callback_button(label='Отклонить',
                                      color=VkKeyboardColor.NEGATIVE,
-                                     payload={"command": "reject", "post_id": post.id})
+                                     payload={"command": "reject_post", "post_id": post.id})
 
     return keyboard.get_keyboard()
 

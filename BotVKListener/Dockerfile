@@ -1,14 +1,13 @@
-FROM python:3.10.0-buster
-
-WORKDIR /ss-admin
-ENV PYTHONPATH="/ss-admin/BotVKListener/:/ss-admin/"
-
-COPY ./utils/requirements.txt ./
-RUN pip install --no-cache-dir -r ./requirements.txt
-
-COPY ./utils ./utils
-COPY ./BotVKListener ./BotVKListener
+FROM python:latest
+RUN mkdir -p /app
+WORKDIR /app
+COPY ./BotVKListener/requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
 COPY ./Models ./Models
-
-
-CMD [ "python", "/ss-admin/Models/create_db.py", "python", "/ss-admin/BotVKListener/Parser/_initial_downloading.py" ]
+RUN pip install -r Models/requirements.txt
+ENV TZ Europe/Moscow
+COPY ./BotVKListener/ ./BotVKListener/
+COPY ./utils/ ./utils/
+COPY ./config.py ./config.py
+COPY ./.env ./.env
+CMD ["python", "./BotVKListener/server.py"]

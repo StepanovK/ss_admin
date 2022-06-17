@@ -1,17 +1,15 @@
-import os
 import re
 from datetime import datetime
 from pprint import pprint
 
 import apiclient.discovery
 import httplib2
-from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
-from utils.config import secret_key_google, spreadsheetId
+import config as config
 
 
 class GoogleSheetsManager:
-    secret_key = secret_key_google
+    secret_key = config.secret_key_google
     templates = eval(secret_key)
     credentials = ServiceAccountCredentials._from_parsed_json_keyfile(
         templates,
@@ -88,7 +86,7 @@ class GoogleSheetsManager:
 
 
 if __name__ == "__main__":
-    spreadsheetId = spreadsheetId
+    spreadsheetId = config.spreadsheetId
     sheet = GoogleSheetsManager(spreadsheetId)
     for elem in sheet.get_sheet_values("ads_test"):
         pprint(sheet.take_data_from_raw_dict(elem))

@@ -3,7 +3,7 @@ from Models.Posts import Post
 from BotVKListener.Parser import comments
 from BotVKListener.Parser import users
 from BotVKListener.Parser import posts
-from utils.config import logger
+from config import logger
 
 
 def parce_post_likes(post: Post, likers: list, vk_connection=None):

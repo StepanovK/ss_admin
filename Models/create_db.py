@@ -1,7 +1,7 @@
-import utils.config as config
+import config as config
 import psycopg2
 import psycopg2.extras
-from utils.config import logger
+from config import logger
 from Models.base import db
 from Models.Admins import Admin
 from Models.UploadedFiles import UploadedFile

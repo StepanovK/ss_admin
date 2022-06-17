@@ -1,11 +1,10 @@
-import utils.config as config
-from utils.config import logger
-from vk_api import vk_api
+import config as config
+from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 import pika
 from Models.Posts import PostStatus
-from utils.connection_holder import VKConnectionsHolder
+from utils.connection_holder import ConnectionsHolder
 
 from BotVKListener.Parser import comments, likes, posts, subscriptions
 
@@ -22,10 +21,10 @@ class Server:
 
         self.chat_for_suggest = config.chat_for_suggest
 
-        self.vk_api_admin = VKConnectionsHolder().vk_api_admin
-        self.vk_connection_admin = VKConnectionsHolder().vk_connection_admin
-        self.vk_api_group = VKConnectionsHolder().vk_api_group
-        self.vk_connection_group = VKConnectionsHolder().vk_connection_group
+        self.vk_api_admin = ConnectionsHolder().vk_api_admin
+        self.vk_connection_admin = ConnectionsHolder().vk_connection_admin
+        self.vk_api_group = ConnectionsHolder().vk_api_group
+        self.vk_connection_group = ConnectionsHolder().vk_connection_group
 
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, )
