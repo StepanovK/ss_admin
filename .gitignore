@@ -6,6 +6,7 @@ database/test_data.sql
 *.tmp
 *.sqlite
 *mk_docker.cmd
+.env_docker
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

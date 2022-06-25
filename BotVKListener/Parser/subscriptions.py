@@ -1,4 +1,4 @@
-from BotVKListener.Parser import users
+from . import users
 from Models.Subscriptions import Subscription
 from datetime import datetime
 

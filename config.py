@@ -17,14 +17,14 @@ admin_pass = env.str("admin_pass")
 chat_for_suggest = env.int("chat_for_suggest")
 hashtags = sorted(json.loads(env.str("hashtags")))
 
-db_host = env.str("db_host")
-db_port = env.int("db_port")
-db_user = env.str("db_user")
-db_password = env.str("db_password")
-db_name = env.str("db_name")
+db_host = env.str("POSTGRES_HOST")
+db_port = env.int("POSTGRES_PORT")
+db_user = env.str("POSTGRES_USER")
+db_password = env.str("POSTGRES_PASSWORD")
+db_name = env.str("POSTGRES_DB")
 
-rabbitmq_host = env.str("rabbitmq_host")
-rabbitmq_port = env.int("rabbitmq_port")
+rabbitmq_host = env.str("RABBITMQ_DEFAULT_VHOST")
+rabbitmq_port = env.int("RABBITMQ_DEFAULT_PORT")
 queue_name_prefix = env.str("queue_name_prefix")
 
 # for Google Tables

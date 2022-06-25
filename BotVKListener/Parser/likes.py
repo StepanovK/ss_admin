@@ -1,8 +1,8 @@
 import Models.Relations as Relations
 from Models.Posts import Post
-from BotVKListener.Parser import comments
-from BotVKListener.Parser import users
-from BotVKListener.Parser import posts
+from . import comments
+from . import users
+from . import posts
 from config import logger
 
 

@@ -1,6 +1,6 @@
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
-from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
+from PosterModels.SortedHashtags import SortedHashtag
 import config as config
 from utils.db_helper import queri_to_list
 import collections

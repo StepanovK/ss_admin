@@ -1,12 +1,12 @@
-from BotVKListener.server import Server
-import config as config
+# from BotVKListener.server import Server
+# import config as config
 
 import datetime
 
-from BotVKListener.Parser import subscriptions
-from BotVKListener.Parser import posts
-from BotVKListener.Parser import users
-from BotVKListener.Parser import comments
+from . import subscriptions
+from . import posts
+from . import users
+from . import comments
 from config import logger
 from Models.Users import User
 from Models.Posts import Post
@@ -143,10 +143,10 @@ def get_current_offset_in_file(temp_file_name):
     return offset
 
 
-if __name__ == '__main__':
-    server = Server(vk_group_token=config.group_token,
-                    admin_token=config.admin_token,
-                    admin_phone=config.admin_phone,
-                    admin_pass=config.admin_pass,
-                    vk_group_id=config.group_id)
-    load_all(server.vk_connection_admin, config.group_id)
+# if __name__ == '__main__':
+#     server = Server(vk_group_token=config.group_token,
+#                     admin_token=config.admin_token,
+#                     admin_phone=config.admin_phone,
+#                     admin_pass=config.admin_pass,
+#                     vk_group_id=config.group_id)
+#     load_all(server.vk_connection_admin, config.group_id)

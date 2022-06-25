@@ -1,8 +1,8 @@
 from config import logger
-from BotVKPoster.PosterModels.base import db
-from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
-from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
-from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
+from .base import db
+from .MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from .PublishedPosts import PublishedPost
+from .SortedHashtags import SortedHashtag
 
 
 def create_all_tables():

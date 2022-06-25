@@ -2,12 +2,12 @@ import config as config
 from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
-from BotVKPoster.PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
-from BotVKPoster.PosterModels.PublishedPosts import PublishedPost
-from BotVKPoster.PosterModels.SortedHashtags import SortedHashtag
-from BotVKPoster.PosterModels import create_db
+from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from PosterModels.PublishedPosts import PublishedPost
+from PosterModels.SortedHashtags import SortedHashtag
+from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
-from BotVKPoster import keyboards
+import keyboards
 import pika
 import datetime
 import random
