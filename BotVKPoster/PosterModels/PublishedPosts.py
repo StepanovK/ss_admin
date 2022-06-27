@@ -1,5 +1,5 @@
 from peewee import *
-from BotVKPoster.PosterModels.base import BaseModel
+from .base import BaseModel
 
 
 class PublishedPost(BaseModel):

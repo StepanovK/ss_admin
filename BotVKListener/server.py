@@ -6,7 +6,7 @@ import pika
 from Models.Posts import PostStatus
 from utils.connection_holder import ConnectionsHolder
 
-from BotVKListener.Parser import comments, likes, posts, subscriptions
+from Parser import comments, likes, posts, subscriptions, _initial_downloading
 
 
 class Server:
@@ -56,6 +56,10 @@ class Server:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, True)
             elif event.type == VkBotEventType.GROUP_LEAVE:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+            elif event.type == VkBotEventType.MESSAGE_NEW:
+                if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
+                    if event.object.message['text'] == 'load_data':
+                        _initial_downloading.load_all(self.vk_connection_admin, self.group_id)
 
     def _send_alarm(self, message_type: str, message: str):
         credentials = pika.PlainCredentials('guest', 'guest')

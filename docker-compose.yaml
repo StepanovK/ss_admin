@@ -1,0 +1,90 @@
+version: "3.9"
+
+volumes:
+  pgdata_volume:
+  rabbit_mq_volume:
+  logs_volume:
+
+networks:
+  vk_admin:
+    driver: bridge
+
+services:
+  postgres_ru:
+    build:
+      context: .
+      dockerfile: Models/Dockerfile
+    env_file:
+      - .env_docker
+    environment:
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres
+#      POSTGRES_DB: vk_db
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    ports:
+      - ${POSTGRES_PORT:-5432}:5432
+    restart: always
+    volumes:
+      - pgdata_volume:/var/lib/postgresql/data
+    networks:
+      - vk_admin
+
+  pgadmin:
+    image: dpage/pgadmin4:5.7
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@vk.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    env_file:
+      - .env_docker
+    volumes:
+      - ./pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    networks:
+      - vk_admin
+
+  rabbit:
+    image: rabbitmq
+    ports:
+      - "15672:15672"
+    networks:
+      - vk_admin
+
+  rabbit_manager:
+    image: rabbitmq:3-management
+    ports:
+      - "8080:15672"
+    env_file:
+      - .env_docker
+    networks:
+      - vk_admin
+
+  bot_poster:
+    build:
+      context: .
+      dockerfile: BotVKPoster/Dockerfile
+    restart: always
+    env_file:
+      - .env_docker
+    environment:
+      - TZ=Europe/Moscow
+    volumes:
+      - logs_volume:/Logs
+    networks:
+      - vk_admin
+
+  bot_listener:
+    build:
+      context: .
+      dockerfile: BotVKListener/Dockerfile
+    restart: always
+    env_file:
+      - .env_docker
+    environment:
+      - TZ=Europe/Moscow
+    volumes:
+      - logs_volume:/Logs
+    networks:
+      - vk_admin

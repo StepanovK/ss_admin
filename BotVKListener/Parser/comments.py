@@ -1,6 +1,6 @@
-from BotVKListener.Parser import users
-from BotVKListener.Parser import posts
-from BotVKListener.Parser import attachments
+from . import users
+from . import posts
+from . import attachments
 from Models.Comments import Comment
 import datetime
 from config import logger
