@@ -4,6 +4,7 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 import pika
 from Models.Posts import PostStatus
+from Models import create_db
 from utils.connection_holder import ConnectionsHolder
 
 from Parser import comments, likes, posts, subscriptions, _initial_downloading
@@ -60,6 +61,8 @@ class Server:
                 if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
                     if event.object.message['text'] == 'load_data':
                         _initial_downloading.load_all(self.vk_connection_admin, self.group_id)
+                    if event.object.message['text'] == 'create_db':
+                        create_db.create_all_tables()
 
     def _send_alarm(self, message_type: str, message: str):
         credentials = pika.PlainCredentials('guest', 'guest')

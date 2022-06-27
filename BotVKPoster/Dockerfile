@@ -2,6 +2,7 @@ FROM python:latest
 ENV TZ Europe/Moscow
 RUN mkdir -p /app
 WORKDIR /app
+ENV PYTHONPATH="/app/BotVKPoster/:/app/Models/:/app/utils/"
 COPY ./config.py ./BotVKPoster/config.py
 RUN pip install --upgrade pip
 COPY ./BotVKPoster/requirements.txt ./requirements.txt
