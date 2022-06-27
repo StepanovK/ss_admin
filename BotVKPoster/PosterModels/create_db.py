@@ -16,6 +16,13 @@ def create_all_tables():
         db.create_tables(models)
 
 
+def check_or_create_db():
+    try:
+        file = open('input.txt')
+    except IOError as e:
+        create_all_tables()
+
+
 if __name__ == '__main__':
     logger.info('Обновление базы данных:')
 

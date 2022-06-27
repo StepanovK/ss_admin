@@ -20,15 +20,6 @@ from Models.Admins import Admin
 import peewee
 
 
-def check_or_create_db():
-    try:
-        PublishedPost.select()
-    except peewee.OperationalError:
-        logger.info('No database! try to create...')
-        create_db.create_all_tables()
-        logger.info('Database created!')
-
-
 class Server:
     vk_link = 'https://vk.com/'
 
@@ -80,10 +71,6 @@ class Server:
                         self._proces_button_click(payload=payload,
                                                   message_id=event.object.get('conversation_message_id'),
                                                   admin_id=event.object.get('user_id'))
-                elif event.type == VkBotEventType.MESSAGE_NEW:
-                    if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
-                        if event.object.message['text'] == 'create_db':
-                            create_db.create_all_tables()
 
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
@@ -416,6 +403,6 @@ class Server:
 
 
 if __name__ == '__main__':
-    check_or_create_db()
+    create_db.check_or_create_db()
     server = Server()
     server.run_in_loop()
