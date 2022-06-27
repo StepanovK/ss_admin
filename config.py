@@ -23,7 +23,7 @@ db_user = env.str("POSTGRES_USER")
 db_password = env.str("POSTGRES_PASSWORD")
 db_name = env.str("POSTGRES_DB")
 
-rabbitmq_host = env.str("RABBITMQ_DEFAULT_VHOST")
+rabbitmq_host = env.str("RABBITMQ_DEFAULT_HOST")
 rabbitmq_port = env.int("RABBITMQ_DEFAULT_PORT")
 queue_name_prefix = env.str("queue_name_prefix")
 

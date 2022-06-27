@@ -17,6 +17,16 @@ from Models.Comments import Comment
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Admins import Admin
+import peewee
+
+
+def check_or_create_db():
+    try:
+        PublishedPost.select()
+    except peewee.OperationalError:
+        logger.info('No database! try to create...')
+        create_db.create_all_tables()
+        logger.info('Database created!')
 
 
 class Server:
@@ -90,7 +100,11 @@ class Server:
 
     def _start_consuming(self):
         conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
-        connection = pika.BlockingConnection(conn_params)
+        try:
+            connection = pika.BlockingConnection(conn_params)
+        except pika.exceptions.AMQPConnectionError:
+            logger.info('Не удалось подключиться к рэббиту')
+            return
         channel = connection.channel()
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
         channel.queue_declare(queue=queue_name,
@@ -390,10 +404,10 @@ class Server:
         return represent
 
     def run(self):
-        # try:
-        self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        try:
+            self._start_polling()
+        except Exception as ex:
+            logger.error(ex)
 
     def run_in_loop(self):
         while True:
@@ -402,5 +416,6 @@ class Server:
 
 
 if __name__ == '__main__':
+    check_or_create_db()
     server = Server()
     server.run_in_loop()
