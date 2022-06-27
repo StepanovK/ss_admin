@@ -99,7 +99,7 @@ class ADSManager:
         self.date_delta = datetime.date(datetime.now()) - timedelta(30)  #
 
     def __get_ads_posts(self):
-        raw_ads_posts = self._google_sheet.get_sheet_values("ads_test")
+        raw_ads_posts = self._google_sheet.get_sheet_values("Реклама")
         for raw_post in raw_ads_posts:
             raw_response = self._google_sheet.take_data_from_raw_dict(raw_post)
             response = ADSPost().take_data_from_dict(raw_response)

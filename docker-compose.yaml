@@ -45,20 +45,13 @@ services:
     networks:
       - vk_admin
 
-  rabbitmq:
+  rabbit:
     image: rabbitmq
-    hostname: rabbitmq
-    command: rabbitmq-server
-    expose:
-      - 5672
-      - 15672
-      - 25672
     ports:
+      - "5672:5672"
       - "15672:15672"
       - "25672:25672"
-      - "5672:5672"
-    env_file:
-      - .env_docker
+
     networks:
       - vk_admin
 
@@ -82,6 +75,8 @@ services:
       - TZ=Europe/Moscow
     volumes:
       - logs_volume:/Logs
+    depends_on:
+      - rabbitmq
     networks:
       - vk_admin
 
