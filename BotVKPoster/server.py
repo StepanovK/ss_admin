@@ -74,14 +74,14 @@ class Server:
 
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
-                logger.info('Проверка новых постов')
+                # logger.info('Проверка новых постов')
                 self._start_consuming()
                 last_broker_update = datetime.datetime.now()
 
             now = datetime.datetime.now()
             if not last_published_posts_update or (
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
-                logger.info('Обновление опубликованных постов')
+                # logger.info('Обновление опубликованных постов')
                 self._update_published_posts()
                 last_published_posts_update = datetime.datetime.now()
 
@@ -90,7 +90,7 @@ class Server:
         try:
             connection = pika.BlockingConnection(conn_params)
         except pika.exceptions.AMQPConnectionError:
-            logger.info('Не удалось подключиться к рэббиту')
+            logger.error('pika.exceptions.AMQPConnectionError')
             return
         channel = connection.channel()
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
