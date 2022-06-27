@@ -45,10 +45,13 @@ services:
     networks:
       - vk_admin
 
-  rabbit:
+  rabbitmq:
     image: rabbitmq
     ports:
+      - "5672:5672"
       - "15672:15672"
+      - "25672:25672"
+
     networks:
       - vk_admin
 
@@ -72,6 +75,8 @@ services:
       - TZ=Europe/Moscow
     volumes:
       - logs_volume:/Logs
+    depends_on:
+      - rabbitmq
     networks:
       - vk_admin
 
