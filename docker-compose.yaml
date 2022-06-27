@@ -45,10 +45,20 @@ services:
     networks:
       - vk_admin
 
-  rabbit:
+  rabbitmq:
     image: rabbitmq
+    hostname: rabbitmq
+    command: rabbitmq-server
+    expose:
+      - 5672
+      - 15672
+      - 25672
     ports:
       - "15672:15672"
+      - "25672:25672"
+      - "5672:5672"
+    env_file:
+      - .env_docker
     networks:
       - vk_admin
 
