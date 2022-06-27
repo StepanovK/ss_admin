@@ -4,8 +4,6 @@ RUN mkdir -p /app
 WORKDIR /app
 ENV PYTHONPATH="/app/BotVKPoster/:/app/Models/:/app/utils/"
 COPY ./config.py ./BotVKPoster/config.py
-COPY ./config.py ./BotVKPoster/Models/config.py
-ENV PYTHONPATH="/app/BotVKPoster/:/app/BotVKPoster/Models"
 RUN pip install --upgrade pip
 COPY ./BotVKPoster/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
