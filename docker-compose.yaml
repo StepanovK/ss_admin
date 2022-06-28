@@ -46,21 +46,12 @@ services:
       - vk_admin
 
   rabbitmq:
-    image: rabbitmq
+    container_name: rabbitmq
+    hostname: rabbitmq
+    image: rabbitmq:3.10-management-alpine
     ports:
       - "5672:5672"
-      - "15672:15672"
-      - "25672:25672"
-
-    networks:
-      - vk_admin
-
-  rabbit_manager:
-    image: rabbitmq:3-management
-    ports:
       - "8080:15672"
-    env_file:
-      - .env_docker
     networks:
       - vk_admin
 
@@ -77,6 +68,7 @@ services:
       - logs_volume:/Logs
     depends_on:
       - rabbitmq
+      - postgres_ru
     networks:
       - vk_admin
 
@@ -91,5 +83,8 @@ services:
       - TZ=Europe/Moscow
     volumes:
       - logs_volume:/Logs
+    depends_on:
+      - rabbitmq
+      - postgres_ru
     networks:
       - vk_admin
