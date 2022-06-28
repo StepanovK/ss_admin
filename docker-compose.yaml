@@ -2,6 +2,7 @@ version: "3.9"
 
 volumes:
   pgdata_volume:
+  pgadmin_volume:
   rabbit_mq_volume:
     driver: rexray
     driver_opts:
@@ -35,7 +36,7 @@ services:
       - vk_admin
 
   pgadmin:
-    image: dpage/pgadmin4:5.7
+    image: dpage/pgadmin4:6.10
     environment:
       PGADMIN_DEFAULT_EMAIL: "admin@vk.com"
       PGADMIN_DEFAULT_PASSWORD: "admin"
@@ -43,12 +44,14 @@ services:
     env_file:
       - .env_docker
     volumes:
-      - ./pgadmin:/var/lib/pgadmin
+      - pgadmin_volume:/var/lib/pgadmin
     ports:
       - "5050:80"
     restart: unless-stopped
     networks:
       - vk_admin
+    depends_on:
+      - postgres_ru
 
   rabbitmq:
     container_name: rabbitmq
