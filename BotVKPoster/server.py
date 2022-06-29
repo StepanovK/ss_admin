@@ -86,11 +86,14 @@ class Server:
                 last_published_posts_update = datetime.datetime.now()
 
     def _start_consuming(self):
-        conn_params = pika.ConnectionParameters(self.rabbitmq_host, self.rabbitmq_port)
+        credentials = pika.PlainCredentials('guest', 'guest')
+        conn_params = pika.ConnectionParameters(host=self.rabbitmq_host,
+                                                port=self.rabbitmq_port,
+                                                credentials=credentials)
         try:
             connection = pika.BlockingConnection(conn_params)
-        except pika.exceptions.AMQPConnectionError:
-            logger.error('pika.exceptions.AMQPConnectionError')
+        except pika.exceptions.AMQPConnectionError as er:
+            logger.warning(f'failed to connect with rabbitmq! ({self.rabbitmq_host}:{self.rabbitmq_port})')
             return
         channel = connection.channel()
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
