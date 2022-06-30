@@ -2,7 +2,7 @@ FROM python:latest
 ENV TZ Europe/Moscow
 RUN mkdir -p /app
 WORKDIR /app
-COPY ./config.py ./BotVKListener/config.py
+COPY ./Docker/config.py ./BotVKListener/config.py
 ENV PYTHONPATH="/app/BotVKListener/"
 RUN pip install --upgrade pip
 COPY ./BotVKListener/requirements.txt ./requirements.txt

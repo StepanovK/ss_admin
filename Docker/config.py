@@ -17,13 +17,13 @@ admin_pass = env.str("admin_pass")
 chat_for_suggest = env.int("chat_for_suggest")
 hashtags = sorted(json.loads(env.str("hashtags")))
 
-db_host = 'localhost'
+db_host = 'postgres_ru'
 db_port = 5432
 db_user = env.str("POSTGRES_USER")
 db_password = env.str("POSTGRES_PASSWORD")
 db_name = 'admin_ss'
 
-rabbitmq_host = 'localhost'
+rabbitmq_host = 'rabbitmq'
 rabbitmq_port = 5672
 queue_name_prefix = 'vk_events'
 

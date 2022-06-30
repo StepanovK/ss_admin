@@ -20,12 +20,7 @@ services:
     build:
       context: .
       dockerfile: Models/Dockerfile
-    env_file:
-      - .env_docker
     environment:
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: postgres
-#      POSTGRES_DB: vk_db
       PGDATA: "/var/lib/postgresql/data/pgdata"
     ports:
       - ${POSTGRES_PORT:-5432}:5432
@@ -34,24 +29,22 @@ services:
       - pgdata_volume:/var/lib/postgresql/data
     networks:
       - vk_admin
+    env_file:
+      - .env
 
   pgadmin:
     image: dpage/pgadmin4:6.10
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "admin@vk.com"
-      PGADMIN_DEFAULT_PASSWORD: "admin"
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    env_file:
-      - .env_docker
     volumes:
       - pgadmin_volume:/var/lib/pgadmin
     ports:
-      - "5050:80"
+      - ${PGADMIN_PORT:-5050}:80
     restart: unless-stopped
     networks:
       - vk_admin
     depends_on:
       - postgres_ru
+    env_file:
+      - .env
 
   rabbitmq:
     container_name: rabbitmq
@@ -61,7 +54,7 @@ services:
       - RABBITMQ_NODENAME=node@rabbitmq
     ports:
       - "5672:5672"
-      - "8080:15672"
+      - ${RABBITMQ_ADMIN_PORT:-8080}:15672
     networks:
       - vk_admin
     volumes:
@@ -72,8 +65,6 @@ services:
       context: .
       dockerfile: BotVKPoster/Dockerfile
     restart: always
-    env_file:
-      - .env_docker
     environment:
       - TZ=Europe/Moscow
     volumes:
@@ -83,14 +74,15 @@ services:
       - postgres_ru
     networks:
       - vk_admin
+    env_file:
+      - .env
+
 
   bot_listener:
     build:
       context: .
       dockerfile: BotVKListener/Dockerfile
     restart: always
-    env_file:
-      - .env_docker
     environment:
       - TZ=Europe/Moscow
     volumes:
@@ -100,3 +92,5 @@ services:
       - postgres_ru
     networks:
       - vk_admin
+    env_file:
+      - .env

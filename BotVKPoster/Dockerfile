@@ -3,7 +3,7 @@ ENV TZ Europe/Moscow
 RUN mkdir -p /app
 WORKDIR /app
 ENV PYTHONPATH="/app/BotVKPoster/"
-COPY ./config.py ./BotVKPoster/config.py
+COPY ./Docker/config.py ./BotVKPoster/config.py
 RUN pip install --upgrade pip
 COPY ./BotVKPoster/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
