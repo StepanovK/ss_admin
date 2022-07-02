@@ -59,8 +59,12 @@ class Server:
                 subscriptions.parse_subscription(event, self.vk_connection_admin, False)
             elif event.type == VkBotEventType.MESSAGE_NEW:
                 if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
-                    if event.object.message['text'] == 'load_data':
-                        _initial_downloading.load_all(self.vk_connection_admin, self.group_id)
+                    if 'load_data' in event.object.message['text']:
+                        if len(event.object.message['text'].split()) == 1:
+                            group_id = self.group_id
+                        else:
+                            group_id = int(event.object.message['text'].split()[1])
+                        _initial_downloading.load_all(self.vk_connection_admin, group_id)
                     if event.object.message['text'] == 'create_db':
                         create_db.create_all_tables()
 
