@@ -3,12 +3,12 @@ version: "3.9"
 volumes:
   pgdata_volume:
   pgadmin_volume:
-  rabbit_mq_volume:
-    driver: rexray
-    driver_opts:
-      volumeType: "gp2"
-      size: "4"
-      availabilityZone: "ap-south-1a"
+#  rabbit_mq_volume:
+#    driver: rexray
+#    driver_opts:
+#      volumeType: "gp2"
+#      size: "4"
+#      availabilityZone: "ap-south-1a"
   logs_volume:
 
 networks:
@@ -57,8 +57,8 @@ services:
       - ${RABBITMQ_ADMIN_PORT:-8080}:15672
     networks:
       - vk_admin
-    volumes:
-      - rabbit_mq_volume:/var/lib/rabbitmq/mnesia/node@rabbitmq
+#    volumes:
+#      - rabbit_mq_volume:/var/lib/rabbitmq/mnesia/node@rabbitmq
 
   bot_poster:
     build:

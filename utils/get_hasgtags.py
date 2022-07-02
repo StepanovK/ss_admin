@@ -1,3 +1,4 @@
+import functools
 from collections import Counter
 from typing import List, Dict
 
@@ -7,7 +8,8 @@ from utils.googleSheetsManager import GoogleSheetsManager
 from rapidfuzz import process, fuzz
 
 
-def get_hashtags(new_post: str, count_res: int = 10) -> List[tuple]:
+@functools.lru_cache()
+def get_hashtags(new_post: str, count_res: int = 20) -> List[tuple]:
     _google_sheet: GoogleSheetsManager = GoogleSheetsManager(spreadsheetId)
     raw_hashtags: dict = _google_sheet.get_sheet_values("Хэштэги")
     posts_with_hashtag: List[str] = [post.text.lower() for post in Post.select().where(Post.text.contains("#"))]
