@@ -98,7 +98,7 @@ def _hashtags_by_pages(post: Post) -> dict[list]:
     count_per_page = 4
     sorted_hashtags = queri_to_list(SortedHashtag.select().where(SortedHashtag.post_id == post.id), column='hashtag')
     # for ht in config.hashtags:
-    for ht in get_hashtags(post.text):
+    for ht in get_hashtags(post.text, count_res=19):
         if ht[0] not in sorted_hashtags:
             sorted_hashtags.append(ht[0])
 
