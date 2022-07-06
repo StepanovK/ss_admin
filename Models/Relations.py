@@ -4,6 +4,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Users import User
 from Models.Comments import Comment
+from Models.PrivateMessages import PrivateMessage
 from typing import Union
 
 
@@ -59,15 +60,32 @@ class PostsLike(BaseModel):
         table_name = 'posts_likes'
 
 
-def add_attachment(post_or_comment: Union[Post, Comment],
+class PrivateMessageAttachment(BaseModel):
+    message = ForeignKeyField(PrivateMessage,
+                              index=True,
+                              backref='attachments',
+                              on_delete='CASCADE')
+    attachment = ForeignKeyField(UploadedFile, index=True)
+    is_deleted = BooleanField()
+
+    class Meta:
+        table_name = 'private_messages_attachments'
+        indexes = ['message']
+        order_by = ['message']
+
+
+def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachment],
                    attachment: UploadedFile,
                    is_deleted: bool = False):
-    if isinstance(post_or_comment, Post):
+    if isinstance(attachment_object, Post):
         new_attachment = PostsAttachment()
-        new_attachment.post = post_or_comment
-    elif isinstance(post_or_comment, Comment):
+        new_attachment.post = attachment_object
+    elif isinstance(attachment_object, Comment):
         new_attachment = CommentsAttachment()
-        new_attachment.comment = post_or_comment
+        new_attachment.comment = attachment_object
+    elif isinstance(attachment_object, PrivateMessage):
+        new_attachment = PrivateMessageAttachment()
+        new_attachment.message = attachment_object
     else:
         raise 'Wrong type of object to adding a attachment!'
     new_attachment.attachment = attachment

@@ -1,6 +1,8 @@
 from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Comments import Comment
+from Models.PrivateMessages import PrivateMessage
+from Models.Users import User
 import Models.Relations as Relations
 from config import logger
 from typing import Union
@@ -8,16 +10,22 @@ import datetime
 import json
 
 
-def parce_added_attachments(post_or_comment: Union[Post, Comment], attachments: list):
+def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessage],
+                            attachments: list,
+                            user: User = None):
     for attachment in attachments:
         attachment_type = attachment.get('type')
         if attachment_type in UploadedFile.available_types():
             media_file = parse_vk_attachment(attachment)
             if media_file is not None:
                 if media_file.user is None:
-                    media_file.user = post_or_comment.user
+                    if user is None:
+                        media_file.user = attachment_object.user
+                    else:
+                        media_file.user = user
                     media_file.save()
-                Relations.add_attachment(post_or_comment, media_file)
+
+                Relations.add_attachment(attachment_object, media_file)
 
 
 def parse_vk_attachment(vk_attachment):

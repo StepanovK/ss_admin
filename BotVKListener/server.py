@@ -7,7 +7,7 @@ from Models.Posts import PostStatus
 from Models import create_db
 from utils.connection_holder import ConnectionsHolder
 
-from Parser import comments, likes, posts, subscriptions, _initial_downloading
+from Parser import comments, likes, posts, subscriptions, private_messages, _initial_downloading
 
 
 class Server:
@@ -67,6 +67,14 @@ class Server:
                         _initial_downloading.load_all(self.vk_connection_admin, group_id)
                     if event.object.message['text'] == 'create_db':
                         create_db.create_all_tables()
+                    elif event.object.message['text'] == 'recreate_db':
+                        create_db.recreate_database()
+                else:
+                    message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
+                    self._send_alarm(message_type='new_private_message', message=message.id)
+            elif event.type == VkBotEventType.MESSAGE_REPLY:
+                if event.from_user:
+                    private_messages.parse_private_message(event.object, self.vk_connection_admin)
 
     def _send_alarm(self, message_type: str, message: str):
         credentials = pika.PlainCredentials('guest', 'guest')
