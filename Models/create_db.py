@@ -7,7 +7,8 @@ from Models.Admins import Admin
 from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Posts import Post, PostsHashtag
-from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike
+from Models.PrivateMessages import PrivateMessage
+from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike, PrivateMessageAttachment
 from Models.Subscriptions import Subscription
 from Models.Users import User
 
@@ -24,7 +25,9 @@ def create_all_tables():
         Comment,
         CommentsAttachment,
         CommentsLike,
-        Subscription
+        Subscription,
+        PrivateMessage,
+        PrivateMessageAttachment,
     ]
     with db:
         db.create_tables(models)
@@ -69,8 +72,6 @@ def create_database():
                     WITH 
                     OWNER = postgres
                     ENCODING = 'UTF8'
-                    LC_COLLATE = 'RU_ru.1251'
-                    LC_CTYPE = 'RU_ru.1251'
                     TABLESPACE = pg_default
                     CONNECTION LIMIT = -1;"""
             )
@@ -79,7 +80,7 @@ def create_database():
     conn.close()
 
 
-if __name__ == '__main__':
+def recreate_database():
     logger.info('Обновление базы данных:')
 
     logger.info('1 - Удаление БД. Начало')
@@ -93,3 +94,7 @@ if __name__ == '__main__':
     logger.info('3 - Создание таблиц. Начало')
     create_all_tables()
     logger.info('3 - Создание таблиц. Конец')
+
+
+if __name__ == '__main__':
+    recreate_database()
