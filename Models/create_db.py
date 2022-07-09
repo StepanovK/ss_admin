@@ -125,6 +125,8 @@ def unlock_db():
             logger.warning('Database is unlocked.')
         except Exception as ex:
             logger.error(f'Can`t unlock database: {ex}')
+    else:
+        logger.info('Database was unlocked.')
 
 
 def db_is_locked():
