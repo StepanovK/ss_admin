@@ -135,7 +135,8 @@ class Server:
                     continue
                 if pm:
                     users_suggested_posts = Post.select().where(Post.user == pm.user and
-                                                                Post.suggest_status == PostStatus.SUGGESTED.value)
+                                                                Post.suggest_status == PostStatus.SUGGESTED.value and
+                                                                Post.is_deleted == False)
                     for users_post in users_suggested_posts:
                         self._update_message_post(users_post.id)
 
