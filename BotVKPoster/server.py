@@ -17,6 +17,8 @@ from Models.Comments import Comment
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Admins import Admin
+from Models.PrivateMessages import PrivateMessage
+from utils.db_helper import queri_to_list
 import peewee
 
 
@@ -381,9 +383,29 @@ class Server:
         else:
             text_status = f'Неизвестный пост {post}'
 
+        message_text = ''
+        p_messages = PrivateMessage.select(
+        ).where(PrivateMessage.user == post.user
+                and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        if len(p_messages) > 0:
+            last_message = p_messages[0]
+            message_text = f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                           f'Чат: {last_message.get_chat_url()}'
+
+            admin_messages = PrivateMessage.select(
+            ).join(Admin).where(PrivateMessage.user == post.user
+                                and PrivateMessage.admin != None
+                                and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
+            if len(admin_messages) > 0:
+                last_admin = admin_messages[0].admin
+                message_text = message_text + '\n' + f'Последним общался {last_admin}'
+
+            message_text = message_text + '\n'
+
         represent = f'{text_status}\n' \
-                    f'автор: {post.user}\n' \
-                    f'текст:\n' \
+                    f'Автор: {post.user}\n' \
+                    f'{message_text}' \
+                    f'Текст поста:\n' \
                     f'{post.text}\n'
 
         if with_hashtags:
