@@ -136,9 +136,15 @@ class Server:
                 if pm:
                     users_suggested_posts = Post.select().where(Post.user == pm.user and
                                                                 Post.suggest_status == PostStatus.SUGGESTED.value and
-                                                                Post.is_deleted == False)
+                                                                Post.is_deleted == False).order_by(Post.date.desc())
+                    max_count_to_update = 5
+                    current_number = 1
                     for users_post in users_suggested_posts:
+                        if current_number > max_count_to_update:
+                            break
                         self._update_message_post(users_post.id)
+                        current_number += 1
+
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
