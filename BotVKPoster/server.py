@@ -17,6 +17,8 @@ from Models.Comments import Comment
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Admins import Admin
+from Models.PrivateMessages import PrivateMessage
+from utils.db_helper import queri_to_list
 import peewee
 
 
@@ -96,6 +98,12 @@ class Server:
             logger.warning(f'failed to connect with rabbitmq! ({self.rabbitmq_host}:{self.rabbitmq_port})')
             return
         channel = connection.channel()
+        self._rabbit_get_new_private_message(channel)
+        self._rabbit_get_new_posts(channel)
+
+        connection.close()
+
+    def _rabbit_get_new_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -105,10 +113,38 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'Получено новое сообщение от брокера {message_text}')
+                logger.info(f'new_suggested_post{message_text}')
                 self._add_new_message_post(message_text)
 
-        connection.close()
+    def _rabbit_get_new_private_message(self, channel):
+        queue_name = f'{self.queue_name_prefix}_new_private_message'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'new_private_message {message_text}')
+                pm = None
+                try:
+                    pm = PrivateMessage.get(id=message_text)
+                except PrivateMessage.DoesNotExist:
+                    logger.warning(f'can`t find private message {message_text}!')
+                    continue
+                if pm:
+                    users_suggested_posts = Post.select().where(Post.user == pm.user and
+                                                                Post.suggest_status == PostStatus.SUGGESTED.value and
+                                                                Post.is_deleted == False).order_by(Post.date.desc())
+                    max_count_to_update = 5
+                    current_number = 1
+                    for users_post in users_suggested_posts:
+                        if current_number > max_count_to_update:
+                            break
+                        self._update_message_post(users_post.id)
+                        current_number += 1
+
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -381,9 +417,29 @@ class Server:
         else:
             text_status = f'Неизвестный пост {post}'
 
+        message_text = ''
+        p_messages = PrivateMessage.select(
+        ).where(PrivateMessage.user == post.user
+                and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        if len(p_messages) > 0:
+            last_message = p_messages[0]
+            message_text = f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                           f'Чат: {last_message.get_chat_url()}'
+
+            admin_messages = PrivateMessage.select(
+            ).join(Admin).where(PrivateMessage.user == post.user
+                                and PrivateMessage.admin != None
+                                and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
+            if len(admin_messages) > 0:
+                last_admin = admin_messages[0].admin
+                message_text = message_text + '\n' + f'Последним общался {last_admin}'
+
+            message_text = message_text + '\n'
+
         represent = f'{text_status}\n' \
-                    f'автор: {post.user}\n' \
-                    f'текст:\n' \
+                    f'Автор: {post.user}\n' \
+                    f'{message_text}' \
+                    f'Текст поста:\n' \
                     f'{post.text}\n'
 
         if with_hashtags:
