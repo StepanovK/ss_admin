@@ -98,6 +98,12 @@ class Server:
             logger.warning(f'failed to connect with rabbitmq! ({self.rabbitmq_host}:{self.rabbitmq_port})')
             return
         channel = connection.channel()
+        self._rabbit_get_new_private_message(channel)
+        self._rabbit_get_new_posts(channel)
+
+        connection.close()
+
+    def _rabbit_get_new_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -107,10 +113,31 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'Получено новое сообщение от брокера {message_text}')
+                logger.info(f'new_suggested_post{message_text}')
                 self._add_new_message_post(message_text)
 
-        connection.close()
+    def _rabbit_get_new_private_message(self, channel):
+        queue_name = f'{self.queue_name_prefix}_new_private_message'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'new_private_message {message_text}')
+                pm = None
+                try:
+                    pm = PrivateMessage.get(id=message_text)
+                except PrivateMessage.DoesNotExist:
+                    logger.warning(f'can`t find private message {message_text}!')
+                    continue
+                if pm:
+                    users_suggested_posts = Post.select().where(Post.user == pm.user and
+                                                                Post.suggest_status == PostStatus.SUGGESTED.value)
+                    for users_post in users_suggested_posts:
+                        self._update_message_post(users_post.id)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
