@@ -9,6 +9,7 @@ database/test_data.sql
 docker.env
 pgadmin/
 *.env
+lock_db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

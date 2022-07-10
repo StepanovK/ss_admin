@@ -1,6 +1,7 @@
 import config as config
 import psycopg2
 import psycopg2.extras
+import os
 from config import logger
 from Models.base import db
 from Models.Admins import Admin
@@ -11,6 +12,8 @@ from Models.PrivateMessages import PrivateMessage
 from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike, PrivateMessageAttachment
 from Models.Subscriptions import Subscription
 from Models.Users import User
+
+LOCK_FILE_NAME = 'lock_db'
 
 
 def create_all_tables():
@@ -63,6 +66,10 @@ def delete_database():
 
 
 def create_database():
+    if db_is_locked():
+        logger.warning('Database is locked!')
+        return
+
     conn = get_pg_connection()
     conn.autocommit = True
     with conn.cursor() as cursor:
@@ -81,6 +88,10 @@ def create_database():
 
 
 def recreate_database():
+    if db_is_locked():
+        logger.warning('Database is locked!')
+        return
+
     logger.info('Обновление базы данных:')
 
     logger.info('1 - Удаление БД. Начало')
@@ -94,6 +105,32 @@ def recreate_database():
     logger.info('3 - Создание таблиц. Начало')
     create_all_tables()
     logger.info('3 - Создание таблиц. Конец')
+
+    lock_db()
+
+
+def lock_db():
+    try:
+        with open(LOCK_FILE_NAME, 'w+') as lock_file:
+            lock_file.close()
+            logger.info('Database was locked.')
+    except FileNotFoundError:
+        pass
+
+
+def unlock_db():
+    if os.path.exists(LOCK_FILE_NAME):
+        try:
+            os.remove(LOCK_FILE_NAME)
+            logger.warning('Database is unlocked.')
+        except Exception as ex:
+            logger.error(f'Can`t unlock database: {ex}')
+    else:
+        logger.info('Database was unlocked.')
+
+
+def db_is_locked():
+    return os.path.exists(LOCK_FILE_NAME)
 
 
 if __name__ == '__main__':

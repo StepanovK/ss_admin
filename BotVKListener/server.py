@@ -71,6 +71,10 @@ class Server:
                         create_db.create_all_tables()
                     elif event.object.message['text'] == 'recreate_db':
                         create_db.recreate_database()
+                    elif event.object.message['text'] == 'lock_db':
+                        create_db.lock_db()
+                    elif event.object.message['text'] == 'unlock_db':
+                        create_db.unlock_db()
                 else:
                     message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
                     self._send_alarm(message_type='new_private_message', message=message.id)
