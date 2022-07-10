@@ -43,6 +43,8 @@ class Server:
                 logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
                 if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
                     self._send_alarm(message_type='new_suggested_post', message=new_post.id)
+                elif self.queue_name_prefix != '' and new_post.suggest_status is None:
+                    self._send_alarm(message_type='new_posted_post', message=new_post.id)
             elif event.type == 'like_add':
                 likes.parse_like_add(event.object, self.vk_connection_admin)
             elif event.type == 'like_remove':

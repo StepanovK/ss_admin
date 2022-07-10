@@ -7,6 +7,7 @@ from PosterModels.PublishedPosts import PublishedPost
 from PosterModels.SortedHashtags import SortedHashtag
 from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
+from utils.tg_auto_poster import MyAutoPoster
 import keyboards
 import pika
 import datetime
@@ -36,6 +37,7 @@ class Server:
         self.vk_admin = ConnectionsHolder().vk_connection_admin
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk = ConnectionsHolder().vk_connection_group
+        self.tg_poster = MyAutoPoster()
 
     def _start_polling(self):
 
@@ -97,16 +99,25 @@ class Server:
             return
         channel = connection.channel()
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
+        queue_name_2 = f'{self.queue_name_prefix}_new_posted_post'
         channel.queue_declare(queue=queue_name,
+                              durable=True)
+        channel.queue_declare(queue=queue_name_2,
                               durable=True)
         while True:
             status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
+            status_2, properties_2, message_2 = channel.basic_get(queue=queue_name_2, auto_ack=True)
+            if message is None and message_2 is None:
                 break
             else:
-                message_text = message.decode()
-                logger.info(f'Получено новое сообщение от брокера {message_text}')
-                self._add_new_message_post(message_text)
+                if message:
+                    message_text = message.decode()
+                    logger.info(f'Получено новое сообщение от брокера {message_text}')
+                    self._add_new_message_post(message_text)
+                else:
+                    message_text = message_2.decode()
+                    logger.info(f'Получено новое сообщение от брокера {message_text}')
+                    self.tg_poster.send_new_post(post=message_text)
 
         connection.close()
 

@@ -8,3 +8,7 @@ pika==1.2.1
 peewee
 psycopg2
 psycopg2-binary
+Pillow
+youtube_dl
+moviepy
+TG-AutoPoster

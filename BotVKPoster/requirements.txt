@@ -6,3 +6,4 @@ environs
 vk_api
 peewee
 pika
+TG-AutoPoster
