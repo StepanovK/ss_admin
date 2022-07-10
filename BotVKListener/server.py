@@ -30,11 +30,11 @@ class Server:
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, )
 
-        logger.info('Бот запущен')
+        logger.info('Bot started!')
 
         for event in self._longpoll.listen():
 
-            logger.info(f'Новое событие {event.type}')
+            logger.info(f'New event: {event.type}')
             if event.type == VkBotEventType.WALL_POST_NEW:
                 new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
                 str_from_user = '' if new_post.user is None else f'от {new_post.user} '
@@ -97,10 +97,10 @@ class Server:
         connection.close()
 
     def run(self):
-        # try:
-        self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        try:
+            self._start_polling()
+        except Exception as ex:
+            logger.error(ex)
 
     def run_in_loop(self):
         while True:

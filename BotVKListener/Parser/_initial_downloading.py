@@ -2,6 +2,7 @@
 # import config as config
 
 import datetime
+import os
 
 from . import subscriptions
 from . import posts
@@ -11,19 +12,26 @@ from config import logger
 from Models.Users import User
 from Models.Posts import Post
 
+_POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
+_COMMENTS_OFFSET_FILENAME = 'current_offset_of_posts_for_comments.tmp'
+
 
 def load_all(vk_connection, group_id):
-    logger.info('Загрузка подписчиков начата')
+    logger.info('Loading subscribers started')
     load_subscribers(vk_connection, group_id)
-    logger.info('Загрузка подписчиков завершена')
+    logger.info('Loading subscribers finished')
 
-    logger.info('Загрузка постов начата')
+    logger.info('Loading posts started')
     load_posts(vk_connection, group_id)
-    logger.info('Загрузка постов завершена')
+    logger.info('Loading posts finished')
 
-    logger.info('Загрузка комментариев начата')
+    logger.info('Loading comments started')
     load_comments(vk_connection, group_id)
-    logger.info('Загрузка комментариев завершена')
+    logger.info('Loading comments finished')
+
+    delete_offset_files()
+
+    logger.info('Loading finished')
 
 
 def load_subscribers(vk_connection, group_id):
@@ -47,12 +55,10 @@ def users_fields():
 
 
 def load_posts(vk_connection, group_id):
-    temp_file_name = 'current_offset_of_posts.tmp'
-
-    offset = get_current_offset_in_file(temp_file_name)
+    offset = get_current_offset_in_file(_POST_OFFSET_FILENAME)
     while True:
         if offset != 0:
-            logger.info(f'Загрузка постов начата со смещением = {offset}')
+            logger.info(f'Current post offset = {offset}')
         vk_posts = vk_connection.wall.get(owner_id=-group_id,
                                           offset=offset,
                                           count=100)['items']
@@ -62,17 +68,16 @@ def load_posts(vk_connection, group_id):
             likers = vk_connection.wall.getLikes(owner_id=-group_id, post_id=vk_post['id'], count=1000)
             vk_post['likers'] = likers.get('users', [])
             post = posts.parse_wall_post(vk_post)
-            print(f'Загружен пост {post}')
+            print(f'Post loaded {post}')
 
         offset += 100
-        update_current_offset_in_file(offset, temp_file_name)
+        update_current_offset_in_file(offset, _POST_OFFSET_FILENAME)
 
 
 def load_comments(vk_connection, group_id):
-    temp_file_name = 'current_offset_of_posts_for_comments.tmp'
-    post_offset = get_current_offset_in_file(temp_file_name)
+    post_offset = get_current_offset_in_file(_COMMENTS_OFFSET_FILENAME)
     if post_offset != 0:
-        logger.info(f'Загрузка комментов начата с поста с id={post_offset}')
+        logger.info(f'Loading of comments started from post id={post_offset}')
 
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
@@ -113,8 +118,8 @@ def load_comments(vk_connection, group_id):
                 break
 
         if count > 0:
-            print(f'Загружено {count} комментов {post}')
-            update_current_offset_in_file(post.vk_id, temp_file_name)
+            print(f'Loaded {count} comments for {post}')
+            update_current_offset_in_file(post.vk_id, _COMMENTS_OFFSET_FILENAME)
 
 
 def add_user_by_info(vk_connection, user_info):
@@ -143,10 +148,14 @@ def get_current_offset_in_file(temp_file_name):
     return offset
 
 
-# if __name__ == '__main__':
-#     server = Server(vk_group_token=config.group_token,
-#                     admin_token=config.admin_token,
-#                     admin_phone=config.admin_phone,
-#                     admin_pass=config.admin_pass,
-#                     vk_group_id=config.group_id)
-#     load_all(server.vk_connection_admin, config.group_id)
+def delete_offset_files():
+    delete_offset_file(_POST_OFFSET_FILENAME)
+    delete_offset_file(_COMMENTS_OFFSET_FILENAME)
+
+
+def delete_offset_file(file_name):
+    if os.path.exists(file_name):
+        try:
+            os.remove(file_name)
+        except Exception as ex:
+            logger.error(f'Can`t remove offset file: {ex}')
