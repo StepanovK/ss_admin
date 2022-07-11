@@ -54,7 +54,7 @@ def vk_get_user_info(user_id: int, vk_connection, loaded_info: dict = None):
                     user_info['birth_date'] = datetime.date(1904, int(time_parts[1]), int(time_parts[0]))
 
     except Exception as ex:
-        logger.error(f"Ошибка получения информации о пользователе id{user_id}: {ex}")
+        logger.error(f"Error getting user information id{user_id}: {ex}")
     return user_info
 
 

@@ -48,7 +48,7 @@ def get_pg_connection():
     except Exception as ex:
         connection_info = f'host={config.db_host}, port={config.db_port},' \
                           f' user={config.db_user} password={config.db_password}'
-        logger.error(f"Проблема при подключении к PostgreSQL\n({connection_info}):", ex)
+        logger.error(f"Problem connecting to PostgreSQL\n({connection_info}):", ex)
         return None
 
 
@@ -61,7 +61,7 @@ def delete_database():
                 f"""DROP DATABASE IF EXISTS {config.db_name};"""
             )
         except Exception as ex:
-            logger.error(f'Не удалось удалить базу данных.\n{ex}')
+            logger.error(f'Failed to drop database.\n{ex}')
     conn.close()
 
 
@@ -83,7 +83,7 @@ def create_database():
                     CONNECTION LIMIT = -1;"""
             )
         except Exception as ex:
-            logger.error(f'Не удалось создать базу данных.\n{ex}')
+            logger.error(f'Failed to create database.\n{ex}')
     conn.close()
 
 
@@ -92,21 +92,23 @@ def recreate_database():
         logger.warning('Database is locked!')
         return
 
-    logger.info('Обновление базы данных:')
+    logger.info('Database update:')
 
-    logger.info('1 - Удаление БД. Начало')
+    logger.info('1 - Dropping the database. Start')
     delete_database()
-    logger.info('1 - Удаление БД. Конец')
+    logger.info('1 - Dropping the database. Completed')
 
-    logger.info('2 - Создание БД. Начало')
+    logger.info('2 - Creating the database. Start')
     create_database()
-    logger.info('2 - Создание БД. Конец')
+    logger.info('2 - Creating the database. Completed')
 
-    logger.info('3 - Создание таблиц. Начало')
+    logger.info('3 - Creating tables. Start')
     create_all_tables()
-    logger.info('3 - Создание таблиц. Конец')
+    logger.info('3 - Creating tables. Completed')
 
     lock_db()
+
+    logger.info('Database update completed!')
 
 
 def lock_db():

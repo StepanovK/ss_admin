@@ -23,7 +23,7 @@ def add_comment(owner_id: int, object_id: int, vk_connection):
             if len(items) == 1:
                 found_comment = parse_comment(items[0], vk_connection)
         except Exception as ex:
-            logger.error(f'Не удалось получить данные комментария {object_id} по причине: {ex}')
+            logger.error(f'Failed to get comment data {object_id} by reason: {ex}')
     return found_comment
 
 
