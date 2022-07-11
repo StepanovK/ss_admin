@@ -57,7 +57,7 @@ def parse_vk_attachment(vk_attachment):
         vk_attachment_info = vk_attachment.get('poll')
         parse_method = parse_vk_poll_attachment
     else:
-        logger.warning(f'Не удалось обработать вложение {attachment_type}')
+        logger.warning(f'Attachment processing failed: {attachment_type}')
         return
     main_attributes = get_main_attachment_attributes(vk_attachment_info)
 

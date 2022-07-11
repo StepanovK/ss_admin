@@ -225,7 +225,7 @@ class Server:
                                                message=message,
                                                attachments=attachment)
         except Exception as ex:
-            logger.warning(f'Не удалось опубликовать пост ID={post.vk_id}\n{ex}')
+            logger.warning(f'Failed to publish post ID={post.vk_id}\n{ex}')
             return
 
         new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
@@ -288,7 +288,7 @@ class Server:
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            attachment=[str(att.attachment) for att in post.attachments])
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
         post = self._get_post_by_id(post_id=post_id)
@@ -305,7 +305,7 @@ class Server:
                                            keyboard=keyboards.hashtag_menu(post, page),
                                            attachment=[str(att.attachment) for att in post.attachments])
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _add_hashtag(self, post_id, hashtag):
         post = self._get_post_by_id(post_id=post_id)
@@ -392,7 +392,7 @@ class Server:
                                            message=mes_text,
                                            keyboard=keyboards.user_info_menu(post))
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
@@ -401,7 +401,7 @@ class Server:
                 message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
                 message_id = message_of_post.message_id
             except MessageOfSuggestedPost.DoesNotExist:
-                logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
+                logger.warning(f'Post message information not found! Post ID={post_id}')
         return message_id
 
     @staticmethod
@@ -409,7 +409,7 @@ class Server:
         try:
             return Post.get(id=post_id)
         except Post.DoesNotExist:
-            logger.warning(f'Не найден пост с ID={post_id}')
+            logger.warning(f'Post not found ID={post_id}')
             return
 
     @staticmethod
@@ -425,7 +425,7 @@ class Server:
                     new_post_record = PublishedPost.get(suggested_post_id=post.id)
                     post_url = Post.generate_url(post_id=new_post_record.published_post_id)
                 except Exception as ex:
-                    logger.error(f'Ошибка получения информации об опубликованном посте для {post}: {ex}')
+                    logger.error(f'Error getting information about published post for {post}: {ex}')
                     post_url = ''
             anon_text = ' анонимно' if post.anonymously else ''
             text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'

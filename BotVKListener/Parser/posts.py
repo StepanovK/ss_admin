@@ -28,7 +28,7 @@ def add_post(owner_id: int, post_id: int, vk_connection):
                 post['likers'] = likers.get('users', [])
                 found_post = parse_wall_post(post)
         except Exception as ex:
-            logger.error(f'Не удалось получить данные поста {full_id} по причине: {ex}')
+            logger.error(f'Failed to get post data {full_id} by reason: {ex}')
     return found_post
 
 
