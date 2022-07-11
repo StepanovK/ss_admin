@@ -46,7 +46,7 @@ class Server:
                     str_from_user = '' if new_post.user is None else f'от {new_post.user} '
                     str_attachments = '' if len(
                         new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
-                    str_action = 'Опубликован пост' if new_post.suggest_status is None else 'В предложке новый пост'
+                    str_action = 'Post published' if new_post.suggest_status is None else 'Suggested new post'
                     logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
                     if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
                         self._send_alarm(message_type='new_suggested_post', message=new_post.id)
