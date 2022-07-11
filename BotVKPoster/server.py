@@ -41,6 +41,8 @@ class Server:
 
     def _start_polling(self):
 
+        logger.info('Bot started!')
+
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
 
         time_to_update_broker = 10
@@ -100,6 +102,7 @@ class Server:
         channel = connection.channel()
         self._rabbit_get_new_private_message(channel)
         self._rabbit_get_new_posts(channel)
+        self._rabbit_get_updated_posts(channel)
 
         connection.close()
 
@@ -113,7 +116,7 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'new_suggested_post{message_text}')
+                logger.info(f'new_suggested_post {message_text}')
                 self._add_new_message_post(message_text)
 
     def _rabbit_get_new_private_message(self, channel):
@@ -145,6 +148,18 @@ class Server:
                         self._update_message_post(users_post.id)
                         current_number += 1
 
+    def _rabbit_get_updated_posts(self, channel):
+        queue_name = f'{self.queue_name_prefix}_updated_posts'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'updated_posts {message_text}')
+                self._update_message_post(post_id=message_text)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -186,6 +201,8 @@ class Server:
             self._show_user_info(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'set_anonymously':
             self._set_anonymously(post_id=payload['post_id'], value=payload['val'])
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
@@ -421,10 +438,13 @@ class Server:
         p_messages = PrivateMessage.select(
         ).where(PrivateMessage.user == post.user
                 and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        user_comment = post.user.comment
+        if user_comment is not None and user_comment != '':
+            message_text += f'({user_comment})' + '\n'
         if len(p_messages) > 0:
             last_message = p_messages[0]
-            message_text = f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
-                           f'Чат: {last_message.get_chat_url()}'
+            message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                            f'Чат: {last_message.get_chat_url()}'
 
             admin_messages = PrivateMessage.select(
             ).join(Admin).where(PrivateMessage.user == post.user
@@ -432,7 +452,7 @@ class Server:
                                 and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
             if len(admin_messages) > 0:
                 last_admin = admin_messages[0].admin
-                message_text = message_text + '\n' + f'Последним общался {last_admin}'
+                message_text += '\n' + f'Последним общался {last_admin}'
 
             message_text = message_text + '\n'
 

@@ -12,27 +12,31 @@ def main_menu_keyboard(post: Post):
 
     if post.suggest_status == PostStatus.SUGGESTED.value:
         keyboard.add_callback_button(label='Опубликовать',
-                                     color=VkKeyboardColor.PRIMARY,
+                                     color=VkKeyboardColor.POSITIVE,
                                      payload={"command": "publish_post", "post_id": post.id})
         if post.anonymously:
             keyboard.add_callback_button(label='&#9989; анонимно',
-                                         color=VkKeyboardColor.SECONDARY,
+                                         color=VkKeyboardColor.PRIMARY,
                                          payload={"command": "set_anonymously", "post_id": post.id, 'val': False})
         else:
             keyboard.add_callback_button(label='&#9725; анонимно',
                                          color=VkKeyboardColor.SECONDARY,
                                          payload={"command": "set_anonymously", "post_id": post.id, 'val': True})
         keyboard.add_line()
-        keyboard.add_callback_button(label='Редактировать хэштеги',
+        keyboard.add_callback_button(label='# Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': 1})
         keyboard.add_line()
 
-    keyboard.add_callback_button(label='Информация о пользователе',
+    keyboard.add_callback_button(label='&#128214; Информация о пользователе',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
     if post.suggest_status == PostStatus.SUGGESTED.value:
+        keyboard.add_line()
+        keyboard.add_callback_button(label='&#128259; Обновить информацию',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "update_post", "post_id": post.id})
         keyboard.add_line()
         keyboard.add_callback_button(label='Отклонить',
                                      color=VkKeyboardColor.NEGATIVE,
