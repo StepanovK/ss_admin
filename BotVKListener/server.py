@@ -85,7 +85,8 @@ class Server:
                         self._send_alarm(message_type='new_private_message', message=message.id)
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if event.from_user:
-                        private_messages.parse_private_message(event.object, self.vk_connection_admin)
+                        message = private_messages.parse_private_message(event.object, self.vk_connection_admin)
+                        self._send_alarm(message_type='new_private_message', message=message.id)
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
@@ -104,11 +105,13 @@ class Server:
                                          ).order_by(Post.date.desc()).limit(count_of_posts)
         last_posts_list = queri_to_list(last_posts, 'id')
         if len(last_posts_list) > 0:
-            print(f'updating posts: {last_posts_list}')
+            # print(f'updating posts: {last_posts_list}')
             posts_info = self.vk_connection_admin.wall.getById(posts=', '.join(last_posts_list))
             for post_info in posts_info:
                 post, was_updated = posts.update_wall_post(post_info, self.vk_connection_admin)
-                print(f'post {post} was_updated={was_updated}')
+                if was_updated:
+                    self._send_alarm('updated_posts', post.id)
+                # print(f'post {post} was_updated={was_updated}')
 
     def _send_alarm(self, message_type: str, message: str):
         credentials = pika.PlainCredentials('guest', 'guest')

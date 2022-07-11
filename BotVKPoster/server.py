@@ -102,6 +102,7 @@ class Server:
         channel = connection.channel()
         self._rabbit_get_new_private_message(channel)
         self._rabbit_get_new_posts(channel)
+        self._rabbit_get_updated_posts(channel)
 
         connection.close()
 
@@ -115,7 +116,7 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'new_suggested_post{message_text}')
+                logger.info(f'new_suggested_post {message_text}')
                 self._add_new_message_post(message_text)
 
     def _rabbit_get_new_private_message(self, channel):
@@ -147,6 +148,18 @@ class Server:
                         self._update_message_post(users_post.id)
                         current_number += 1
 
+    def _rabbit_get_updated_posts(self, channel):
+        queue_name = f'{self.queue_name_prefix}_updated_posts'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'updated_posts {message_text}')
+                self._update_message_post(post_id=message_text)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -188,6 +201,8 @@ class Server:
             self._show_user_info(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'set_anonymously':
             self._set_anonymously(post_id=payload['post_id'], value=payload['val'])
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
