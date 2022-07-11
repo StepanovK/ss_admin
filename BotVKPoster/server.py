@@ -438,10 +438,13 @@ class Server:
         p_messages = PrivateMessage.select(
         ).where(PrivateMessage.user == post.user
                 and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        user_comment = post.user.comment
+        if user_comment is not None and user_comment != '':
+            message_text += f'({user_comment})' + '\n'
         if len(p_messages) > 0:
             last_message = p_messages[0]
-            message_text = f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
-                           f'Чат: {last_message.get_chat_url()}'
+            message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                            f'Чат: {last_message.get_chat_url()}'
 
             admin_messages = PrivateMessage.select(
             ).join(Admin).where(PrivateMessage.user == post.user
@@ -449,7 +452,7 @@ class Server:
                                 and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
             if len(admin_messages) > 0:
                 last_admin = admin_messages[0].admin
-                message_text = message_text + '\n' + f'Последним общался {last_admin}'
+                message_text += '\n' + f'Последним общался {last_admin}'
 
             message_text = message_text + '\n'
 
