@@ -14,7 +14,7 @@ class CommentsAttachment(BaseModel):
                               backref='attachments',
                               on_delete='CASCADE')
     attachment = ForeignKeyField(UploadedFile, index=True)
-    is_deleted = BooleanField()
+    is_deleted = BooleanField(default=False)
 
     class Meta:
         table_name = 'comments_attachments'
@@ -40,7 +40,7 @@ class PostsAttachment(BaseModel):
                            backref='attachments',
                            on_delete='CASCADE')
     attachment = ForeignKeyField(UploadedFile, index=True)
-    is_deleted = BooleanField()
+    is_deleted = BooleanField(default=False)
 
     class Meta:
         table_name = 'posts_attachments'
@@ -66,7 +66,7 @@ class PrivateMessageAttachment(BaseModel):
                               backref='attachments',
                               on_delete='CASCADE')
     attachment = ForeignKeyField(UploadedFile, index=True)
-    is_deleted = BooleanField()
+    is_deleted = BooleanField(default=False)
 
     class Meta:
         table_name = 'private_messages_attachments'
@@ -78,17 +78,16 @@ def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachm
                    attachment: UploadedFile,
                    is_deleted: bool = False):
     if isinstance(attachment_object, Post):
-        new_attachment = PostsAttachment()
-        new_attachment.post = attachment_object
+        new_attachment, _ = PostsAttachment.get_or_create(post=attachment_object,
+                                                          attachment=attachment)
     elif isinstance(attachment_object, Comment):
-        new_attachment = CommentsAttachment()
-        new_attachment.comment = attachment_object
+        new_attachment, _ = CommentsAttachment.get_or_create(comment=attachment_object,
+                                                             attachment=attachment)
     elif isinstance(attachment_object, PrivateMessage):
-        new_attachment = PrivateMessageAttachment()
-        new_attachment.message = attachment_object
+        new_attachment, _ = PrivateMessageAttachment.get_or_create(message=attachment_object,
+                                                                   attachment=attachment)
     else:
         raise 'Wrong type of object to adding a attachment!'
-    new_attachment.attachment = attachment
     new_attachment.is_deleted = is_deleted
     new_attachment.save()
 

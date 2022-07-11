@@ -43,6 +43,8 @@ class Server:
 
     def _start_polling(self):
 
+        logger.info('Bot started!')
+
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
 
         time_to_update_broker = 10
@@ -105,7 +107,7 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'new_suggested_post{message_text}')
+                logger.info(f'new_suggested_post {message_text}')
                 self._add_new_message_post(message_text)
 
     def _rabbit_get_new_private_message(self, channel):
@@ -149,6 +151,18 @@ class Server:
                 message_text = message.decode()
                 logger.info(f'new_posted_post{message_text}')
                 self.tg_poster.send_new_post(message_text)
+    def _rabbit_get_updated_posts(self, channel):
+        queue_name = f'{self.queue_name_prefix}_updated_posts'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'updated_posts {message_text}')
+                self._update_message_post(post_id=message_text)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -191,6 +205,8 @@ class Server:
         elif payload['command'] == 'set_anonymously':
             self._set_anonymously(post_id=payload['post_id'], value=payload['val'])
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'update_post':
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
         post = self._get_post_by_id(post_id=post_id)
@@ -212,7 +228,7 @@ class Server:
                                                message=message,
                                                attachments=attachment)
         except Exception as ex:
-            logger.warning(f'Не удалось опубликовать пост ID={post.vk_id}\n{ex}')
+            logger.warning(f'Failed to publish post ID={post.vk_id}\n{ex}')
             return
 
         new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
@@ -275,7 +291,7 @@ class Server:
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            attachment=[str(att.attachment) for att in post.attachments])
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
         post = self._get_post_by_id(post_id=post_id)
@@ -292,7 +308,7 @@ class Server:
                                            keyboard=keyboards.hashtag_menu(post, page),
                                            attachment=[str(att.attachment) for att in post.attachments])
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _add_hashtag(self, post_id, hashtag):
         post = self._get_post_by_id(post_id=post_id)
@@ -379,7 +395,7 @@ class Server:
                                            message=mes_text,
                                            keyboard=keyboards.user_info_menu(post))
         except Exception as ex:
-            logger.warning(f'Не удалось отредактировать сообщение ID={message_id} для поста ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
@@ -388,7 +404,7 @@ class Server:
                 message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
                 message_id = message_of_post.message_id
             except MessageOfSuggestedPost.DoesNotExist:
-                logger.warning(f'Не найдена информация о сообщении поста с ID={post_id}')
+                logger.warning(f'Post message information not found! Post ID={post_id}')
         return message_id
 
     @staticmethod
@@ -396,7 +412,7 @@ class Server:
         try:
             return Post.get(id=post_id)
         except Post.DoesNotExist:
-            logger.warning(f'Не найден пост с ID={post_id}')
+            logger.warning(f'Post not found ID={post_id}')
             return
 
     @staticmethod
@@ -412,7 +428,7 @@ class Server:
                     new_post_record = PublishedPost.get(suggested_post_id=post.id)
                     post_url = Post.generate_url(post_id=new_post_record.published_post_id)
                 except Exception as ex:
-                    logger.error(f'Ошибка получения информации об опубликованном посте для {post}: {ex}')
+                    logger.error(f'Error getting information about published post for {post}: {ex}')
                     post_url = ''
             anon_text = ' анонимно' if post.anonymously else ''
             text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'
@@ -425,10 +441,13 @@ class Server:
         p_messages = PrivateMessage.select(
         ).where(PrivateMessage.user == post.user
                 and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        user_comment = post.user.comment
+        if user_comment is not None and user_comment != '':
+            message_text += f'({user_comment})' + '\n'
         if len(p_messages) > 0:
             last_message = p_messages[0]
-            message_text = f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
-                           f'Чат: {last_message.get_chat_url()}'
+            message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                            f'Чат: {last_message.get_chat_url()}'
 
             admin_messages = PrivateMessage.select(
             ).join(Admin).where(PrivateMessage.user == post.user
@@ -436,7 +455,7 @@ class Server:
                                 and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
             if len(admin_messages) > 0:
                 last_admin = admin_messages[0].admin
-                message_text = message_text + '\n' + f'Последним общался {last_admin}'
+                message_text += '\n' + f'Последним общался {last_admin}'
 
             message_text = message_text + '\n'
 

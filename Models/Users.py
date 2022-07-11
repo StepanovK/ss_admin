@@ -11,6 +11,7 @@ class User(BaseModel):
     birth_date = DateField(null=True)
     domain = CharField(100, default='')
     is_active = BooleanField(default=True)
+    comment = TextField(default='')
 
     class Meta:
         table_name = 'users'
@@ -26,5 +27,5 @@ class User(BaseModel):
             return f'[id{self.id}|{f_name}]'
 
     def full_name(self):
-        f_name = f'{self.last_name} {self.first_name}'
+        f_name = f'{self.first_name} {self.last_name}'
         return f_name.strip()

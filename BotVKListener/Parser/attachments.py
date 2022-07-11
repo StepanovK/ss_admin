@@ -13,6 +13,8 @@ import json
 def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessage],
                             attachments: list,
                             user: User = None):
+    mark_attachments_as_deleted(attachment_object)
+
     for attachment in attachments:
         attachment_type = attachment.get('type')
         if attachment_type in UploadedFile.available_types():
@@ -26,6 +28,15 @@ def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessa
                     media_file.save()
 
                 Relations.add_attachment(attachment_object, media_file)
+
+
+def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateMessage]):
+    for attachment in attachment_object.attachments:
+        attachment.is_deleted = True
+        attachment.save()
+        uploaded_file = attachment.attachment
+        uploaded_file.is_deleted = True
+        uploaded_file.save()
 
 
 def parse_vk_attachment(vk_attachment):
@@ -46,7 +57,7 @@ def parse_vk_attachment(vk_attachment):
         vk_attachment_info = vk_attachment.get('poll')
         parse_method = parse_vk_poll_attachment
     else:
-        logger.warning(f'Не удалось обработать вложение {attachment_type}')
+        logger.warning(f'Attachment processing failed: {attachment_type}')
         return
     main_attributes = get_main_attachment_attributes(vk_attachment_info)
 
@@ -56,6 +67,7 @@ def parse_vk_attachment(vk_attachment):
     uploaded_file.date = main_attributes['date']
     uploaded_file.access_key = main_attributes['access_key']
     parse_method(uploaded_file, vk_attachment_info)
+    uploaded_file.is_deleted = False
     uploaded_file.save()
     return uploaded_file
 
