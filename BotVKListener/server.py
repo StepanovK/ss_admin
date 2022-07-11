@@ -84,6 +84,9 @@ class Server:
                             create_db.lock_db()
                         elif event.object.message['text'] == 'unlock_db':
                             create_db.unlock_db()
+                    elif event.from_user:
+                        # CHAT BOOOOOT!!!!!
+                        self.chat_bot.chat(event)
                     else:
                         message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
                         self._send_alarm(message_type='new_private_message', message=message.id)
@@ -126,6 +129,7 @@ class Server:
                               routing_key=queue_name,
                               body=message.encode(),
                               properties=pika.BasicProperties(delivery_mode=2))
+
     def run(self):
         try:
             self._start_polling()
