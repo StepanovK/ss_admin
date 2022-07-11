@@ -100,7 +100,7 @@ class Server:
             logger.warning(f'failed to connect with rabbitmq! ({self.rabbitmq_host}:{self.rabbitmq_port})')
             return
         channel = connection.channel()
-        self._rabbit_get_new_private_message(channel)
+        self._rabbit_get_new_private_messages(channel)
         self._rabbit_get_new_posts(channel)
         self._rabbit_get_updated_posts(channel)
 
@@ -119,7 +119,7 @@ class Server:
                 logger.info(f'new_suggested_post {message_text}')
                 self._add_new_message_post(message_text)
 
-    def _rabbit_get_new_private_message(self, channel):
+    def _rabbit_get_new_private_messages(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_private_message'
         channel.queue_declare(queue=queue_name,
                               durable=True)
