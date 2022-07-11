@@ -1,38 +1,47 @@
 import functools
-from collections import Counter
-from typing import List, Dict
+from collections import Counter, defaultdict
+from typing import List, Dict, Union
 
-from Models.Posts import Post
+from Models.Posts import Post, PostsHashtag
 from config import spreadsheetId
 from utils.googleSheetsManager import GoogleSheetsManager
 from rapidfuzz import process, fuzz
 
 
 @functools.lru_cache()
-def get_hashtags(new_post: str, count_res: int = 20) -> List[tuple]:
+def get_hashtags() -> List[tuple]:
     _google_sheet: GoogleSheetsManager = GoogleSheetsManager(spreadsheetId)
     raw_hashtags: dict = _google_sheet.get_sheet_values("Хэштэги")
-    posts_with_hashtag: List[str] = [post.text.lower() for post in Post.select().where(Post.text.contains("#"))]
-    ht_posts_dict: Dict[str: set] = {}
+    hashtags = []
     for elem in raw_hashtags:
         hash_tag = elem.get('Hashtag')
-        if hash_tag is not None:
-            ht_posts_dict[hash_tag] = set()
-            for post in posts_with_hashtag:
-                if hash_tag.strip().lower() in post:
-                    ht_posts_dict[hash_tag].add(post.replace(hash_tag.strip().lower(), ''))
-    result_hashtag: Dict[str: int] = {}
-    for hashtag in ht_posts_dict:
-        a: list = process.extract(new_post, ht_posts_dict[hashtag], scorer=fuzz.WRatio, limit=5)
-        res: int = 0
-        for elem in a:
-
-            res += elem[1]
-        result_hashtag[hashtag] = res
-    c = Counter(result_hashtag)
-    hashtags: List[tuple] = c.most_common(count_res)
+        if hash_tag is not None and hash_tag != '':
+            hashtags.append(hash_tag)
+    hashtags.sort()
     return hashtags
 
 
-if __name__ == "__main__":
-    print(get_hashtags("Пропала кошечка"))
+def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> List:
+    posts_with_hashtag: List[str] = [post.text.lower() for post in Post.select().where(Post.text.contains("#"))]
+    ht_posts_dict: Dict[str: set] = defaultdict(set)
+    last_posts = PostsHashtag.select(Post.text, PostsHashtag.hashtag).join(Post).order_by(Post.date.desc()).limit(1000)
+    for post_with_ht in last_posts:
+        ht = post_with_ht.hashtag
+        post_text = post_with_ht.post.text
+        ht_posts_dict[ht].add(post_text.lower())
+    result_hashtag: Dict[str: int] = {}
+    new_post_text_l = new_post.text.lower()
+    for hashtag in ht_posts_dict:
+        a: list = process.extract(new_post_text_l, ht_posts_dict[hashtag], scorer=fuzz.WRatio, limit=5)
+        res: int = 0
+        for elem in a:
+            res += elem[1]
+        result_hashtag[hashtag] = res
+    c = Counter(result_hashtag)
+    hashtags_with_rating: List[tuple] = c.most_common(count_res)
+    hashtags = []
+    for hashtag, rating in hashtags_with_rating:
+        if rating > 20:
+            hashtags.append(hashtag)
+
+    return hashtags
