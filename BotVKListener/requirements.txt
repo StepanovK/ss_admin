@@ -2,3 +2,4 @@ loguru
 environs
 vk_api
 pika
+pymorphy2

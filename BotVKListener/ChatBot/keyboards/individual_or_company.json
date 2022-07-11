@@ -1,0 +1,26 @@
+{
+  "one_time": false,
+  "buttons": [
+    [{
+      "action": {
+        "type": "text",
+        "label": "Самозанятый"
+      },
+      "color": "positive"
+    }],
+      [{
+        "action": {
+          "type": "text",
+          "label": "Фирма"
+        },
+        "color": "positive"
+      }],
+    [{
+      "action": {
+        "type": "text",
+        "label": "<< Назад"
+      },
+      "color": "negative"
+    }]
+  ]
+}

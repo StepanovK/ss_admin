@@ -1,3 +1,5 @@
+from typing import Dict
+
 import config as config
 from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
@@ -6,7 +8,7 @@ import pika
 from Models.Posts import PostStatus
 from Models import create_db
 from utils.connection_holder import ConnectionsHolder
-
+from ChatBot.chat_bot import ChatBot
 from Parser import comments, likes, posts, subscriptions, private_messages, _initial_downloading
 
 
@@ -15,9 +17,8 @@ class Server:
 
     def __init__(self):
         self.group_id = config.group_id
+        self.chat_bot = ChatBot()
 
-        self.rabbitmq_host = config.rabbitmq_host
-        self.rabbitmq_port = config.rabbitmq_port
         self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
@@ -26,6 +27,7 @@ class Server:
         self.vk_connection_admin = ConnectionsHolder().vk_connection_admin
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk_connection_group = ConnectionsHolder().vk_connection_group
+        self.rabbit_connection = ConnectionsHolder().rabbit_connection
 
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, )
@@ -33,6 +35,7 @@ class Server:
         logger.info('Бот запущен')
 
         for event in self._longpoll.listen():
+            logger.info(event)
 
             logger.info(f'Новое событие {event.type}')
             if event.type == VkBotEventType.WALL_POST_NEW:
@@ -75,6 +78,10 @@ class Server:
                         create_db.lock_db()
                     elif event.object.message['text'] == 'unlock_db':
                         create_db.unlock_db()
+                elif event.from_user:
+                    # TODO ADD CHAT BOT
+                    self.chat_bot.chat(event)
+                    pass
                 else:
                     message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
                     self._send_alarm(message_type='new_private_message', message=message.id)
@@ -83,12 +90,7 @@ class Server:
                     private_messages.parse_private_message(event.object, self.vk_connection_admin)
 
     def _send_alarm(self, message_type: str, message: str):
-        credentials = pika.PlainCredentials('guest', 'guest')
-        conn_params = pika.ConnectionParameters(host=self.rabbitmq_host,
-                                                port=self.rabbitmq_port,
-                                                credentials=credentials)
-        connection = pika.BlockingConnection(conn_params)
-        channel = connection.channel()
+        channel = self.rabbit_connection.channel()
         queue_name = f'{self.queue_name_prefix}_{message_type}'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -96,8 +98,6 @@ class Server:
                               routing_key=queue_name,
                               body=message.encode(),
                               properties=pika.BasicProperties(delivery_mode=2))
-        connection.close()
-
     def run(self):
         # try:
         self._start_polling()

@@ -1,0 +1,50 @@
+{
+  "one_time": false,
+  "inline": false,
+  "buttons": [
+    [{
+      "action": {
+        "type": "text",
+        "label": "Правила группы"
+      },
+      "color": "default"
+    },
+      {
+        "action": {
+          "type": "text",
+          "label": "Реклама"
+        },
+        "color": "default"
+      }],
+    [{
+      "action": {
+        "type": "text",
+        "label": "Поиск специалистов"
+      },
+      "color": "default"
+    }],
+      [{
+      "action": {
+        "type": "text",
+        "label": "Справочник полезной информации"
+      },
+      "color": "default"
+    }],
+    [{
+      "action": {
+        "type": "text",
+        "label": "Предложить новость"
+      },
+      "color": "default"
+
+    }],
+    [{
+      "action": {
+        "type": "text",
+        "label": "Позвать администратора"
+      },
+      "color": "negative"
+
+    }]
+  ]
+}

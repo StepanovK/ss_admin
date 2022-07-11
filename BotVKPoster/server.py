@@ -21,6 +21,7 @@ from Models.Admins import Admin
 from Models.PrivateMessages import PrivateMessage
 from utils.db_helper import queri_to_list
 import peewee
+from utils.tg_auto_poster import MyAutoPoster
 
 
 class Server:
@@ -29,8 +30,6 @@ class Server:
     def __init__(self):
         self.group_id = config.group_id
 
-        self.rabbitmq_host = config.rabbitmq_host
-        self.rabbitmq_port = config.rabbitmq_port
         self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
@@ -40,6 +39,7 @@ class Server:
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk = ConnectionsHolder().vk_connection_group
         self.tg_poster = MyAutoPoster()
+        self.rabbit_connection = ConnectionsHolder().rabbit_connection
 
     def _start_polling(self):
 
@@ -90,20 +90,10 @@ class Server:
                 last_published_posts_update = datetime.datetime.now()
 
     def _start_consuming(self):
-        credentials = pika.PlainCredentials('guest', 'guest')
-        conn_params = pika.ConnectionParameters(host=self.rabbitmq_host,
-                                                port=self.rabbitmq_port,
-                                                credentials=credentials)
-        try:
-            connection = pika.BlockingConnection(conn_params)
-        except pika.exceptions.AMQPConnectionError as er:
-            logger.warning(f'failed to connect with rabbitmq! ({self.rabbitmq_host}:{self.rabbitmq_port})')
-            return
-        channel = connection.channel()
+        channel = self.rabbit_connection.channel()
         self._rabbit_get_new_private_message(channel)
         self._rabbit_get_new_posts(channel)
-
-        connection.close()
+        self._rabbit_new_posted_posts(channel)
 
     def _rabbit_get_new_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
@@ -147,6 +137,18 @@ class Server:
                         self._update_message_post(users_post.id)
                         current_number += 1
 
+    def _rabbit_new_posted_posts(self, channel):
+        queue_name = f'{self.queue_name_prefix}_new_posted_post'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                logger.info(f'new_posted_post{message_text}')
+                self.tg_poster.send_new_post(message_text)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():

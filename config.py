@@ -15,6 +15,9 @@ admin_phone = env.str("admin_phone")
 admin_pass = env.str("admin_pass")
 
 chat_for_suggest = env.int("chat_for_suggest")
+
+# Уведомления из ЛК СС
+chat_for_alarm = env.int("chat_for_alarm")
 hashtags = sorted(json.loads(env.str("hashtags")))
 
 db_host = 'localhost'

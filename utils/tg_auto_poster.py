@@ -9,7 +9,7 @@ from utils.connection_holder import ConnectionsHolder
 
 class MyAutoPoster(AutoPoster):
     def __init__(self, cache_dir: Path = Path(".cache"), **kwargs):
-
+        self.directory = os.getcwd()
         name = self.__class__.__name__.lower()
         Client.__init__(self,
                         name,
@@ -48,6 +48,11 @@ class MyAutoPoster(AutoPoster):
         sender.send_post()
         for data in self.cache_dir.iterdir():
             data.unlink()
+        try:
+            os.chdir(Path(self.directory))
+        except FileNotFoundError:
+            Path(self.directory).mkdir()
+            os.chdir(Path(self.directory))
 
 
 if __name__ == "__main__":

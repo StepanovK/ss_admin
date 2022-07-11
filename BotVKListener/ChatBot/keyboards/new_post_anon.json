@@ -1,0 +1,55 @@
+{
+  "one_time": false,
+  "inline": true,
+  "buttons": [
+    [{
+      "action": {
+        "type": "text",
+        "payload": {"command": ""},
+        "label": "[Анон] Добавить # и Опубликовать"
+      },
+      "color": "positive"
+    }],
+    [{
+      "action": {
+        "type": "text",
+        "payload": {"command": ""},
+        "label": "Добавить # и Опубликовать"
+      },
+      "color": "default"
+    }],
+    [{
+      "action": {
+        "type": "text",
+        "payload": {"command": ""},
+        "label": "Опубликовать без хэштега"
+      },
+      "color": "default"
+    }],
+      [{
+        "action": {
+          "type": "text",
+          "payload": {"command": ""},
+          "label": "Изменить хэштег"
+        },
+        "color": "default"
+      }],
+    [{
+        "action": {
+          "type": "text",
+          "payload": {"command": ""},
+          "label": "Добавить еще хэштег"
+        },
+        "color": "default"
+      }],
+    [{
+      "action": {
+        "type": "text",
+        "payload": {"command": ""},
+        "label": "Отклонить"
+      },
+      "color": "negative"
+
+    }]
+  ]
+}

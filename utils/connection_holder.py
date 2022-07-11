@@ -1,3 +1,5 @@
+import pika
+
 from utils.singleton import Singleton
 from vk_api import vk_api
 import config as config
@@ -9,6 +11,7 @@ class ConnectionsHolder(metaclass=Singleton):
         self._vk_connection_group = None
         self._vk_api_admin = None
         self._vk_connection_admin = None
+        self._rabbit_connection = None
 
     @staticmethod
     def close():
@@ -16,6 +19,9 @@ class ConnectionsHolder(metaclass=Singleton):
             ConnectionsHolder.instance._vk_connection_group = None
         if ConnectionsHolder.instance._vk_connection_admin:
             ConnectionsHolder.instance._vk_connection_admin = None
+        if ConnectionsHolder.instance._rabbit_connection:
+            ConnectionsHolder.instance._rabbit_connection.close()
+            ConnectionsHolder.instance._rabbit_connection = None
 
         config.logger.info("Connections closed")
 
@@ -60,3 +66,20 @@ class ConnectionsHolder(metaclass=Singleton):
             except Exception as ex:
                 config.logger.error(f"Failed to init VK admin client: {ex}")
         return self._vk_connection_admin
+
+    @property
+    def rabbit_connection(self):
+        if not self._rabbit_connection:
+            try:
+                credentials = pika.PlainCredentials('guest', 'guest')
+                conn_params = pika.ConnectionParameters(host=config.rabbitmq_host,
+                                                        port=config.rabbitmq_port,
+                                                        credentials=credentials)
+                try:
+                    self._rabbit_connection = pika.BlockingConnection(conn_params)
+                    config.logger.info("Init rabbitmq client")
+                except pika.exceptions.AMQPConnectionError as er:
+                    config.logger.warning(f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
+            except Exception as ex:
+                config.logger.error(f"Failed to init rabbitmq client: {ex}")
+        return self._rabbit_connection
