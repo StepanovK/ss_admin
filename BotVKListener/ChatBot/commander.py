@@ -1,5 +1,6 @@
 # Перечисления команд, режимов
 import pymorphy2
+import config
 
 from .command_enum import Command
 from utils.connection_holder import ConnectionsHolder
@@ -17,8 +18,8 @@ class Commander:
         self._vk_admin = ConnectionsHolder().vk_connection_admin
 
         self.last_command = None
-        self.now_keyboard = open("BotVKListener/ChatBot/keyboards/keyboard.json", "r", encoding="UTF-8").read()
-        self.last_keyboard = open("BotVKListener/ChatBot/keyboards/keyboard.json", "r", encoding="UTF-8").read()
+        self.now_keyboard = open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read()
+        self.last_keyboard = open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read()
         self.now_attachment = None
         self.last_attachment = None
         # Для запомминания ответов пользователя
@@ -117,7 +118,7 @@ class Commander:
             # Позвать админа
             elif msg in Command.callAdmin.value:
                 return 'Уже зову администратора. В ближайшее время Вам ответят.'
-            else:
+            elif msg is not None:
                 for elem in self.f_tokenizer(msg.lower()):
                     if elem in Command.offerNews_list.value:
                         if not self.user_info:

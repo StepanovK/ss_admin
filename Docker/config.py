@@ -15,7 +15,8 @@ admin_phone = env.str("admin_phone")
 admin_pass = env.str("admin_pass")
 
 chat_for_suggest = env.int("chat_for_suggest")
-hashtags = sorted(json.loads(env.str("hashtags")))
+chat_for_alarm = env.int("chat_for_alarm")  # Уведомления из ЛК СС
+chat_bot_keyboard_path = 'BotVKListener/ChatBot/keyboards/'
 
 db_host = 'postgres_ru'
 db_port = 5432

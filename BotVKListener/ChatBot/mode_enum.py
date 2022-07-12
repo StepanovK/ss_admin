@@ -1,10 +1,11 @@
 from enum import Enum
+import config
 
 
 class Mode(Enum):
-    default = ["Обычный режим", "default", "BotVKListener/ChatBot/keyboards/keyboard.json", "« Назад"]
-    advertising = ["advertising", "Реклама", "BotVKListener/ChatBot/keyboards/advertising.json"]
-    calculationAdvertising = ["calculation advertising", "Рассчитать стоимость", "BotVKListener/ChatBot/keyboards/individual_or_company.json"]
-    # back = ["back", "« Назад", "BotVKListener/ChatBot/keyboards/keyboard.json"]
+    default = ["Обычный режим", "default", config.chat_bot_keyboard_path + "keyboard.json", "« Назад"]
+    advertising = ["advertising", "Реклама", config.chat_bot_keyboard_path + "advertising.json"]
+    calculationAdvertising = ["calculation advertising", "Рассчитать стоимость", config.chat_bot_keyboard_path + "individual_or_company.json"]
+    # back = ["back", "« Назад", config.chat_bot_keyboard_path + "keyboard.json"]
     get_ans = ["Режим ввода ответа"]
 

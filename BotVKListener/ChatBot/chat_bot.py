@@ -11,7 +11,7 @@ class ChatBot:
         self.user_call_admin = None
 
     def send_msg(self, random_id, send_id, message,
-                 keyboard=open("BotVKListener/ChatBot/keyboards/keyboard.json", "r", encoding="UTF-8").read(),
+                 keyboard=open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read(),
                  attachment=None):
         """
         Отправка сообщения через метод messages.send
@@ -33,7 +33,7 @@ class ChatBot:
         if event.object.from_id not in self.users:
             self.users[event.object.from_id] = Commander()
         # Пришло новое сообщение
-        print('Написали в ЛС')
+        # print('Написали в ЛС')
         answer = self.users[event.object.from_id].input(event.object.text)
         if event.object.text == "Начать":
             self.send_msg(event.object.random_id, event.object.peer_id,
@@ -49,7 +49,7 @@ class ChatBot:
             if event.object.peer_id != self.user_call_admin:
                 self.send_msg(event.object.random_id, config.chat_for_alarm,
                               'Админы, Вас там зовут!!!\n{}'.format(msg_url),
-                              keyboard=open("BotVKListener/ChatBot/keyboards/none.json", "r", encoding="UTF-8").read())
+                              keyboard=open(config.chat_bot_keyboard_path + "none.json", "r", encoding="UTF-8").read())
                 self.user_call_admin = event.object.peer_id
 
         elif answer is not None:
