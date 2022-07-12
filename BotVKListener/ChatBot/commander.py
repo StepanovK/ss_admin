@@ -99,7 +99,11 @@ class Commander:
             #     replace('?', ' ').replace(':', ' ').split()
             # Правила
             if msg in Command.groupRules.value:
-                return self._vk.board.getComments(group_id=494898, topic_id=39089608, count=1)["items"][0]["text"]
+                try:
+                    return self._vk.board.getComments(group_id=494898, topic_id=39089608, count=1)["items"][0]["text"]
+                except Exception as ex:
+                    config.logger.error(f'Can`t get group rules post: {ex}')
+                    return None
 
             # Поиск специалиста на сортировке
             elif msg in Command.findSpecialist.value:
@@ -132,12 +136,20 @@ class Commander:
 
         if self.now_mode == Mode.advertising:
             if msg in Command.advertisingRules.value:
-                return \
-                    self._vk.board.getComments(group_id=494898, topic_id=30606622, count=1)["items"][0]["text"].split(
-                        '$$$')[1]
+
+                try:
+                    return self._vk.board.getComments(group_id=494898,
+                                                      topic_id=30606622,
+                                                      count=1)["items"][0]["text"].split('$$$')[1]
+                except Exception as ex:
+                    config.logger.error(f'Can`t get advertising post: {ex}')
 
             if msg in Command.advertisingPrice.value:
-                return \
-                    self._vk.board.getComments(group_id=494898, topic_id=30606622, count=1)["items"][0]["text"].split(
-                        '$$$')[2]
+                try:
+                    return self._vk.board.getComments(group_id=494898,
+                                                      topic_id=30606622,
+                                                      count=1)["items"][0]["text"].split('$$$')[2]
+                except Exception as ex:
+                    config.logger.error(f'Can`t get advertising post: {ex}')
+
         return None

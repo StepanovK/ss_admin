@@ -22,7 +22,7 @@ class ChatBot:
         :param message: содержимое отправляемого письма
         :return: None
         """
-        print("отправка сообщения")
+        # print("отправка сообщения")
         return self._vk.messages.send(peer_id=send_id,
                                       message=message,
                                       random_id=random_id,
@@ -45,7 +45,7 @@ class ChatBot:
                           answer,
                           self.users[event.object.message.get("from_id")].now_keyboard,
                           self.users[event.object.message.get("from_id")].now_attachment)
-            msg_url = 'https://vk.com/gim{}?peers=c7&sel={}'.format(config.group_id, event.object.message.get("peer_id"))
+            msg_url = 'https://vk.com/gim{}?sel={}'.format(config.group_id, event.object.message.get("peer_id"))
             if event.object.message.get("peer_id") != self.user_call_admin:
                 self.send_msg(event.object.message.get("random_id"), config.chat_for_alarm,
                               'Админы, Вас там зовут!!!\n{}'.format(msg_url),
