@@ -29,7 +29,6 @@ class Server:
         self.vk_connection_admin = ConnectionsHolder().vk_connection_admin
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk_connection_group = ConnectionsHolder().vk_connection_group
-        self.rabbit_connection = ConnectionsHolder().rabbit_connection
 
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
@@ -121,7 +120,7 @@ class Server:
                 # print(f'post {post} was_updated={was_updated}')
 
     def _send_alarm(self, message_type: str, message: str):
-        channel = self.rabbit_connection.channel()
+        channel = ConnectionsHolder().rabbit_connection.channel()
         queue_name = f'{self.queue_name_prefix}_{message_type}'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -129,6 +128,8 @@ class Server:
                               routing_key=queue_name,
                               body=message.encode(),
                               properties=pika.BasicProperties(delivery_mode=2))
+
+        ConnectionsHolder().close_rabbit_connection()
 
     def run(self):
         # try:
