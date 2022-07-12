@@ -112,7 +112,7 @@ class Server:
                 logger.info(f'new_suggested_post {message_text}')
                 self._add_new_message_post(message_text)
 
-    def _rabbit_get_new_private_message(self, channel):
+    def _rabbit_get_new_private_messages(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_private_message'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -153,6 +153,7 @@ class Server:
                 message_text = message.decode()
                 logger.info(f'new_posted_post{message_text}')
                 self.tg_poster.send_new_post(message_text)
+
     def _rabbit_get_updated_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_updated_posts'
         channel.queue_declare(queue=queue_name,

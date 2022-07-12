@@ -1,4 +1,4 @@
-from ChatBot.commander import Commander
+from .commander import Commander
 from utils.connection_holder import ConnectionsHolder
 import config
 

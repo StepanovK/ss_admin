@@ -1,9 +1,9 @@
 # Перечисления команд, режимов
 import pymorphy2
 
-from ChatBot.command_enum import Command
+from .command_enum import Command
 from utils.connection_holder import ConnectionsHolder
-from ChatBot.mode_enum import Mode
+from .mode_enum import Mode
 
 
 class Commander:

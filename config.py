@@ -34,7 +34,7 @@ queue_name_prefix = 'vk_events'
 secret_key_google = env.str("secret_google")
 spreadsheetId = env.str("spreadsheetId")
 
-domain = 'sun_sortirovka'
+domain = env.str("domain")
 # for TG sender
 telegram = dict(
     api_id=env.int("api_id"),
