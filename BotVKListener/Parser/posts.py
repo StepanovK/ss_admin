@@ -89,8 +89,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
             post.anonymously = True
 
         if extract_hashtags:
-            hashtags, new_text = extract_hashtags_from_post_text(post.text)
-            post.text = new_text
+            hashtags, new_text = extract_hashtags_from_post_text(text=post.text, replace=False)
 
     post.save()
 
@@ -136,14 +135,15 @@ def get_wall_post_attributes(wall_post: dict):
     return post_attributes
 
 
-def extract_hashtags_from_post_text(text: str) -> tuple[list, str]:
+def extract_hashtags_from_post_text(text: str, replace: bool = False) -> tuple[list, str]:
     hashtags = []
     new_text = text
     for hashtag in get_hasgtags.get_hashtags():
         if hashtag in new_text:
             hashtags.append(hashtag)
-            new_text = new_text.replace('\n' + hashtag, '')
-            new_text = new_text.replace(hashtag + ' ', '')
-            new_text = new_text.replace(hashtag, '')
+            if replace:
+                new_text = new_text.replace('\n' + hashtag, '')
+                new_text = new_text.replace(hashtag + ' ', '')
+                new_text = new_text.replace(hashtag, '')
 
     return hashtags, new_text
