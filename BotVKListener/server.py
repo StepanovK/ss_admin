@@ -86,14 +86,16 @@ class Server:
                             create_db.unlock_db()
                     else:
                         if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
-                            message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
+                            message = private_messages.parse_private_message(event.object.message,
+                                                                             self.vk_connection_admin)
                             self._send_alarm(message_type='new_private_message', message=message.id)
                         self.chat_bot.chat(event)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
                         if event.from_user:
-                            message = private_messages.parse_private_message(event.object, self.vk_connection_admin)
+                            message = private_messages.parse_private_message(event.object,
+                                                                             self.vk_connection_admin)
                             self._send_alarm(message_type='new_private_message', message=message.id)
 
             now = datetime.datetime.now()
