@@ -101,7 +101,10 @@ class Server:
             now = datetime.datetime.now()
             if not last_published_posts_update \
                     or (now - last_published_posts_update).total_seconds() >= time_to_update_last_posts:
-                self._update_last_posts()
+                try:
+                    self._update_last_posts()
+                except Exception as ex:
+                    logger.error(f'Failed to update last posts: {ex}')
                 last_published_posts_update = datetime.datetime.now()
 
     def _update_last_posts(self, count_of_posts: int = 60):
