@@ -11,6 +11,7 @@ import keyboards
 import pika
 import datetime
 import random
+from Models.base import db as main_db
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.Users import User
 from Models.Comments import Comment
@@ -151,7 +152,7 @@ class Server:
                 break
             else:
                 message_text = message.decode()
-                logger.info(f'new_posted_post{message_text}')
+                logger.info(f'new_posted_post {message_text}')
                 self.tg_poster.send_new_post(message_text)
 
     def _rabbit_get_updated_posts(self, channel):
@@ -173,6 +174,7 @@ class Server:
             suggested_post = self._get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
+                published_post.text = suggested_post.text
                 if post_inf.admin_id:
                     admin_user, _ = User.get_or_create(id=post_inf.admin_id)
                     published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
@@ -182,12 +184,11 @@ class Server:
 
                 suggested_post.posted_in = published_post
                 suggested_post.save()
+                with main_db.atomic():
+                    for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
+                        PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
-                for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
-                    PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
-
-                for ht in SortedHashtag.select().where(SortedHashtag.post_id == post_inf.suggested_post_id):
-                    ht.delete_instance()
+                SortedHashtag.delete().where(SortedHashtag.post_id == post_inf.suggested_post_id).execute()
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
@@ -407,11 +408,10 @@ class Server:
 
     @staticmethod
     def _update_sorted_hashtags(post):
-        for ht in SortedHashtag.select().where(SortedHashtag.post_id == post.id):
-            ht.delete_instance()
+        SortedHashtag.delete().where(SortedHashtag.post_id == post.id).execute()
 
-        for ht in get_hasgtags.get_sorted_hashtags(post):
-            s_ht, _ = SortedHashtag.get_or_create(post_id=post.id, hashtag=ht)
+        ht_and_post = [(ht, post.id) for ht in get_hasgtags.get_sorted_hashtags(post)]
+        SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag, SortedHashtag.post_id]).execute()
 
     @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
