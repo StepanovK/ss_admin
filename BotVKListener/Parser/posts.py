@@ -97,7 +97,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
     if extract_hashtags and len(hashtags) > 0 and not post.is_deleted:
         PostsHashtag.delete().where(PostsHashtag.post == post).execute()
         ht_and_post = [(ht, post) for ht in hashtags]
-        PostsHashtag.insert_many(ht_and_post, fields=[PostsHashtag.hashtag, PostsHashtag.post])
+        PostsHashtag.insert_many(ht_and_post, fields=[PostsHashtag.hashtag, PostsHashtag.post]).execute()
 
     attachments.parce_added_attachments(post, wall_post.get('attachments', []))
 
