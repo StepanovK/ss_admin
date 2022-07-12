@@ -174,7 +174,6 @@ class Server:
             suggested_post = self._get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
-                published_post.text = suggested_post.text
                 if post_inf.admin_id:
                     admin_user, _ = User.get_or_create(id=post_inf.admin_id)
                     published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
