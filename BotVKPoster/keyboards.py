@@ -4,7 +4,7 @@ from PosterModels.SortedHashtags import SortedHashtag
 import config as config
 from utils.db_helper import queri_to_list
 import collections
-from utils.get_hasgtags import get_hashtags
+from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
 
 
 def main_menu_keyboard(post: Post):
@@ -101,10 +101,9 @@ def user_info_menu(post: Post, page: int = 1):
 def _hashtags_by_pages(post: Post) -> dict[list]:
     count_per_page = 4
     sorted_hashtags = queri_to_list(SortedHashtag.select().where(SortedHashtag.post_id == post.id), column='hashtag')
-    # for ht in config.hashtags:
-    for ht in get_hashtags(post.text, count_res=19):
-        if ht[0] not in sorted_hashtags:
-            sorted_hashtags.append(ht[0])
+    for ht in get_hashtags():
+        if ht not in sorted_hashtags:
+            sorted_hashtags.append(ht)
 
     pages = collections.defaultdict(list)
 

@@ -7,7 +7,6 @@ from PosterModels.PublishedPosts import PublishedPost
 from PosterModels.SortedHashtags import SortedHashtag
 from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
-from utils.tg_auto_poster import MyAutoPoster
 import keyboards
 import pika
 import datetime
@@ -20,7 +19,7 @@ from Models.Subscriptions import Subscription
 from Models.Admins import Admin
 from Models.PrivateMessages import PrivateMessage
 from utils.db_helper import queri_to_list
-import peewee
+import utils.get_hasgtags as get_hasgtags
 from utils.tg_auto_poster import MyAutoPoster
 
 
@@ -30,6 +29,8 @@ class Server:
     def __init__(self):
         self.group_id = config.group_id
 
+        self.rabbitmq_host = config.rabbitmq_host
+        self.rabbitmq_port = config.rabbitmq_port
         self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
@@ -93,8 +94,9 @@ class Server:
 
     def _start_consuming(self):
         channel = self.rabbit_connection.channel()
-        self._rabbit_get_new_private_message(channel)
+        self._rabbit_get_new_private_messages(channel)
         self._rabbit_get_new_posts(channel)
+        self._rabbit_get_updated_posts(channel)
         self._rabbit_new_posted_posts(channel)
 
     def _rabbit_get_new_posts(self, channel):
@@ -183,6 +185,9 @@ class Server:
                 for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
                     PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
+                for ht in SortedHashtag.select().where(SortedHashtag.post_id == post_inf.suggested_post_id):
+                    ht.delete_instance()
+
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
             new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
@@ -270,6 +275,8 @@ class Server:
         post = self._get_post_by_id(post_id=post_id)
         if not post:
             return
+
+        self._update_sorted_hashtags(post)
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
                                            message=self._get_post_description(post),
@@ -396,6 +403,14 @@ class Server:
                                            keyboard=keyboards.user_info_menu(post))
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
+
+    @staticmethod
+    def _update_sorted_hashtags(post):
+        for ht in SortedHashtag.select().where(SortedHashtag.post_id == post.id):
+            ht.delete_instance()
+
+        for ht in get_hasgtags.get_sorted_hashtags(post):
+            s_ht, _ = SortedHashtag.get_or_create(post_id=post.id, hashtag=ht)
 
     @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
