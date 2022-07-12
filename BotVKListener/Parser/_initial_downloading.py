@@ -11,6 +11,7 @@ from . import comments
 from config import logger
 from Models.Users import User
 from Models.Posts import Post
+from Models.base import db
 
 _POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
 _COMMENTS_OFFSET_FILENAME = 'current_offset_of_posts_for_comments.tmp'
@@ -31,7 +32,7 @@ def load_all(vk_connection, group_id):
 
     delete_offset_files()
 
-    logger.info('Loading finished')
+    logger.info('Loading finished!')
 
 
 def load_subscribers(vk_connection, group_id):
@@ -64,11 +65,12 @@ def load_posts(vk_connection, group_id):
                                           count=100)['items']
         if len(vk_posts) == 0:
             break
-        for vk_post in vk_posts:
-            likers = vk_connection.wall.getLikes(owner_id=-group_id, post_id=vk_post['id'], count=1000)
-            vk_post['likers'] = likers.get('users', [])
-            post = posts.parse_wall_post(vk_post)
-            print(f'Post loaded {post}')
+        with db.atomic():
+            for vk_post in vk_posts:
+                likers = vk_connection.wall.getLikes(owner_id=-group_id, post_id=vk_post['id'], count=1000)
+                vk_post['likers'] = likers.get('users', [])
+                post = posts.parse_wall_post(wall_post=vk_post, vk_connection=vk_connection, extract_hashtags=True)
+                print(f'Post loaded {post}')
 
         offset += 100
         update_current_offset_in_file(offset, _POST_OFFSET_FILENAME)
@@ -82,7 +84,7 @@ def load_comments(vk_connection, group_id):
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
                                     Post.owner_id == -group_id,
-                                    Post.vk_id > post_offset).order_by(Post.vk_id):
+                                    Post.vk_id > post_offset).order_by(Post.date):
         offset = 0
         count = 0
         params = {'owner_id': -group_id,
@@ -94,24 +96,25 @@ def load_comments(vk_connection, group_id):
                   'fields': users_fields(),
                   'thread_items_count': 10}
         while True:
-            vk_comments = vk_connection.wall.getComments(offset=offset, **params)
-            for user_info in vk_comments['profiles']:
-                user = add_user_by_info(vk_connection, user_info)
-            for vk_comment in vk_comments['items']:
-                comment = comments.parse_comment(vk_comment, vk_connection)
-                count += 1
-
-                thread = vk_comment.get('thread', {})
-                comments_in_thread = []
-                if 1 < thread.get('count', 0) < 10:
-                    comments_in_thread = thread.get('items', [])
-                elif thread.get('count', 0) > 10:
-                    vk_comment_with_thread = vk_connection.wall.getComments(comment_id=vk_comment['id'], **params)
-                    comments_in_thread = vk_comment_with_thread.get('items', [])
-
-                for vk_comment_in_thread in comments_in_thread:
-                    comment_in_thread = comments.parse_comment(vk_comment_in_thread, vk_connection)
+            with db.atomic():
+                vk_comments = vk_connection.wall.getComments(offset=offset, **params)
+                for user_info in vk_comments['profiles']:
+                    user = add_user_by_info(vk_connection, user_info)
+                for vk_comment in vk_comments['items']:
+                    comment = comments.parse_comment(vk_comment, vk_connection)
                     count += 1
+
+                    thread = vk_comment.get('thread', {})
+                    comments_in_thread = []
+                    if 1 < thread.get('count', 0) < 10:
+                        comments_in_thread = thread.get('items', [])
+                    elif thread.get('count', 0) > 10:
+                        vk_comment_with_thread = vk_connection.wall.getComments(comment_id=vk_comment['id'], **params)
+                        comments_in_thread = vk_comment_with_thread.get('items', [])
+
+                    for vk_comment_in_thread in comments_in_thread:
+                        comment_in_thread = comments.parse_comment(vk_comment_in_thread, vk_connection)
+                        count += 1
 
             offset += count_for_get
             if len(vk_comments['items']) < count_for_get:

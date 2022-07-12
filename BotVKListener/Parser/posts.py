@@ -1,7 +1,8 @@
 from Models.Admins import Admin
-from Models.Posts import Post, PostStatus
+from Models.Posts import Post, PostStatus, PostsHashtag
 from Models.Relations import PostsAttachment
 from config import logger
+from utils import get_hasgtags
 from . import attachments
 from . import likes
 from . import users
@@ -59,7 +60,7 @@ def update_wall_post(wall_post: dict, vk_connection=None):
     return post, need_update
 
 
-def parse_wall_post(wall_post: dict, vk_connection=None):
+def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool = False):
     post_attributes = get_wall_post_attributes(wall_post)
     is_deleted = 'deleted_reason' in wall_post and wall_post['deleted_reason'] != ''
 
@@ -68,6 +69,8 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
     post, post_created = Post.get_or_create(id=post_id)
 
     post.is_deleted = is_deleted
+
+    hashtags = []
 
     if post_created or not is_deleted:
         post.vk_id = post_attributes['vk_id']
@@ -85,7 +88,16 @@ def parse_wall_post(wall_post: dict, vk_connection=None):
         else:
             post.anonymously = True
 
+        if extract_hashtags:
+            hashtags, new_text = extract_hashtags_from_post_text(post.text)
+            post.text = new_text
+
     post.save()
+
+    if extract_hashtags and len(hashtags) > 0 and not post.is_deleted:
+        PostsHashtag.delete().where(PostsHashtag.post == post).execute()
+        ht_and_post = [(ht, post) for ht in hashtags]
+        PostsHashtag.insert_many(ht_and_post, fields=[PostsHashtag.hashtag, PostsHashtag.post])
 
     attachments.parce_added_attachments(post, wall_post.get('attachments', []))
 
@@ -122,3 +134,16 @@ def get_wall_post_attributes(wall_post: dict):
         post_attributes['admin'], _ = Admin.get_or_create(id=created_by,
                                                           user=users.get_or_create_user(vk_id=created_by))
     return post_attributes
+
+
+def extract_hashtags_from_post_text(text: str) -> tuple[list, str]:
+    hashtags = []
+    new_text = text
+    for hashtag in get_hasgtags.get_hashtags():
+        if hashtag in new_text:
+            hashtags.append(hashtag)
+            new_text = new_text.replace('\n' + hashtag, '')
+            new_text = new_text.replace(hashtag + ' ', '')
+            new_text = new_text.replace(hashtag, '')
+
+    return hashtags, new_text

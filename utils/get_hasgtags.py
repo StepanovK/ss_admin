@@ -9,7 +9,7 @@ from rapidfuzz import process, fuzz
 
 
 @functools.lru_cache()
-def get_hashtags() -> List[tuple]:
+def get_hashtags() -> List:
     _google_sheet: GoogleSheetsManager = GoogleSheetsManager(spreadsheetId)
     raw_hashtags: dict = _google_sheet.get_sheet_values("Хэштэги")
     hashtags = []
