@@ -28,3 +28,10 @@ class PrivateMessage(BaseModel):
     @classmethod
     def generate_id(cls, chat_id, message_id):
         return f'{chat_id}_{message_id}'
+
+    @classmethod
+    def it_is_private_chat(cls, chat_id: int):
+        public_chat_ids = 2000000000
+        is_private = isinstance(chat_id, int) and chat_id < public_chat_ids
+        return is_private
+

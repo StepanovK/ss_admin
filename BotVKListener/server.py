@@ -7,6 +7,7 @@ from time import sleep
 import datetime
 import pika
 from Models.Posts import Post, PostStatus
+from Models.PrivateMessages import PrivateMessage
 from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
@@ -84,15 +85,16 @@ class Server:
                         elif event.object.message['text'] == 'unlock_db':
                             create_db.unlock_db()
                     else:
-                        message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
-                        self._send_alarm(message_type='new_private_message', message=message.id)
-                        if message.admin is None:
-                            self.chat_bot.chat(event)
+                        if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
+                            message = private_messages.parse_private_message(event.object.message, self.vk_connection_admin)
+                            self._send_alarm(message_type='new_private_message', message=message.id)
+                        self.chat_bot.chat(event)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
-                    if event.from_user:
-                        message = private_messages.parse_private_message(event.object, self.vk_connection_admin)
-                        self._send_alarm(message_type='new_private_message', message=message.id)
+                    if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
+                        if event.from_user:
+                            message = private_messages.parse_private_message(event.object, self.vk_connection_admin)
+                            self._send_alarm(message_type='new_private_message', message=message.id)
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
