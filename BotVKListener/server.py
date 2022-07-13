@@ -43,7 +43,7 @@ class Server:
         while True:
             for event in self._longpoll.check():
 
-                logger.info(f'New event: {event.type}')
+                print(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
                     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
                     str_from_user = '' if new_post.user is None else f'от {new_post.user} '
@@ -73,8 +73,10 @@ class Server:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.BOARD_POST_EDIT:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
-                elif event.type == VkBotEventType.BOARD_POST_EDIT:
+                elif event.type == VkBotEventType.BOARD_POST_DELETE:
                     conversations.parse_delete_conversation_message(event.object)
+                elif event.type == VkBotEventType.BOARD_POST_RESTORE:
+                    conversations.parse_undelete_conversation_message(event.object)
                 elif event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
                         if 'load_data' in event.object.message['text']:
@@ -151,10 +153,10 @@ class Server:
         ConnectionsHolder().close_rabbit_connection()
 
     def run(self):
-        # try:
-        self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        try:
+            self._start_polling()
+        except Exception as ex:
+            logger.error(ex)
 
     def run_in_loop(self):
         while True:

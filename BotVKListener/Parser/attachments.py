@@ -40,6 +40,14 @@ def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateM
         uploaded_file.save()
 
 
+def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage]):
+    for attachment in attachment_object.attachments:
+        attachment.is_deleted = False
+        attachment.save()
+        uploaded_file = attachment.attachment
+        uploaded_file.is_deleted = False
+        uploaded_file.save()
+
 def parse_vk_attachment(vk_attachment):
     attachment_type = vk_attachment.get('type')
     if attachment_type == 'audio' and 'audio' in vk_attachment:

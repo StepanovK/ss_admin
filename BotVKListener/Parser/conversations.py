@@ -29,9 +29,15 @@ def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=Fa
         owner_id = vk_object.get('topic_owner_id')
         topic_id = vk_object.get('topic_id')
         conversation_id = Conversation.generate_id(owner_id=owner_id, conversation_id=topic_id)
-        conversation, _ = Conversation.get_or_create(id=conversation_id,
-                                                     owner_id=owner_id,
-                                                     conversation_id=topic_id)
+        conversation, created = Conversation.get_or_create(id=conversation_id,
+                                                           owner_id=owner_id,
+                                                           conversation_id=topic_id)
+        if created and vk_connection is not None:
+            topics = vk_connection.board.getTopics(group_id=-owner_id,
+                                                   topic_ids=str(topic_id),
+                                                   preview=1)['items']
+            if len(topics) > 0:
+                parse_conversation(vk_object=topics[0], owner_id=owner_id, vk_connection=vk_connection)
     else:
         owner_id = conversation.owner_id
         topic_id = conversation.conversation_id
@@ -66,7 +72,13 @@ def parse_delete_conversation_message(vk_object: dict):
     message_id = ConversationsMessage.generate_id(owner_id=owner_id,
                                                   conversation_id=topic_id,
                                                   message_id=mes_id)
-    conv_mes, created = ConversationsMessage.get_or_create(id=message_id)
+    conv = get_conversation(owner_id, topic_id)
+    if conv is None:
+        logger.warning(f'Can`t update the conversation`s message id={message_id}')
+        return None
+
+    conv_mes, created = ConversationsMessage.get_or_create(id=message_id,
+                                                           conversation=conv)
     conv_mes.is_deleted = True
 
     conv_mes.save()
@@ -74,3 +86,35 @@ def parse_delete_conversation_message(vk_object: dict):
     attachments.mark_attachments_as_deleted(attachment_object=conv_mes)
 
     return conv_mes
+
+
+def parse_undelete_conversation_message(vk_object: dict):
+    owner_id = vk_object.get('topic_owner_id')
+    topic_id = vk_object.get('topic_id')
+    mes_id = vk_object.get('id')
+    message_id = ConversationsMessage.generate_id(owner_id=owner_id,
+                                                  conversation_id=topic_id,
+                                                  message_id=mes_id)
+    conv = get_conversation(owner_id, topic_id)
+    if conv is None:
+        logger.warning(f'Can`t update the conversation`s message id={message_id}')
+        return None
+
+    conv_mes, created = ConversationsMessage.get_or_create(id=message_id,
+                                                           conversation=conv)
+    conv_mes.is_deleted = False
+
+    conv_mes.save()
+
+    attachments.mark_attachments_as_undeleted(attachment_object=conv_mes)
+
+    return conv_mes
+
+
+def get_conversation(owner_id, topic_id):
+    conv_id = Conversation.generate_id(owner_id=owner_id, conversation_id=topic_id)
+    try:
+        return Conversation.get(id=conv_id)
+    except Conversation.DoesNotExist:
+        logger.warning(f'Can`t get conversation by id={conv_id}')
+        return None
