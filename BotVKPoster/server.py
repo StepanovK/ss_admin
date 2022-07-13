@@ -41,7 +41,6 @@ class Server:
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk = ConnectionsHolder().vk_connection_group
         self.tg_poster = MyAutoPoster()
-        self.rabbit_connection = ConnectionsHolder().rabbit_connection
 
     def _start_polling(self):
 
@@ -94,11 +93,12 @@ class Server:
                 last_published_posts_update = datetime.datetime.now()
 
     def _start_consuming(self):
-        channel = self.rabbit_connection.channel()
+        channel = ConnectionsHolder().rabbit_connection.channel()
         self._rabbit_get_new_private_messages(channel)
         self._rabbit_get_new_posts(channel)
         self._rabbit_get_updated_posts(channel)
         self._rabbit_new_posted_posts(channel)
+        ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_suggested_post'
