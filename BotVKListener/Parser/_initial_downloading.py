@@ -84,7 +84,7 @@ def load_comments(vk_connection, group_id):
     count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
                                     Post.owner_id == -group_id,
-                                    Post.vk_id > post_offset).order_by(Post.date):
+                                    Post.vk_id > post_offset).order_by(Post.vk_id):
         offset = 0
         count = 0
         params = {'owner_id': -group_id,
