@@ -4,35 +4,52 @@
 import datetime
 import os
 
+import config
 from . import subscriptions
 from . import posts
 from . import users
 from . import comments
+from . import conversations
 from config import logger
 from Models.Users import User
 from Models.Posts import Post
+from Models.Conversations import Conversation
+from Models.ConversationsMessages import ConversationsMessage
 from Models.base import db
+from typing import Union
 
 _POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
 _COMMENTS_OFFSET_FILENAME = 'current_offset_of_posts_for_comments.tmp'
+_CONVERSATIONS_OFFSET_FILENAME = 'current_offset_of_conversations.tmp'
+_CONVERSATIONS_MESS_OFFSET_FILENAME = 'current_offset_of_conversations_mess.tmp'
 
 
-def load_all(vk_connection, group_id):
+def load_all(vk_connection, group_id=None):
+    group_id = config.group_id if group_id is None else group_id
+
     logger.info('Loading subscribers started')
     load_subscribers(vk_connection, group_id)
-    logger.info('Loading subscribers finished')
+    logger.info('Loading subscribers completed')
 
     logger.info('Loading posts started')
     load_posts(vk_connection, group_id)
-    logger.info('Loading posts finished')
+    logger.info('Loading posts completed')
 
     logger.info('Loading comments started')
     load_comments(vk_connection, group_id)
-    logger.info('Loading comments finished')
+    logger.info('Loading comments completed')
+
+    logger.info('Loading conversations started')
+    load_conversations(vk_connection, group_id)
+    logger.info('Loading conversations completed')
+
+    logger.info('Loading conversations messages started')
+    load_conversations_messages(vk_connection, group_id)
+    logger.info('Loading conversations messages completed')
 
     delete_offset_files()
 
-    logger.info('Loading finished!')
+    logger.info('Loading completed!')
 
 
 def load_subscribers(vk_connection, group_id):
@@ -59,7 +76,7 @@ def load_posts(vk_connection, group_id):
     offset = get_current_offset_in_file(_POST_OFFSET_FILENAME)
     while True:
         if offset != 0:
-            logger.info(f'Current post offset = {offset}')
+            logger.info(f'Current posts offset = {offset}')
         vk_posts = vk_connection.wall.get(owner_id=-group_id,
                                           offset=offset,
                                           count=100)['items']
@@ -125,6 +142,72 @@ def load_comments(vk_connection, group_id):
             update_current_offset_in_file(post.vk_id, _COMMENTS_OFFSET_FILENAME)
 
 
+def load_conversations(vk_connection, group_id):
+    offset = get_current_offset_in_file(_CONVERSATIONS_OFFSET_FILENAME)
+    while True:
+        if offset != 0:
+            logger.info(f'Current conversations offset = {offset}')
+        topics = vk_connection.board.getTopics(
+            group_id=group_id_without_minus(group_id),
+            offset=offset,
+            count=100
+        )['items']
+        if len(topics) == 0:
+            break
+
+        with db.atomic():
+            for topic in topics:
+                conversation = conversations.parse_conversation(vk_object=topic,
+                                                                vk_connection=vk_connection,
+                                                                owner_id=group_id_with_minus(group_id))
+
+                conv_messages = vk_connection.board.getComments(group_id=group_id_without_minus(group_id),
+                                                                topic_id=conversation.conversation_id,
+                                                                count=100
+                                                                )['items']
+
+                print(f'Post loaded {conversation.get_url()}')
+
+        offset += 100
+        update_current_offset_in_file(offset, _CONVERSATIONS_OFFSET_FILENAME)
+
+
+def load_conversations_messages(vk_connection, group_id):
+    conv_offset = get_current_offset_in_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+    if conv_offset != 0:
+        logger.info(f'Loading of conversations comments started from conv id={conv_offset}')
+
+    count_for_get = 100  # min = 10, max = 100
+    for conv in Conversation.select().where(Conversation.is_deleted == False,
+                                            Conversation.owner_id == group_id_with_minus(group_id),
+                                            Conversation.conversation_id > conv_offset).order_by(Post.vk_id):
+        offset = 0
+        count = 0
+        params = {
+            'owner_id': group_id_without_minus(group_id),
+            'topic_id': conv.conversation_id,
+            'need_likes': 0,
+            'count': count_for_get,
+            'sort': 'asc',
+            'extended': 1,
+        }
+        while True:
+            with db.atomic():
+                vk_comments = vk_connection.board.getComments(offset=offset, **params)
+                for user_info in vk_comments['profiles']:
+                    user = add_user_by_info(vk_connection, user_info)
+                for vk_comment in vk_comments['items']:
+                    comment = conversations.parse_conversation_message(vk_comment, vk_connection)
+                    count += 1
+            offset += count_for_get
+            if len(vk_comments['items']) < count_for_get:
+                break
+
+        if count > 0:
+            print(f'Loaded {count} comments for conversation {conv.get_url()}')
+            update_current_offset_in_file(conv.conversation_id, _CONVERSATIONS_MESS_OFFSET_FILENAME)
+
+
 def add_user_by_info(vk_connection, user_info):
     user, created = User.get_or_create(id=user_info['id'])
     if created:
@@ -154,6 +237,8 @@ def get_current_offset_in_file(temp_file_name):
 def delete_offset_files():
     delete_offset_file(_POST_OFFSET_FILENAME)
     delete_offset_file(_COMMENTS_OFFSET_FILENAME)
+    delete_offset_file(_CONVERSATIONS_OFFSET_FILENAME)
+    delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
 
 
 def delete_offset_file(file_name):
@@ -162,3 +247,27 @@ def delete_offset_file(file_name):
             os.remove(file_name)
         except Exception as ex:
             logger.error(f'Can`t remove offset file: {ex}')
+
+
+def group_id_with_minus(group_id: Union[int, str]) -> int:
+    int_group_id = 0
+    if isinstance(group_id, str):
+        if len(group_id) > 0:
+            int_group_id = int(group_id)
+    else:
+        int_group_id = group_id
+    if int_group_id > 0:
+        int_group_id = - int_group_id
+    return int_group_id
+
+
+def group_id_without_minus(group_id: Union[int, str]) -> int:
+    int_group_id = 0
+    if isinstance(group_id, str):
+        if len(group_id) > 0:
+            int_group_id = int(group_id)
+    else:
+        int_group_id = group_id
+    if int_group_id < 0:
+        int_group_id = - int_group_id
+    return int_group_id

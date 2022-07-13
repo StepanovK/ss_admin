@@ -78,6 +78,11 @@ class Server:
                         self._proces_button_click(payload=payload,
                                                   message_id=event.object.get('conversation_message_id'),
                                                   admin_id=event.object.get('user_id'))
+                elif event.type == VkBotEventType.MESSAGE_NEW:
+                    if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
+                        message_text = event.object.message['text']
+                        if message_text == 'create_db' or message_text == 'recreate_db':
+                            self.reconnect_db()
 
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
@@ -516,6 +521,17 @@ class Server:
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
+
+    @staticmethod
+    def reconnect_db():
+        try:
+            main_db.close()
+            logger.info('Disconnected from DB')
+            sleep(10)
+            main_db.connect()
+            logger.info('Connected to DB')
+        except Exception as ex:
+            logger.warning(f'Can`t reconnect to DB! {ex}')
 
     def run_in_loop(self):
         while True:

@@ -7,9 +7,12 @@ from Models.base import db
 from Models.Admins import Admin
 from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
+from Models.Conversations import Conversation
+from Models.ConversationsMessages import ConversationsMessage
 from Models.Posts import Post, PostsHashtag
 from Models.PrivateMessages import PrivateMessage
-from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment, PostsLike, PrivateMessageAttachment
+from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment
+from Models.Relations import PostsLike, PrivateMessageAttachment, ConversationsMessageAttachment
 from Models.Subscriptions import Subscription
 from Models.Users import User
 
@@ -31,6 +34,9 @@ def create_all_tables():
         Subscription,
         PrivateMessage,
         PrivateMessageAttachment,
+        Conversation,
+        ConversationsMessage,
+        ConversationsMessageAttachment,
     ]
     with db:
         db.create_tables(models)

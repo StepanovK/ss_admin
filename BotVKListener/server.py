@@ -6,13 +6,14 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 import datetime
 import pika
+from Models.base import db
 from Models.Posts import Post, PostStatus
 from Models.PrivateMessages import PrivateMessage
 from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
 from ChatBot.chat_bot import ChatBot
-from Parser import comments, likes, posts, subscriptions, private_messages, _initial_downloading
+from Parser import comments, likes, posts, subscriptions, private_messages, conversations, _initial_downloading
 
 
 class Server:
@@ -68,17 +69,28 @@ class Server:
                     subscriptions.parse_subscription(event, self.vk_connection_admin, True)
                 elif event.type == VkBotEventType.GROUP_LEAVE:
                     subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+                elif event.type == VkBotEventType.BOARD_POST_NEW:
+                    conversations.parse_conversation_message(event.object, self.vk_connection_admin)
+                elif event.type == VkBotEventType.BOARD_POST_EDIT:
+                    conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
+                elif event.type == VkBotEventType.BOARD_POST_EDIT:
+                    conversations.parse_delete_conversation_message(event.object)
                 elif event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
                         if 'load_data' in event.object.message['text']:
-                            if len(event.object.message['text'].split()) == 1:
-                                group_id = self.group_id
-                            else:
+                            words = event.object.message['text'].split()
+                            if len(words) == 1:
+                                _initial_downloading.load_all(self.vk_connection_admin)
+                            elif len(words) == 2 and words[1].isdigit():
                                 group_id = int(event.object.message['text'].split()[1])
-                            _initial_downloading.load_all(self.vk_connection_admin, group_id)
+                                _initial_downloading.load_all(self.vk_connection_admin, group_id)
                         if event.object.message['text'] == 'create_db':
+                            db.close()
+                            sleep(1)
                             create_db.create_all_tables()
                         elif event.object.message['text'] == 'recreate_db':
+                            db.close()
+                            sleep(1)
                             create_db.recreate_database()
                         elif event.object.message['text'] == 'lock_db':
                             create_db.lock_db()

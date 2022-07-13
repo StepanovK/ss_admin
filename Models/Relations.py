@@ -4,6 +4,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Users import User
 from Models.Comments import Comment
+from Models.ConversationsMessages import ConversationsMessage
 from Models.PrivateMessages import PrivateMessage
 from typing import Union
 
@@ -74,7 +75,21 @@ class PrivateMessageAttachment(BaseModel):
         order_by = ['message']
 
 
-def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachment],
+class ConversationsMessageAttachment(BaseModel):
+    message = ForeignKeyField(ConversationsMessage,
+                              index=True,
+                              backref='attachments',
+                              on_delete='CASCADE')
+    attachment = ForeignKeyField(UploadedFile, index=True)
+    is_deleted = BooleanField(default=False)
+
+    class Meta:
+        table_name = 'conv_messages_attachments'
+        indexes = ['message']
+        order_by = ['message']
+
+
+def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachment, ConversationsMessageAttachment],
                    attachment: UploadedFile,
                    is_deleted: bool = False):
     if isinstance(attachment_object, Post):
@@ -86,6 +101,9 @@ def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachm
     elif isinstance(attachment_object, PrivateMessage):
         new_attachment, _ = PrivateMessageAttachment.get_or_create(message=attachment_object,
                                                                    attachment=attachment)
+    elif isinstance(attachment_object, ConversationsMessageAttachment):
+        new_attachment, _ = ConversationsMessageAttachment.get_or_create(message=attachment_object,
+                                                                         attachment=attachment)
     else:
         raise 'Wrong type of object to adding a attachment!'
     new_attachment.is_deleted = is_deleted
