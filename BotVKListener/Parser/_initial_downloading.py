@@ -150,7 +150,8 @@ def load_conversations(vk_connection, group_id):
         topics = vk_connection.board.getTopics(
             group_id=group_id_without_minus(group_id),
             offset=offset,
-            count=100
+            count=100,
+            preview=1
         )['items']
         if len(topics) == 0:
             break
@@ -161,12 +162,7 @@ def load_conversations(vk_connection, group_id):
                                                                 vk_connection=vk_connection,
                                                                 owner_id=group_id_with_minus(group_id))
 
-                conv_messages = vk_connection.board.getComments(group_id=group_id_without_minus(group_id),
-                                                                topic_id=conversation.conversation_id,
-                                                                count=100
-                                                                )['items']
-
-                print(f'Post loaded {conversation.get_url()}')
+                print(f'Сonversation loaded {conversation.get_url()}')
 
         offset += 100
         update_current_offset_in_file(offset, _CONVERSATIONS_OFFSET_FILENAME)
@@ -180,11 +176,12 @@ def load_conversations_messages(vk_connection, group_id):
     count_for_get = 100  # min = 10, max = 100
     for conv in Conversation.select().where(Conversation.is_deleted == False,
                                             Conversation.owner_id == group_id_with_minus(group_id),
-                                            Conversation.conversation_id > conv_offset).order_by(Post.vk_id):
+                                            Conversation.conversation_id > conv_offset).order_by(
+        Conversation.conversation_id):
         offset = 0
         count = 0
         params = {
-            'owner_id': group_id_without_minus(group_id),
+            'group_id': group_id_without_minus(group_id),
             'topic_id': conv.conversation_id,
             'need_likes': 0,
             'count': count_for_get,
@@ -197,7 +194,9 @@ def load_conversations_messages(vk_connection, group_id):
                 for user_info in vk_comments['profiles']:
                     user = add_user_by_info(vk_connection, user_info)
                 for vk_comment in vk_comments['items']:
-                    comment = conversations.parse_conversation_message(vk_comment, vk_connection)
+                    comment = conversations.parse_conversation_message(vk_comment,
+                                                                       vk_connection,
+                                                                       conversation=conv)
                     count += 1
             offset += count_for_get
             if len(vk_comments['items']) < count_for_get:

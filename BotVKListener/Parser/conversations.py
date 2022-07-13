@@ -24,17 +24,17 @@ def parse_conversation(vk_object: dict, owner_id: int, vk_connection=None):
     return conversation
 
 
-def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=False):
-    owner_id = vk_object.get('topic_owner_id')
-    topic_id = vk_object.get('topic_id')
-    conversation_id = Conversation.generate_id(owner_id=owner_id, conversation_id=topic_id)
-    conversation, _ = Conversation.get_or_create(id=conversation_id,
-                                                 owner_id=owner_id,
-                                                 conversation_id=topic_id)
+def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=False, conversation=None):
     if conversation is None:
-        logger.warning(f'Can`t find conversation: {conversation_id}')
-        return None
-
+        owner_id = vk_object.get('topic_owner_id')
+        topic_id = vk_object.get('topic_id')
+        conversation_id = Conversation.generate_id(owner_id=owner_id, conversation_id=topic_id)
+        conversation, _ = Conversation.get_or_create(id=conversation_id,
+                                                     owner_id=owner_id,
+                                                     conversation_id=topic_id)
+    else:
+        owner_id = conversation.owner_id
+        topic_id = conversation.conversation_id
     mes_id = vk_object.get('id')
     message_id = ConversationsMessage.generate_id(owner_id=owner_id,
                                                   conversation_id=topic_id,
@@ -45,6 +45,7 @@ def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=Fa
     conv_mes.text = vk_object.get('text', '')
     user_id = vk_object.get('from_id', 0)
     is_edited = is_edited
+    conv_mes.date = datetime.datetime.fromtimestamp(vk_object.get('date'))
     if user_id > 0:
         conv_mes.user = users.get_or_create_user(user_id, vk_connection)
     elif user_id < 0:
@@ -62,10 +63,10 @@ def parse_delete_conversation_message(vk_object: dict):
     owner_id = vk_object.get('topic_owner_id')
     topic_id = vk_object.get('topic_id')
     mes_id = vk_object.get('id')
-    message_id = ConversationMessage.generate_id(owner_id=owner_id,
-                                                 conversation_id=topic_id,
-                                                 message_id=mes_id)
-    conv_mes, created = ConversationMessage.get_or_create(id=message_id)
+    message_id = ConversationsMessage.generate_id(owner_id=owner_id,
+                                                  conversation_id=topic_id,
+                                                  message_id=mes_id)
+    conv_mes, created = ConversationsMessage.get_or_create(id=message_id)
     conv_mes.is_deleted = True
 
     conv_mes.save()

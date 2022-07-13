@@ -89,7 +89,7 @@ class ConversationsMessageAttachment(BaseModel):
         order_by = ['message']
 
 
-def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachment, ConversationsMessageAttachment],
+def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage],
                    attachment: UploadedFile,
                    is_deleted: bool = False):
     if isinstance(attachment_object, Post):
@@ -101,7 +101,7 @@ def add_attachment(attachment_object: Union[Post, Comment, PrivateMessageAttachm
     elif isinstance(attachment_object, PrivateMessage):
         new_attachment, _ = PrivateMessageAttachment.get_or_create(message=attachment_object,
                                                                    attachment=attachment)
-    elif isinstance(attachment_object, ConversationsMessageAttachment):
+    elif isinstance(attachment_object, ConversationsMessage):
         new_attachment, _ = ConversationsMessageAttachment.get_or_create(message=attachment_object,
                                                                          attachment=attachment)
     else:
