@@ -122,7 +122,7 @@ class Server:
                 last_published_posts_update = datetime.datetime.now()
 
     def _update_last_posts(self, count_of_posts: int = 60):
-        days_for_update = 3
+        days_for_update = 10
 
         date_to_start = datetime.datetime.now() - datetime.timedelta(days=days_for_update)
         last_posts = Post.select().where((Post.date > date_to_start)
