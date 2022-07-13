@@ -21,7 +21,7 @@ def get_hashtags() -> List:
     return hashtags
 
 
-def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> List:
+def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> List[tuple]:
     posts_with_hashtag: List[str] = [post.text.lower() for post in Post.select().where(Post.text.contains("#"))]
     ht_posts_dict: Dict[str: set] = defaultdict(set)
     last_posts = PostsHashtag.select(Post.text, PostsHashtag.hashtag).join(Post).order_by(Post.date.desc()).limit(1000)
@@ -38,10 +38,4 @@ def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> L
             res += elem[1]
         result_hashtag[hashtag] = res
     c = Counter(result_hashtag)
-    hashtags_with_rating: List[tuple] = c.most_common(count_res)
-    hashtags = []
-    for hashtag, rating in hashtags_with_rating:
-        if rating > 20:
-            hashtags.append(hashtag)
-
-    return hashtags
+    return c.most_common(count_res)

@@ -187,7 +187,7 @@ class Server:
                     for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
                         PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
-                SortedHashtag.delete().where(SortedHashtag.post_id == post_inf.suggested_post_id).execute()
+                self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
@@ -269,7 +269,7 @@ class Server:
                 post.posted_by, _ = Admin.get_or_create(user=admin_user)
             post.save()
 
-            SortedHashtag.delete().where(SortedHashtag.post_id == post.id)
+            self._delete_sorted_hashtags(post_id=post.id)
 
     def _add_new_message_post(self, post_id):
 
@@ -278,12 +278,19 @@ class Server:
             return
 
         self._update_sorted_hashtags(post)
+        self._add_most_common_hashtag(post)
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
                                            message=self._get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            random_id=random.randint(10 ** 5, 10 ** 6),
                                            attachment=[str(att.attachment) for att in post.attachments])
+
+    @staticmethod
+    def _add_most_common_hashtag(post: Post):
+        for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
+            if hashtag.rating is not None and hashtag.rating > 1:
+                PostsHashtag.get_or_create(post=post, hashtag=hashtag.hashtag)
 
     def _update_message_post(self, post_id, message_id: int = None):
 
@@ -406,13 +413,6 @@ class Server:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     @staticmethod
-    def _update_sorted_hashtags(post):
-        SortedHashtag.delete().where(SortedHashtag.post_id == post.id).execute()
-
-        ht_and_post = [(ht, post.id) for ht in get_hasgtags.get_sorted_hashtags(post)]
-        SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag, SortedHashtag.post_id]).execute()
-
-    @staticmethod
     def _get_posts_message_id(post_id, message_id: int = None):
         if not message_id:
             try:
@@ -483,7 +483,7 @@ class Server:
         if with_hashtags:
             hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
             if len(hashtags) > 0:
-                represent = represent + '\n' + '\n'.join(hashtags)
+                represent = represent + '\n'.join(hashtags)
 
         return represent
 
@@ -492,6 +492,19 @@ class Server:
             self._start_polling()
         except Exception as ex:
             logger.error(ex)
+
+    @staticmethod
+    def _update_sorted_hashtags(post):
+        Server._delete_sorted_hashtags(post_id=post.id)
+
+        ht_and_post = [(ht, rating, post.id) for ht, rating in get_hasgtags.get_sorted_hashtags(post)]
+        SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag,
+                                                       SortedHashtag.rating,
+                                                       SortedHashtag.post_id]).execute()
+
+    @staticmethod
+    def _delete_sorted_hashtags(post_id: str):
+        SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
 
     def run_in_loop(self):
         while True:
