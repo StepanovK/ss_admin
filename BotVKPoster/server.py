@@ -44,7 +44,7 @@ class Server:
 
     def _start_polling(self):
 
-        logger.info('Bot started!')
+        logger.info('Bot poster started!')
 
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
 
