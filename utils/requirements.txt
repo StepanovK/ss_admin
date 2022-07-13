@@ -3,7 +3,7 @@ oauth2client==4.1.3
 rapidfuzz==2.0.11
 environs==9.5.0
 loguru==0.6.0
-vk_api==11.9.8
+vk_api
 pika==1.2.1
 peewee
 psycopg2

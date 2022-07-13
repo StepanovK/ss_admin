@@ -17,8 +17,12 @@ ENV PYTHONPATH="/app/BotVKListener/"
 
 COPY ./BotVKListener/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
-COPY ./Models ./BotVKListener/Models
+
+COPY ./Models/requirements.txt ./BotVKListener/Models/requirements.txt
 RUN pip install -r BotVKListener/Models/requirements.txt
-COPY ./BotVKListener/ ./BotVKListener/
+
 COPY ./utils/ ./BotVKListener/utils/
+COPY ./Models ./BotVKListener/Models
+COPY ./BotVKListener/ ./BotVKListener/
+
 CMD ["python", "./BotVKListener/server.py"]
