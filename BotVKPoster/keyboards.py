@@ -52,6 +52,10 @@ def hashtag_menu(post: Post, page: int = 1):
                                  color=VkKeyboardColor.POSITIVE,
                                  payload={"command": "show_main_menu", "post_id": post.id})
 
+    keyboard.add_callback_button(label='Закончить и опубликовать',
+                                 color=VkKeyboardColor.POSITIVE,
+                                 payload={"command": "publish_post", "post_id": post.id})
+
     added_hashtags = queri_to_list(post.hashtags)
     hashtags_pages = _hashtags_by_pages(post)
     page = min(max(hashtags_pages.keys()), page)
@@ -98,7 +102,7 @@ def user_info_menu(post: Post, page: int = 1):
     return keyboard.get_keyboard()
 
 
-def _hashtags_by_pages(post: Post) -> dict[list]:
+def _hashtags_by_pages(post: Post) -> dict[int, list]:
     count_per_page = 4
     sorted_hashtags = queri_to_list(SortedHashtag.select().where(SortedHashtag.post_id == post.id), column='hashtag')
     for ht in get_hashtags():
