@@ -279,6 +279,7 @@ class Server:
 
         self._update_sorted_hashtags(post)
         self._add_most_common_hashtag(post)
+        self._set_anonymously_by_post_text(post)
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
                                            message=self._get_post_description(post),
@@ -492,6 +493,16 @@ class Server:
             self._start_polling()
         except Exception as ex:
             logger.error(ex)
+
+    @staticmethod
+    def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
+        l_text = post.text.lower()
+        anon_words = ['анон', 'ононимн', 'ананимн']
+        for anon_w in anon_words:
+            if anon_w in l_text:
+                post.anonymously = True
+                if save_post:
+                    post.save()
 
     @staticmethod
     def _update_sorted_hashtags(post):
