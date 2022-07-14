@@ -23,7 +23,7 @@ class Post(BaseModel):
     VK_LINK = 'https://vk.com/'
 
     def __str__(self):
-        return self.get_url()
+        return '[DELETED] ' + self.get_url() if self.is_deleted else self.get_url()
 
     class Meta:
         table_name = 'posts'

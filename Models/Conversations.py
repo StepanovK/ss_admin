@@ -16,10 +16,12 @@ class Conversation(BaseModel):
     VK_LINK = 'https://vk.com/'
 
     def __str__(self):
+        name = ''
         if self.title is None or self.title == '':
-            return self.get_url()
+            name = self.get_url()
         else:
-            return self.title
+            name = self.title
+        return '[DELETED] ' + name if self.is_deleted else name
 
     class Meta:
         table_name = 'conversations'

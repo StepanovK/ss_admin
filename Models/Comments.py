@@ -27,4 +27,5 @@ class Comment(BaseModel):
         return url
 
     def __str__(self):
-        return str(self.vk_id)
+        name = str(self.vk_id)
+        return '[DELETED] ' + name if self.is_deleted else name

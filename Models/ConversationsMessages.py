@@ -16,7 +16,8 @@ class ConversationsMessage(BaseModel):
     is_deleted = BooleanField(default=False)
 
     def __str__(self):
-        return self.get_url()
+        url = self.get_url()
+        return '[DELETED] ' + url if self.is_deleted else url
 
     class Meta:
         table_name = 'conversations_messages'

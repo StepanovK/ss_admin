@@ -22,6 +22,17 @@ class PrivateMessage(BaseModel):
         indexes = ['user', 'admin']
         order_by = ['id, date']
 
+    def __str__(self):
+        max_length = 50
+        text = str(self.text)
+        if self.text is None or self.text == '':
+            name = f'id={self.id}'
+        elif len(text) > 50:
+            name = text[1:max_length-3] + '...'
+        else:
+            name = text
+        return '[DELETED] ' + name if self.is_deleted else name
+
     def get_chat_url(self):
         return f'{self.VK_LINK}gim{group_id}?sel={self.chat_id}'
 
