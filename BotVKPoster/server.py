@@ -383,9 +383,9 @@ class Server:
             mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
 
         non_published_posts = Post.select().where((Post.user == post.user)
-                                             and ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                  (Post.suggest_status == PostStatus.SUGGESTED.value))
-                                             ).order_by(Post.date.desc()).limit(3)
+                                                  and ((Post.suggest_status == PostStatus.REJECTED.value) |
+                                                       (Post.suggest_status == PostStatus.SUGGESTED.value))
+                                                  ).order_by(Post.date.desc()).limit(3)
         non_published_posts_list = []
         for users_post in non_published_posts:
             non_published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
@@ -496,10 +496,11 @@ class Server:
         return represent
 
     def run(self):
-        # try:
-        self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        # self._start_polling()
+        try:
+            self._start_polling()
+        except Exception as ex:
+            logger.error(ex)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
@@ -538,7 +539,7 @@ class Server:
     def run_in_loop(self):
         while True:
             self.run()
-            sleep(60)
+            sleep(10)
 
 
 if __name__ == '__main__':
