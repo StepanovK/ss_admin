@@ -374,21 +374,23 @@ class Server:
         else:
             mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
 
-        published_posts = post.user.posts.where(Post.suggest_status == None).order_by(Post.date.desc()).limit(3)
+        published_posts = Post.select().where(Post.user == post.user
+                                              and Post.suggest_status.is_null()).order_by(Post.date.desc()).limit(3)
         published_posts_list = []
         for users_post in published_posts:
             published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
         if len(published_posts_list) > 0:
             mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
 
-        rejected_posts = post.user.posts.where((Post.suggest_status == PostStatus.REJECTED.value) | (
-                Post.suggest_status == PostStatus.SUGGESTED.value)).order_by(
-            Post.date.desc()).limit(3)
-        rejected_posts_list = []
-        for users_post in rejected_posts:
-            rejected_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
-        if len(rejected_posts_list) > 0:
-            mes_text += '\nПоследние неопубликованные посты:\n' + '\n'.join(rejected_posts_list) + '\n'
+        non_published_posts = Post.select().where((Post.user == post.user)
+                                             and ((Post.suggest_status == PostStatus.REJECTED.value) |
+                                                  (Post.suggest_status == PostStatus.SUGGESTED.value))
+                                             ).order_by(Post.date.desc()).limit(3)
+        non_published_posts_list = []
+        for users_post in non_published_posts:
+            non_published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
+        if len(non_published_posts_list) > 0:
+            mes_text += '\nПоследние неопубликованные посты:\n' + '\n'.join(non_published_posts_list) + '\n'
 
         count_of_comments = len(post.user.comments)
         if count_of_comments > 0:
@@ -494,10 +496,10 @@ class Server:
         return represent
 
     def run(self):
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        # try:
+        self._start_polling()
+        # except Exception as ex:
+        #     logger.error(ex)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
