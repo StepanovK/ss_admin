@@ -1,6 +1,6 @@
 import datetime
 
-from Models.ConversationsMessages import ConversationsMessage
+from Models.ConversationMessages import ConversationMessage
 from Models.Conversations import Conversation
 from Models.Users import User
 from . import users
@@ -42,12 +42,12 @@ def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=Fa
         owner_id = conversation.owner_id
         topic_id = conversation.conversation_id
     mes_id = vk_object.get('id')
-    message_id = ConversationsMessage.generate_id(owner_id=owner_id,
-                                                  conversation_id=topic_id,
-                                                  message_id=mes_id)
-    conv_mes, created = ConversationsMessage.get_or_create(id=message_id,
-                                                           message_id=mes_id,
-                                                           conversation=conversation)
+    message_id = ConversationMessage.generate_id(owner_id=owner_id,
+                                                 conversation_id=topic_id,
+                                                 message_id=mes_id)
+    conv_mes, created = ConversationMessage.get_or_create(id=message_id,
+                                                          message_id=mes_id,
+                                                          conversation=conversation)
     conv_mes.text = vk_object.get('text', '')
     user_id = vk_object.get('from_id', 0)
     is_edited = is_edited
@@ -69,16 +69,16 @@ def parse_delete_conversation_message(vk_object: dict):
     owner_id = vk_object.get('topic_owner_id')
     topic_id = vk_object.get('topic_id')
     mes_id = vk_object.get('id')
-    message_id = ConversationsMessage.generate_id(owner_id=owner_id,
-                                                  conversation_id=topic_id,
-                                                  message_id=mes_id)
+    message_id = ConversationMessage.generate_id(owner_id=owner_id,
+                                                 conversation_id=topic_id,
+                                                 message_id=mes_id)
     conv = get_conversation(owner_id, topic_id)
     if conv is None:
         logger.warning(f'Can`t update the conversation`s message id={message_id}')
         return None
 
-    conv_mes, created = ConversationsMessage.get_or_create(id=message_id,
-                                                           conversation=conv)
+    conv_mes, created = ConversationMessage.get_or_create(id=message_id,
+                                                          conversation=conv)
     conv_mes.is_deleted = True
 
     conv_mes.save()
@@ -92,16 +92,16 @@ def parse_undelete_conversation_message(vk_object: dict):
     owner_id = vk_object.get('topic_owner_id')
     topic_id = vk_object.get('topic_id')
     mes_id = vk_object.get('id')
-    message_id = ConversationsMessage.generate_id(owner_id=owner_id,
-                                                  conversation_id=topic_id,
-                                                  message_id=mes_id)
+    message_id = ConversationMessage.generate_id(owner_id=owner_id,
+                                                 conversation_id=topic_id,
+                                                 message_id=mes_id)
     conv = get_conversation(owner_id, topic_id)
     if conv is None:
         logger.warning(f'Can`t update the conversation`s message id={message_id}')
         return None
 
-    conv_mes, created = ConversationsMessage.get_or_create(id=message_id,
-                                                           conversation=conv)
+    conv_mes, created = ConversationMessage.get_or_create(id=message_id,
+                                                          conversation=conv)
     conv_mes.is_deleted = False
 
     conv_mes.save()

@@ -4,7 +4,7 @@ from Models.Users import User
 from Models.Conversations import Conversation
 
 
-class ConversationsMessage(BaseModel):
+class ConversationMessage(BaseModel):
     id = CharField(100, primary_key=True)
     conversation = ForeignKeyField(Conversation)
     message_id = IntegerField(null=True, default=0)
@@ -20,7 +20,7 @@ class ConversationsMessage(BaseModel):
         return '[DELETED] ' + url if self.is_deleted else url
 
     class Meta:
-        table_name = 'conversations_messages'
+        table_name = 'conversation_messages'
         order_by = ['conversation, date']
 
     def get_url(self):
@@ -35,4 +35,3 @@ class ConversationsMessage(BaseModel):
         conversation_url = conversation.get_url()
         url = f'{conversation_url}?post={message_id}'
         return url
-

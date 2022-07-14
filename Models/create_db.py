@@ -8,7 +8,7 @@ from Models.Admins import Admin
 from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Conversations import Conversation
-from Models.ConversationsMessages import ConversationsMessage
+from Models.ConversationMessages import ConversationMessage
 from Models.Posts import Post, PostsHashtag
 from Models.PrivateMessages import PrivateMessage
 from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment
@@ -37,7 +37,7 @@ def create_all_tables():
         PrivateMessage,
         PrivateMessageAttachment,
         Conversation,
-        ConversationsMessage,
+        ConversationMessage,
         ConversationsMessageAttachment,
         Chat,
         ChatMessage,

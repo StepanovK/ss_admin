@@ -4,7 +4,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Users import User
 from Models.Comments import Comment
-from Models.ConversationsMessages import ConversationsMessage
+from Models.ConversationMessages import ConversationMessage
 from Models.PrivateMessages import PrivateMessage
 from Models.ChatMessages import ChatMessage
 from typing import Union
@@ -91,7 +91,7 @@ class ChatMessageAttachment(BaseModel):
 
 
 class ConversationsMessageAttachment(BaseModel):
-    message = ForeignKeyField(ConversationsMessage,
+    message = ForeignKeyField(ConversationMessage,
                               index=True,
                               backref='attachments',
                               on_delete='CASCADE')
@@ -104,7 +104,7 @@ class ConversationsMessageAttachment(BaseModel):
         order_by = ['message']
 
 
-def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage, ChatMessage],
+def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationMessage, ChatMessage],
                    attachment: UploadedFile,
                    is_deleted: bool = False):
     if isinstance(attachment_object, Post):
@@ -116,7 +116,7 @@ def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, Conve
     elif isinstance(attachment_object, PrivateMessage):
         new_attachment, _ = PrivateMessageAttachment.get_or_create(message=attachment_object,
                                                                    attachment=attachment)
-    elif isinstance(attachment_object, ConversationsMessage):
+    elif isinstance(attachment_object, ConversationMessage):
         new_attachment, _ = ConversationsMessageAttachment.get_or_create(message=attachment_object,
                                                                          attachment=attachment)
     elif isinstance(attachment_object, ChatMessage):

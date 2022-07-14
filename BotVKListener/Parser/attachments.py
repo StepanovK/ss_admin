@@ -2,7 +2,7 @@ from Models.UploadedFiles import UploadedFile
 from Models.Posts import Post
 from Models.Comments import Comment
 from Models.PrivateMessages import PrivateMessage
-from Models.ConversationsMessages import ConversationsMessage
+from Models.ConversationMessages import ConversationMessage
 from Models.ChatMessages import ChatMessage
 from Models.Users import User
 import Models.Relations as Relations
@@ -13,7 +13,7 @@ import json
 
 
 def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessage,
-                                                     ConversationsMessage, ChatMessage],
+                                                     ConversationMessage, ChatMessage],
                             attachments: list,
                             user: User = None):
     mark_attachments_as_deleted(attachment_object)
@@ -34,7 +34,7 @@ def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessa
 
 
 def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateMessage,
-                                                         ConversationsMessage, ChatMessage]):
+                                                         ConversationMessage, ChatMessage]):
     for attachment in attachment_object.attachments:
         attachment.is_deleted = True
         attachment.save()
@@ -44,7 +44,7 @@ def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateM
 
 
 def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, PrivateMessage,
-                                                           ConversationsMessage, ChatMessage]):
+                                                           ConversationMessage, ChatMessage]):
     for attachment in attachment_object.attachments:
         attachment.is_deleted = False
         attachment.save()
