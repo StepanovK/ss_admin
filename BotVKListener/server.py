@@ -13,7 +13,8 @@ from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
 from ChatBot.chat_bot import ChatBot
-from Parser import comments, likes, posts, subscriptions, private_messages, conversations, _initial_downloading
+from Parser import comments, likes, posts, subscriptions
+from Parser import private_messages, conversations, chats, _initial_downloading
 
 
 class Server:
@@ -103,6 +104,10 @@ class Server:
                             message = private_messages.parse_private_message(event.object.message,
                                                                              self.vk_connection_admin)
                             self._send_alarm(message_type='new_private_message', message=message.id)
+                        else:
+                            message = chats.parse_chat_message(vk_object=event.object.message,
+                                                               vk_connection=self.vk_connection_admin,
+                                                               owner_id=-event.group_id)
                         self.chat_bot.chat(event)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
@@ -153,6 +158,7 @@ class Server:
         ConnectionsHolder().close_rabbit_connection()
 
     def run(self):
+        # self._start_polling()
         try:
             self._start_polling()
         except Exception as ex:

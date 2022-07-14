@@ -6,6 +6,7 @@ from Models.Users import User
 from Models.Comments import Comment
 from Models.ConversationsMessages import ConversationsMessage
 from Models.PrivateMessages import PrivateMessage
+from Models.ChatMessages import ChatMessage
 from typing import Union
 
 
@@ -75,6 +76,20 @@ class PrivateMessageAttachment(BaseModel):
         order_by = ['message']
 
 
+class ChatMessageAttachment(BaseModel):
+    message = ForeignKeyField(ChatMessage,
+                              index=True,
+                              backref='attachments',
+                              on_delete='CASCADE')
+    attachment = ForeignKeyField(UploadedFile, index=True)
+    is_deleted = BooleanField(default=False)
+
+    class Meta:
+        table_name = 'chat_messages_attachments'
+        indexes = ['message']
+        order_by = ['message']
+
+
 class ConversationsMessageAttachment(BaseModel):
     message = ForeignKeyField(ConversationsMessage,
                               index=True,
@@ -89,7 +104,7 @@ class ConversationsMessageAttachment(BaseModel):
         order_by = ['message']
 
 
-def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage],
+def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage, ChatMessage],
                    attachment: UploadedFile,
                    is_deleted: bool = False):
     if isinstance(attachment_object, Post):
@@ -104,6 +119,9 @@ def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, Conve
     elif isinstance(attachment_object, ConversationsMessage):
         new_attachment, _ = ConversationsMessageAttachment.get_or_create(message=attachment_object,
                                                                          attachment=attachment)
+    elif isinstance(attachment_object, ChatMessage):
+        new_attachment, _ = ChatMessageAttachment.get_or_create(message=attachment_object,
+                                                                attachment=attachment)
     else:
         raise 'Wrong type of object to adding a attachment!'
     new_attachment.is_deleted = is_deleted

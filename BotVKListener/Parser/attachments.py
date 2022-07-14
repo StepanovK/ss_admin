@@ -3,6 +3,7 @@ from Models.Posts import Post
 from Models.Comments import Comment
 from Models.PrivateMessages import PrivateMessage
 from Models.ConversationsMessages import ConversationsMessage
+from Models.ChatMessages import ChatMessage
 from Models.Users import User
 import Models.Relations as Relations
 from config import logger
@@ -11,7 +12,8 @@ import datetime
 import json
 
 
-def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage],
+def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessage,
+                                                     ConversationsMessage, ChatMessage],
                             attachments: list,
                             user: User = None):
     mark_attachments_as_deleted(attachment_object)
@@ -31,7 +33,8 @@ def parce_added_attachments(attachment_object: Union[Post, Comment, PrivateMessa
                 Relations.add_attachment(attachment_object, media_file)
 
 
-def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage]):
+def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateMessage,
+                                                         ConversationsMessage, ChatMessage]):
     for attachment in attachment_object.attachments:
         attachment.is_deleted = True
         attachment.save()
@@ -40,13 +43,15 @@ def mark_attachments_as_deleted(attachment_object: Union[Post, Comment, PrivateM
         uploaded_file.save()
 
 
-def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, PrivateMessage, ConversationsMessage]):
+def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, PrivateMessage,
+                                                           ConversationsMessage, ChatMessage]):
     for attachment in attachment_object.attachments:
         attachment.is_deleted = False
         attachment.save()
         uploaded_file = attachment.attachment
         uploaded_file.is_deleted = False
         uploaded_file.save()
+
 
 def parse_vk_attachment(vk_attachment):
     attachment_type = vk_attachment.get('type')

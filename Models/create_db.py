@@ -12,8 +12,10 @@ from Models.ConversationsMessages import ConversationsMessage
 from Models.Posts import Post, PostsHashtag
 from Models.PrivateMessages import PrivateMessage
 from Models.Relations import CommentsAttachment, CommentsLike, PostsAttachment
-from Models.Relations import PostsLike, PrivateMessageAttachment, ConversationsMessageAttachment
+from Models.Relations import PostsLike, PrivateMessageAttachment, ConversationsMessageAttachment, ChatMessageAttachment
 from Models.Subscriptions import Subscription
+from Models.Chats import Chat
+from Models.ChatMessages import ChatMessage
 from Models.Users import User
 
 LOCK_FILE_NAME = 'lock_db'
@@ -37,6 +39,9 @@ def create_all_tables():
         Conversation,
         ConversationsMessage,
         ConversationsMessageAttachment,
+        Chat,
+        ChatMessage,
+        ChatMessageAttachment,
     ]
     with db:
         db.create_tables(models)
