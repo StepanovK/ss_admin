@@ -1,5 +1,3 @@
-from typing import Dict
-
 import config as config
 from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
@@ -17,7 +15,7 @@ from utils.connection_holder import ConnectionsHolder
 from ChatBot.chat_bot import ChatBot
 from Parser import comments, likes, posts, subscriptions
 from Parser import private_messages, conversations, chats, _initial_downloading
-from GettingUserInfo.getter import get_user_from_message, show_user_info
+from utils.GettingUserInfo.getter import get_user_from_message, send_user_info
 
 
 class Server:
@@ -108,7 +106,8 @@ class Server:
                                 message_text = event.object.message.get('text', '')
                                 user = get_user_from_message(message_text)
                                 if user is not None:
-                                    show_user_info(vk_connection=self.vk_connection_admin,
+                                    send_user_info(user=user,
+                                                   vk_connection=self.vk_connection_group,
                                                    peer_id=event.object.message.get('peer_id'))
                             else:
                                 message = private_messages.parse_private_message(event.object.message,
@@ -173,11 +172,11 @@ class Server:
         return len(admins) > 0
 
     def run(self):
-        # self._start_polling()
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        self._start_polling()
+        # try:
+        #     self._start_polling()
+        # except Exception as ex:
+        #     logger.error(ex)
 
     def run_in_loop(self):
         while True:
