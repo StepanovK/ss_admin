@@ -361,7 +361,7 @@ class Server:
             state = 'ПОДПИСАН' if subscribe.is_subscribed else 'ОТПИСАН'
             if subscribe.date is None:
                 date_sub = '<Неизвестно когда>'
-            elif subscribe.date == datetime.date(2000, 1, 1):
+            elif subscribe.date.date == datetime.date(2000, 1, 1):
                 date_sub = 'Давно'
             else:
                 date_sub = f'{subscribe.date:%Y-%m-%d}'
@@ -374,8 +374,8 @@ class Server:
         else:
             mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
 
-        published_posts = Post.select().where(Post.user == post.user
-                                              and Post.suggest_status.is_null()).order_by(Post.date.desc()).limit(3)
+        published_posts = Post.select().where((Post.user == post.user)
+                                              & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(3)
         published_posts_list = []
         for users_post in published_posts:
             published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
@@ -383,8 +383,8 @@ class Server:
             mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
 
         non_published_posts = Post.select().where((Post.user == post.user)
-                                                  and ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                       (Post.suggest_status == PostStatus.SUGGESTED.value))
+                                                  & ((Post.suggest_status == PostStatus.REJECTED.value) |
+                                                     (Post.suggest_status == PostStatus.SUGGESTED.value))
                                                   ).order_by(Post.date.desc()).limit(3)
         non_published_posts_list = []
         for users_post in non_published_posts:
