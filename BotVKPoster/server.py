@@ -136,9 +136,9 @@ class Server:
                     logger.warning(f'can`t find private message {message_text}!')
                     continue
                 if pm:
-                    users_suggested_posts = Post.select().where(Post.user == pm.user and
-                                                                Post.suggest_status == PostStatus.SUGGESTED.value and
-                                                                Post.is_deleted == False).order_by(Post.date.desc())
+                    users_suggested_posts = Post.select().where((Post.user == pm.user) &
+                                                                (Post.suggest_status == PostStatus.SUGGESTED.value) &
+                                                                (Post.is_deleted == False)).order_by(Post.date.desc())
                     max_count_to_update = 5
                     current_number = 1
                     for users_post in users_suggested_posts:
@@ -341,7 +341,8 @@ class Server:
         post = self._get_post_by_id(post_id=post_id)
         if not post:
             return
-        for ht in PostsHashtag.select().where(PostsHashtag.post == post, PostsHashtag.hashtag == hashtag):
+        for ht in PostsHashtag.select().where((PostsHashtag.post == post)
+                                            & (PostsHashtag.hashtag == hashtag)):
             ht.delete_instance()
 
     def _set_anonymously(self, post_id, value: bool = True):
@@ -361,7 +362,7 @@ class Server:
             state = 'ПОДПИСАН' if subscribe.is_subscribed else 'ОТПИСАН'
             if subscribe.date is None:
                 date_sub = '<Неизвестно когда>'
-            elif subscribe.date == datetime.date(2000, 1, 1):
+            elif subscribe.date.date == datetime.date(2000, 1, 1):
                 date_sub = 'Давно'
             else:
                 date_sub = f'{subscribe.date:%Y-%m-%d}'
@@ -374,8 +375,8 @@ class Server:
         else:
             mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
 
-        published_posts = Post.select().where(Post.user == post.user
-                                              and Post.suggest_status.is_null()).order_by(Post.date.desc()).limit(3)
+        published_posts = Post.select().where((Post.user == post.user)
+                                              & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(3)
         published_posts_list = []
         for users_post in published_posts:
             published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
@@ -383,8 +384,8 @@ class Server:
             mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
 
         non_published_posts = Post.select().where((Post.user == post.user)
-                                                  and ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                       (Post.suggest_status == PostStatus.SUGGESTED.value))
+                                                  & ((Post.suggest_status == PostStatus.REJECTED.value) |
+                                                     (Post.suggest_status == PostStatus.SUGGESTED.value))
                                                   ).order_by(Post.date.desc()).limit(3)
         non_published_posts_list = []
         for users_post in non_published_posts:
@@ -462,8 +463,8 @@ class Server:
 
         message_text = ''
         p_messages = PrivateMessage.select(
-        ).where(PrivateMessage.user == post.user
-                and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        ).where((PrivateMessage.user == post.user)
+                & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc())
         user_comment = post.user.comment
         if user_comment is not None and user_comment != '':
             message_text += f'({user_comment})' + '\n'
@@ -473,9 +474,9 @@ class Server:
                             f'Чат: {last_message.get_chat_url()}'
 
             admin_messages = PrivateMessage.select(
-            ).join(Admin).where(PrivateMessage.user == post.user
-                                and PrivateMessage.admin != None
-                                and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
+            ).join(Admin).where((PrivateMessage.user == post.user)
+                                & (PrivateMessage.admin.is_null(False))
+                                & (Admin.is_bot == False)).order_by(PrivateMessage.date.desc())
             if len(admin_messages) > 0:
                 last_admin = admin_messages[0].admin
                 message_text += '\n' + f'Последним общался {last_admin}'
