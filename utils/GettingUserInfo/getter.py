@@ -6,6 +6,25 @@ from Models.Subscriptions import Subscription
 from config import logger
 import datetime
 import random
+from . import keyboards
+
+
+def parse_event(event, vk_connection):
+    user = None
+    if ('payload' in event.object
+            and event.object.payload.get('command').startswith('show_ui')):
+        user_id = event.object.payload.get('user_id')
+    else:
+        return
+
+    user = get_user_from_message(str(user_id))
+    if user is None:
+        return
+
+    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                         conversation_message_id=event.object.conversation_message_id,
+                                         message=get_short_user_info(user),
+                                         keyboard=keyboards.main_menu_keyboard(user=user))
 
 
 def send_user_info(user, vk_connection, peer_id: int):
@@ -13,7 +32,7 @@ def send_user_info(user, vk_connection, peer_id: int):
     try:
         message_id = vk_connection.messages.send(peer_id=peer_id,
                                                  message=short_user_info,
-                                                 keyboard=None,
+                                                 keyboard=keyboards.main_menu_keyboard(user=user),
                                                  random_id=random.randint(10 ** 5, 10 ** 6))
     except Exception as ex:
         logger.warning(f'Failed send message peer_id={peer_id}\n{ex}')
@@ -57,11 +76,13 @@ def get_short_user_info(user: User):
 
     mes_text = f'Информация о пользователе {user}:\n'
 
+    if user.comment is not None and user.comment != '':
+        mes_text += f'ВНИМАНИЕ: {user.comment}\n'
+
     if len(subscribe_history_list) == 0:
         mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'
     else:
         mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
-
     published_posts = Post.select().where((Post.user == user)
                                           & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(3)
     published_posts_list = []
