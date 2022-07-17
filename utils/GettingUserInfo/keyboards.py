@@ -7,6 +7,9 @@ from Models.ChatMessages import ChatMessage
 from utils.db_helper import queri_to_list
 import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
+# from collections import defaultdict
+
+COMMENTS_PER_PAGE = 6
 
 
 def main_menu_keyboard(user: User):
@@ -42,7 +45,7 @@ def main_menu_keyboard(user: User):
             keyboard.add_line()
         keyboard.add_callback_button(label='Комментарии к постам',
                                      color=VkKeyboardColor.SECONDARY,
-                                     payload={"command": "show_ui_post_comments", "user_id": user.id})
+                                     payload={"command": "show_ui_show_comments", "user_id": user.id})
         need_new_line = True
 
     conv_mes = ConversationMessage.select(ConversationMessage.id).where(ConversationMessage.user == user).limit(1)
@@ -141,6 +144,79 @@ def post_menu(user: User, published: bool = True, current_post_id=None):
 
 def users_posts(user: User, published: bool = True):
     return Post.select().where((Post.user == user) & (Post.suggest_status.is_null(published))).order_by(Post.date)
+
+
+def comments_menu(user: User, current_page=0):
+    comments_pages = comments_by_pages(user)
+    previous_page = None if current_page == 0 else current_page - 1
+    next_page = None if len(comments_pages) <= (current_page + 1) else current_page + 1
+
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    need_line = False
+
+    if previous_page is not None:
+        keyboard.add_callback_button(label=f'< Предыдущие ({current_page * COMMENTS_PER_PAGE})',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_comments",
+                                              "user_id": user.id,
+                                              "page": previous_page})
+        need_line = True
+
+    if next_page is not None:
+        count = (len(comments_pages) - current_page - 1) * COMMENTS_PER_PAGE
+        keyboard.add_callback_button(label=f'Следующие ({count}) >',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_comments",
+                                              "user_id": user.id,
+                                              "page": next_page})
+
+        need_line = True
+
+    if need_line:
+        keyboard.add_line()
+
+    if previous_page is not None:
+        keyboard.add_callback_button(label=f'<< Первые',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_comments",
+                                              "user_id": user.id,
+                                              "page": 0})
+        need_line = True
+
+    if next_page is not None:
+        keyboard.add_callback_button(label=f'Последние >>',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_comments",
+                                              "user_id": user.id,
+                                              "page": len(comments_pages)-1})
+        need_line = True
+
+    if need_line:
+        keyboard.add_line()
+
+    keyboard.add_callback_button(label='На главную',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_ui_user_short_info", "user_id": user.id})
+
+    return keyboard.get_keyboard()
+
+
+def comments_by_pages(user: User):
+    pages = []
+    current_page = []
+    for comment in Comment.select().where(Comment.user == user).order_by(Comment.date):
+        current_page.append(comment)
+        if len(current_page) >= COMMENTS_PER_PAGE:
+            pages.append(current_page)
+            current_page = []
+    if len(current_page) > 0:
+        pages.append(current_page)
+
+    return pages
+
+
+
 
 # def hashtag_menu(post: Post, page: int = 1):
 #     keyboard = VkKeyboard(one_time=False, inline=True)

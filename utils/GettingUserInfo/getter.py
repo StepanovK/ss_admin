@@ -1,7 +1,7 @@
 from Models.Comments import Comment
 from Models.Users import User
 from Models.Posts import Post, PostStatus
-from Models.Relations import PostsLike, CommentsLike, PostsAttachment
+from Models.Relations import PostsLike, CommentsLike, PostsAttachment, CommentsAttachment
 from Models.UploadedFiles import UploadedFile
 from Models.Subscriptions import Subscription
 from config import logger
@@ -53,6 +53,10 @@ def parse_event(event, vk_connection):
             return
         show_post_info(event, vk_connection, post, published)
 
+    elif command == 'show_ui_show_comments':
+        page = payload.get('page', 0)
+        show_comments(event, vk_connection, user, page)
+
     else:
 
         result = vk_connection.messages.edit(peer_id=event.object.peer_id,
@@ -75,6 +79,33 @@ def show_post_info(event, vk_connection, post, published=True):
                                          keyboard=keyboards.post_menu(user=post.user,
                                                                       current_post_id=post.id,
                                                                       published=published))
+
+
+def show_comments(event, vk_connection, user, page):
+    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                         conversation_message_id=event.object.conversation_message_id,
+                                         message=get_comments_from_page(user, page),
+                                         keyboard=keyboards.comments_menu(user=user,
+                                                                          current_page=page))
+
+
+def get_comments_from_page(user: User, page=0):
+    comments_pages = keyboards.comments_by_pages(user)
+    if len(comments_pages) == 0:
+        return f'Не найдены комментарии пользователя {user}'
+
+    page_number = min(len(comments_pages) - 1, page)
+
+    comments_descriptions = []
+    for comment in comments_pages[page_number]:
+        del_text = '[DELETED] ' if comment.is_deleted else ''
+        descr = f'Комментарий от {comment.date:%Y.%m.%d}\n' \
+                f'{del_text}{comment.get_url()}\n' \
+                f'{comment.text}\n' \
+                f'Вложений:{len(comment.attachments)}; Лайков: {len(comment.likes)}'
+        comments_descriptions.append(descr)
+
+    return '\n\n'.join(comments_descriptions)
 
 
 def send_user_info(user, vk_connection, peer_id: int):
