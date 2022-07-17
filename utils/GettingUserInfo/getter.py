@@ -1,7 +1,8 @@
 from Models.Comments import Comment
 from Models.Users import User
 from Models.Posts import Post, PostStatus
-from Models.Relations import PostsLike, CommentsLike, PostsAttachment, CommentsAttachment
+from Models.Relations import PostsLike, CommentsLike, PostsAttachment
+from Models.Relations import CommentsAttachment, ConversationsMessageAttachment
 from Models.UploadedFiles import UploadedFile
 from Models.Subscriptions import Subscription
 from config import logger
@@ -53,9 +54,13 @@ def parse_event(event, vk_connection):
             return
         show_post_info(event, vk_connection, post, published)
 
-    elif command == 'show_ui_show_comments':
+    elif command == 'show_ui_comments':
         page = payload.get('page', 0)
         show_comments(event, vk_connection, user, page)
+
+    elif command == 'show_ui_conv_messages':
+        page = payload.get('page', 0)
+        show_conv_messages(event, vk_connection, user, page)
 
     else:
 
@@ -106,6 +111,36 @@ def get_comments_from_page(user: User, page=0):
         comments_descriptions.append(descr)
 
     return '\n\n'.join(comments_descriptions)
+
+
+def show_conv_messages(event, vk_connection, user, page):
+    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                         conversation_message_id=event.object.conversation_message_id,
+                                         message=get_conv_messages_from_page(user, page),
+                                         keyboard=keyboards.conv_messages_menu(user=user,
+                                                                               current_page=page))
+
+
+def get_conv_messages_from_page(user: User, page=0):
+    conv_messages = keyboards.conv_messages_by_pages(user)
+    if len(conv_messages) == 0:
+        return f'Не найдены сообщения в обсуждениях пользователя {user}'
+
+    page_number = min(len(conv_messages) - 1, page)
+
+    conv_messages_descriptions = []
+    for message in conv_messages[page_number]:
+        conversation = message.conversation
+        conversation_text = '' if conversation is None else f'{conversation.title} {conversation.get_url()}\n'
+        del_text = '[DELETED] ' if message.is_deleted else ''
+        descr = f'Сообщение от {message.date:%Y.%m.%d}\n' \
+                f'{conversation_text}' \
+                f'{del_text}{message.get_url()}\n' \
+                f'{message.text}\n' \
+                f'Вложений:{len(message.attachments)}'
+        conv_messages_descriptions.append(descr)
+
+    return '\n\n'.join(conv_messages_descriptions)
 
 
 def send_user_info(user, vk_connection, peer_id: int):
