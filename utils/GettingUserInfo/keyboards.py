@@ -90,7 +90,7 @@ def post_menu(user: User, published: bool = True, current_post_id=None):
     need_line = False
 
     if previous_post is not None:
-        keyboard.add_callback_button(label=f'< Предыдущий ({this_post_position+1})',
+        keyboard.add_callback_button(label=f'< Предыдущий ({this_post_position})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_show_post",
                                               "user_id": user.id,
@@ -99,7 +99,7 @@ def post_menu(user: User, published: bool = True, current_post_id=None):
         need_line = True
 
     if next_post is not None:
-        keyboard.add_callback_button(label=f'Следующий ({len(posts) - this_post_position + 1}) >',
+        keyboard.add_callback_button(label=f'Следующий ({len(posts) - this_post_position - 1}) >',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_show_post",
                                               "user_id": user.id,
