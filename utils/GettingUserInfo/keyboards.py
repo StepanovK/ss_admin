@@ -11,52 +11,51 @@ def main_menu_keyboard(user: User):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
     published_posts = Post.select(Post.id).where((Post.user == user)
-                                                 & (Post.suggest_status.is_null())).limit(1)
+                                                 & (Post.suggest_status.is_null()))
     need_new_line = False
     if len(published_posts) > 0:
         if need_new_line:
             keyboard.add_line()
-        keyboard.add_callback_button(label='Опубликованные посты',
+        keyboard.add_callback_button(label=f'Опубликованные посты ({len(published_posts)})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_published_posts", "user_id": user.id})
         need_new_line = True
 
     unpublished_posts = Post.select(Post.id).where((Post.user == user)
                                                    & ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                      (Post.suggest_status == PostStatus.SUGGESTED.value))
-                                                   ).limit(1)
+                                                      (Post.suggest_status == PostStatus.SUGGESTED.value)))
 
     if len(unpublished_posts) > 0:
         if need_new_line:
             keyboard.add_line()
-        keyboard.add_callback_button(label='Неопубликованные посты',
+        keyboard.add_callback_button(label=f'Неопубликованные посты ({len(unpublished_posts)})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_unpublished_posts", "user_id": user.id})
         need_new_line = True
 
-    comments = Comment.select(Comment.id).where(Comment.user == user).limit(1)
+    comments = Comment.select(Comment.id).where(Comment.user == user)
     if len(comments) > 0:
         if need_new_line:
             keyboard.add_line()
-        keyboard.add_callback_button(label='Комментарии к постам',
+        keyboard.add_callback_button(label=f'Комментарии к постам ({len(comments)})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_comments", "user_id": user.id})
         need_new_line = True
 
-    conv_mes = ConversationMessage.select(ConversationMessage.id).where(ConversationMessage.user == user).limit(1)
+    conv_mes = ConversationMessage.select(ConversationMessage.id).where(ConversationMessage.user == user)
     if len(conv_mes) > 0:
         if need_new_line:
             keyboard.add_line()
-        keyboard.add_callback_button(label='Сообщения в обсуждениях',
+        keyboard.add_callback_button(label=f'Сообщения в обсуждениях ({len(conv_mes)})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_conv_messages", "user_id": user.id})
         need_new_line = True
 
-    conv_mes = ConversationMessage.select(ConversationMessage.id).where(ConversationMessage.user == user).limit(1)
-    if len(conv_mes) > 0:
+    chat_mess = ChatMessage.select(ChatMessage.id).where(ChatMessage.user == user)
+    if len(chat_mess) > 0:
         if need_new_line:
             keyboard.add_line()
-        keyboard.add_callback_button(label='Сообщения в чатах',
+        keyboard.add_callback_button(label=f'Сообщения в чатах ({len(chat_mess)})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "show_ui_chat_messages", "user_id": user.id})
         need_new_line = True
@@ -71,7 +70,7 @@ def main_menu_keyboard(user: User):
 
 
 def post_menu(user: User, published: bool = True, current_post_id=None):
-    posts = users_posts(user=user)
+    posts = users_posts(user=user, published=published)
     previous_post = None
     this_post_position = 0
     next_post = None
@@ -167,6 +166,19 @@ def conv_messages_by_pages(user: User, count=6):
     return pages
 
 
+def chat_messages_menu(user: User, current_page=0):
+    return page_menu(user=user,
+                     command="show_ui_chat_messages",
+                     pages=chat_messages_by_pages(user),
+                     current_page=current_page)
+
+
+def chat_messages_by_pages(user: User, count=6):
+    messages = ChatMessage.select().where(ChatMessage.user == user).order_by(ChatMessage.date)
+    pages = sort_items_by_pages(items=messages)
+    return pages
+
+
 def sort_items_by_pages(items, count_per_page=6):
     pages = []
     current_page = []
@@ -190,7 +202,7 @@ def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6
     need_line = False
 
     if previous_page is not None:
-        keyboard.add_callback_button(label=f'< Предыдущие ({current_page * count_per_page})',
+        keyboard.add_callback_button(label=f'< Предыдущая ({current_page})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": command,
                                               "user_id": user.id,
@@ -198,8 +210,8 @@ def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6
         need_line = True
 
     if next_page is not None:
-        count = (len(pages) - current_page - 1) * count_per_page
-        keyboard.add_callback_button(label=f'Следующие ({count}) >',
+        count = (len(pages) - current_page - 1)
+        keyboard.add_callback_button(label=f'Следующая ({count}) >',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": command,
                                               "user_id": user.id,
@@ -211,7 +223,7 @@ def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6
         keyboard.add_line()
 
     if previous_page is not None:
-        keyboard.add_callback_button(label=f'<< Первые',
+        keyboard.add_callback_button(label=f'<< Первая',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": command,
                                               "user_id": user.id,
@@ -219,7 +231,7 @@ def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6
         need_line = True
 
     if next_page is not None:
-        keyboard.add_callback_button(label=f'Последние >>',
+        keyboard.add_callback_button(label=f'Последняя >>',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": command,
                                               "user_id": user.id,
