@@ -71,6 +71,77 @@ def main_menu_keyboard(user: User):
 
     return keyboard.get_keyboard()
 
+
+def post_menu(user: User, published: bool = True, current_post_id=None):
+    posts = users_posts(user=user)
+    previous_post = None
+    this_post_position = 0
+    next_post = None
+    for i in range(len(posts)):
+        if current_post_id is not None and posts[i].id == current_post_id:
+            this_post_position = i
+            if i != 0:
+                previous_post = posts[i - 1]
+            if i < (len(posts) - 1):
+                next_post = posts[i + 1]
+
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    need_line = False
+
+    if previous_post is not None:
+        keyboard.add_callback_button(label=f'< Предыдущий ({this_post_position+1})',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_post",
+                                              "user_id": user.id,
+                                              "post_id": previous_post.id,
+                                              "published": published})
+        need_line = True
+
+    if next_post is not None:
+        keyboard.add_callback_button(label=f'Следующий ({len(posts) - this_post_position + 1}) >',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_post",
+                                              "user_id": user.id,
+                                              "post_id": next_post.id,
+                                              "published": published})
+
+        need_line = True
+
+    if need_line:
+        keyboard.add_line()
+
+    if previous_post is not None:
+        keyboard.add_callback_button(label=f'<< Первый',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_post",
+                                              "user_id": user.id,
+                                              "post_id": posts[0].id,
+                                              "published": published})
+        need_line = True
+
+    if next_post is not None:
+        keyboard.add_callback_button(label=f'Последний >>',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_ui_show_post",
+                                              "user_id": user.id,
+                                              "post_id": posts[-1].id,
+                                              "published": published})
+        need_line = True
+
+    if need_line:
+        keyboard.add_line()
+
+    keyboard.add_callback_button(label='На главную',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_ui_user_short_info", "user_id": user.id})
+
+    return keyboard.get_keyboard()
+
+
+def users_posts(user: User, published: bool = True):
+    return Post.select().where((Post.user == user) & (Post.suggest_status.is_null(published))).order_by(Post.date)
+
 # def hashtag_menu(post: Post, page: int = 1):
 #     keyboard = VkKeyboard(one_time=False, inline=True)
 #

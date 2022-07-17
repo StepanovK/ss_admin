@@ -1,9 +1,11 @@
 from Models.Comments import Comment
 from Models.Users import User
 from Models.Posts import Post, PostStatus
-from Models.Relations import PostsLike, CommentsLike
+from Models.Relations import PostsLike, CommentsLike, PostsAttachment
+from Models.UploadedFiles import UploadedFile
 from Models.Subscriptions import Subscription
 from config import logger
+from utils.db_helper import queri_to_list
 import datetime
 import random
 from . import keyboards
@@ -21,10 +23,58 @@ def parse_event(event, vk_connection):
     if user is None:
         return
 
+    payload = event.object.payload
+    command = payload.get('command')
+
+    if command == 'show_ui_published_posts':
+
+        posts = keyboards.users_posts(user=user, published=True)
+
+        if len(posts) > 0:
+            post = posts[0]
+            show_post_info(event, vk_connection, post, published=True)
+
+    elif command == 'show_ui_unpublished_posts':
+
+        posts = keyboards.users_posts(user=user, published=False)
+
+        if len(posts) > 0:
+            post = posts[0]
+
+            show_post_info(event, vk_connection, post, published=False)
+
+    elif command == 'show_ui_show_post':
+        post_id = payload.get('post_id')
+        published = payload.get('published', True)
+        try:
+            post = Post.get(id=post_id)
+        except Post.DoesNotExist:
+            logger.warning(f'Can`t find post by id={post_id}')
+            return
+        show_post_info(event, vk_connection, post, published)
+
+    else:
+
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=get_short_user_info(user),
+                                             keyboard=keyboards.main_menu_keyboard(user=user))
+
+
+def show_post_info(event, vk_connection, post, published=True):
+    attachments = PostsAttachment.select().where((PostsAttachment.post == post)
+                                                 & (PostsAttachment.is_deleted == False)).join(UploadedFile)
+    attachments_list = []
+    for attachment in attachments:
+        attachments_list.append(f'{attachment.attachment}_{attachment.attachment.access_key}')
+
     result = vk_connection.messages.edit(peer_id=event.object.peer_id,
                                          conversation_message_id=event.object.conversation_message_id,
-                                         message=get_short_user_info(user),
-                                         keyboard=keyboards.main_menu_keyboard(user=user))
+                                         message=get_post_description(post),
+                                         attachments=attachments_list,
+                                         keyboard=keyboards.post_menu(user=post.user,
+                                                                      current_post_id=post.id,
+                                                                      published=published))
 
 
 def send_user_info(user, vk_connection, peer_id: int):
@@ -122,3 +172,22 @@ def get_short_user_info(user: User):
         mes_text += '\n' if count_of_self_com_likes == 0 else f' (в т.ч. своих: {count_of_self_com_likes})\n'
 
     return mes_text
+
+
+def get_post_description(post: Post):
+    post_repr = f'{post} от {post.date:%Y.%m.%d %H:%M}'
+
+    represent = f'{post_repr}\n' \
+                f'Текст поста:\n' \
+                f'{post.text}\n'
+
+    if post.attachments:
+        represent += f'\nВложений: {len(post.attachments)}'
+
+    if post.likes:
+        represent += f'\nЛайков: {len(post.likes)}'
+
+    if post.comments:
+        represent += f'\nКомментариев: {len(post.comments)}'
+
+    return represent
