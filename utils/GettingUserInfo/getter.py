@@ -10,7 +10,7 @@ from config import logger
 from utils.db_helper import queri_to_list
 import datetime
 import random
-from . import keyboards
+from . import keyboards, querys
 
 
 def parse_event(event, vk_connection):
@@ -30,7 +30,7 @@ def parse_event(event, vk_connection):
 
     if command == 'show_ui_published_posts':
 
-        posts = keyboards.users_posts(user=user, published=True)
+        posts = querys.users_posts(user=user, published=True)
 
         if len(posts) > 0:
             post = posts[0]
@@ -38,7 +38,7 @@ def parse_event(event, vk_connection):
 
     elif command == 'show_ui_unpublished_posts':
 
-        posts = keyboards.users_posts(user=user, published=False)
+        posts = querys.users_posts(user=user, published=False)
 
         if len(posts) > 0:
             post = posts[0]
@@ -91,6 +91,25 @@ def show_post_info(event, vk_connection, post, published=True):
                                                                       published=published))
 
 
+def get_post_description(post: Post):
+    post_repr = f'{post} от {post.date:%Y.%m.%d %H:%M}'
+
+    represent = f'{post_repr}\n' \
+                f'Текст поста:\n' \
+                f'{post.text}\n'
+
+    if post.attachments:
+        represent += f'\nВложений: {len(post.attachments)}'
+
+    if post.likes:
+        represent += f'\nЛайков: {len(post.likes)}'
+
+    if post.comments:
+        represent += f'\nКомментариев: {len(post.comments)}'
+
+    return represent
+
+
 def show_comments(event, vk_connection, user, page):
     result = vk_connection.messages.edit(peer_id=event.object.peer_id,
                                          conversation_message_id=event.object.conversation_message_id,
@@ -100,7 +119,7 @@ def show_comments(event, vk_connection, user, page):
 
 
 def get_comments_from_page(user: User, page=0):
-    comments_pages = keyboards.comments_by_pages(user)
+    comments_pages = querys.comments_by_pages(user)
     if len(comments_pages) == 0:
         return f'Не найдены комментарии пользователя {user}'
 
@@ -127,7 +146,7 @@ def show_conv_messages(event, vk_connection, user, page):
 
 
 def get_conv_messages_from_page(user: User, page=0):
-    conv_messages = keyboards.conv_messages_by_pages(user)
+    conv_messages = querys.conv_messages_by_pages(user)
     if len(conv_messages) == 0:
         return f'Не найдены сообщения в обсуждениях пользователя {user}'
 
@@ -157,7 +176,7 @@ def show_chat_messages(event, vk_connection, user, page):
 
 
 def get_chat_messages_from_page(user: User, page=0):
-    chat_messages = keyboards.chat_messages_by_pages(user)
+    chat_messages = querys.chat_messages_by_pages(user)
     if len(chat_messages) == 0:
         return f'Не найдены сообщения в чатах пользователя {user}'
 
@@ -270,22 +289,3 @@ def get_short_user_info(user: User):
         mes_text += '\n' if count_of_self_com_likes == 0 else f' (в т.ч. своих: {count_of_self_com_likes})\n'
 
     return mes_text
-
-
-def get_post_description(post: Post):
-    post_repr = f'{post} от {post.date:%Y.%m.%d %H:%M}'
-
-    represent = f'{post_repr}\n' \
-                f'Текст поста:\n' \
-                f'{post.text}\n'
-
-    if post.attachments:
-        represent += f'\nВложений: {len(post.attachments)}'
-
-    if post.likes:
-        represent += f'\nЛайков: {len(post.likes)}'
-
-    if post.comments:
-        represent += f'\nКомментариев: {len(post.comments)}'
-
-    return represent

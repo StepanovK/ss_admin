@@ -4,14 +4,14 @@ from Models.Users import User
 from Models.Comments import Comment
 from Models.ConversationMessages import ConversationMessage
 from Models.ChatMessages import ChatMessage
+from . import querys
 from utils.db_helper import queri_to_list
 
 
 def main_menu_keyboard(user: User):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
-    published_posts = Post.select(Post.id).where((Post.user == user)
-                                                 & (Post.suggest_status.is_null()))
+    published_posts = querys.users_posts(user=user, published=True)
     need_new_line = False
     if len(published_posts) > 0:
         if need_new_line:
@@ -21,10 +21,7 @@ def main_menu_keyboard(user: User):
                                      payload={"command": "show_ui_published_posts", "user_id": user.id})
         need_new_line = True
 
-    unpublished_posts = Post.select(Post.id).where((Post.user == user)
-                                                   & ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                      (Post.suggest_status == PostStatus.SUGGESTED.value)))
-
+    unpublished_posts = querys.users_posts(user=user, published=False)
     if len(unpublished_posts) > 0:
         if need_new_line:
             keyboard.add_line()
@@ -33,7 +30,7 @@ def main_menu_keyboard(user: User):
                                      payload={"command": "show_ui_unpublished_posts", "user_id": user.id})
         need_new_line = True
 
-    comments = Comment.select(Comment.id).where(Comment.user == user)
+    comments = querys.users_comments(user=user)
     if len(comments) > 0:
         if need_new_line:
             keyboard.add_line()
@@ -42,7 +39,7 @@ def main_menu_keyboard(user: User):
                                      payload={"command": "show_ui_comments", "user_id": user.id})
         need_new_line = True
 
-    conv_mes = ConversationMessage.select(ConversationMessage.id).where(ConversationMessage.user == user)
+    conv_mes = querys.users_conv_messages(user=user)
     if len(conv_mes) > 0:
         if need_new_line:
             keyboard.add_line()
@@ -51,7 +48,7 @@ def main_menu_keyboard(user: User):
                                      payload={"command": "show_ui_conv_messages", "user_id": user.id})
         need_new_line = True
 
-    chat_mess = ChatMessage.select(ChatMessage.id).where(ChatMessage.user == user)
+    chat_mess = querys.users_chat_messages(user=user)
     if len(chat_mess) > 0:
         if need_new_line:
             keyboard.add_line()
@@ -70,7 +67,7 @@ def main_menu_keyboard(user: User):
 
 
 def post_menu(user: User, published: bool = True, current_post_id=None):
-    posts = users_posts(user=user, published=published)
+    posts = querys.users_posts(user=user, published=published)
     previous_post = None
     this_post_position = 0
     next_post = None
@@ -136,61 +133,25 @@ def post_menu(user: User, published: bool = True, current_post_id=None):
     return keyboard.get_keyboard()
 
 
-def users_posts(user: User, published: bool = True):
-    return Post.select().where((Post.user == user) & (Post.suggest_status.is_null(published))).order_by(Post.date)
-
-
 def comments_menu(user: User, current_page=0):
     return page_menu(user=user,
                      command="show_ui_comments",
-                     pages=comments_by_pages(user, count=6),
+                     pages=querys.comments_by_pages(user, count=6),
                      current_page=current_page)
-
-
-def comments_by_pages(user: User, count=6):
-    comments = Comment.select().where(Comment.user == user).order_by(Comment.date)
-    pages = sort_items_by_pages(items=comments)
-    return pages
 
 
 def conv_messages_menu(user: User, current_page=0):
     return page_menu(user=user,
                      command="show_ui_conv_messages",
-                     pages=conv_messages_by_pages(user),
+                     pages=querys.conv_messages_by_pages(user),
                      current_page=current_page)
-
-
-def conv_messages_by_pages(user: User, count=6):
-    messages = ConversationMessage.select().where(ConversationMessage.user == user).order_by(ConversationMessage.date)
-    pages = sort_items_by_pages(items=messages)
-    return pages
 
 
 def chat_messages_menu(user: User, current_page=0):
     return page_menu(user=user,
                      command="show_ui_chat_messages",
-                     pages=chat_messages_by_pages(user),
+                     pages=querys.chat_messages_by_pages(user),
                      current_page=current_page)
-
-
-def chat_messages_by_pages(user: User, count=6):
-    messages = ChatMessage.select().where(ChatMessage.user == user).order_by(ChatMessage.date)
-    pages = sort_items_by_pages(items=messages)
-    return pages
-
-
-def sort_items_by_pages(items, count_per_page=6):
-    pages = []
-    current_page = []
-    for item in items:
-        current_page.append(item)
-        if len(current_page) >= count_per_page:
-            pages.append(current_page)
-            current_page = []
-    if len(current_page) > 0:
-        pages.append(current_page)
-
-    return pages
 
 
 def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6):
