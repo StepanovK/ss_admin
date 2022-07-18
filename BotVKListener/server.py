@@ -178,11 +178,13 @@ class Server:
         return len(admins) > 0
 
     def run(self):
-        self._start_polling()
-        # try:
-        #     self._start_polling()
-        # except Exception as ex:
-        #     logger.error(ex)
+        if config.debug:
+            self._start_polling()
+        else:
+            try:
+                self._start_polling()
+            except Exception as ex:
+                logger.error(ex)
 
     def run_in_loop(self):
         while True:

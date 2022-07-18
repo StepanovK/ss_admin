@@ -443,11 +443,13 @@ class Server:
         return represent
 
     def run(self):
-        # self._start_polling()
-        try:
+        if config.debug:
             self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        else:
+            try:
+                self._start_polling()
+            except Exception as ex:
+                logger.error(ex)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
