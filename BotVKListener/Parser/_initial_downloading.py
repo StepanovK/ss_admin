@@ -61,7 +61,8 @@ def load_subscribers(vk_connection, group_id):
                                        user_id=user_info['id'],
                                        vk_connection=vk_connection,
                                        is_subscribed=True,
-                                       subs_date=datetime.date(2000, 1, 1))
+                                       subs_date=datetime.date(2000, 1, 1),
+                                       rewrite=True)
 
 
 def users_fields():
