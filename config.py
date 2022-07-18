@@ -40,3 +40,5 @@ telegram = dict(
     bot_token=env.str("bot_token"),
 )
 channel = env.int("channel")
+
+debug = True

@@ -7,6 +7,7 @@ from PosterModels.PublishedPosts import PublishedPost
 from PosterModels.SortedHashtags import SortedHashtag
 from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
+from utils.GettingUserInfo.getter import get_short_user_info
 import keyboards
 import pika
 import datetime
@@ -136,9 +137,9 @@ class Server:
                     logger.warning(f'can`t find private message {message_text}!')
                     continue
                 if pm:
-                    users_suggested_posts = Post.select().where(Post.user == pm.user and
-                                                                Post.suggest_status == PostStatus.SUGGESTED.value and
-                                                                Post.is_deleted == False).order_by(Post.date.desc())
+                    users_suggested_posts = Post.select().where((Post.user == pm.user) &
+                                                                (Post.suggest_status == PostStatus.SUGGESTED.value) &
+                                                                (Post.is_deleted == False)).order_by(Post.date.desc())
                     max_count_to_update = 5
                     current_number = 1
                     for users_post in users_suggested_posts:
@@ -341,7 +342,8 @@ class Server:
         post = self._get_post_by_id(post_id=post_id)
         if not post:
             return
-        for ht in PostsHashtag.select().where(PostsHashtag.post == post, PostsHashtag.hashtag == hashtag):
+        for ht in PostsHashtag.select().where((PostsHashtag.post == post)
+                                            & (PostsHashtag.hashtag == hashtag)):
             ht.delete_instance()
 
     def _set_anonymously(self, post_id, value: bool = True):
@@ -355,62 +357,7 @@ class Server:
         post = self._get_post_by_id(post_id=post_id)
         if not post:
             return
-        subscribe_history = Subscription.select().where(Subscription.user == post.user).order_by(Subscription.date)
-        subscribe_history_list = []
-        for subscribe in subscribe_history:
-            state = 'ПОДПИСАН' if subscribe.is_subscribed else 'ОТПИСАН'
-            if subscribe.date is None:
-                date_sub = '<Неизвестно когда>'
-            elif subscribe.date == datetime.date(2000, 1, 1):
-                date_sub = 'Давно'
-            else:
-                date_sub = f'{subscribe.date:%Y-%m-%d}'
-            subscribe_history_list.append(f'{date_sub} {state}')
-
-        mes_text = f'Информация о пользователе {post.user}:\n'
-
-        if len(subscribe_history_list) == 0:
-            mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'
-        else:
-            mes_text += '\nИстория подписок: \n' + '\n'.join(subscribe_history_list) + '\n'
-
-        published_posts = Post.select().where(Post.user == post.user
-                                              and Post.suggest_status.is_null()).order_by(Post.date.desc()).limit(3)
-        published_posts_list = []
-        for users_post in published_posts:
-            published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
-        if len(published_posts_list) > 0:
-            mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
-
-        non_published_posts = Post.select().where((Post.user == post.user)
-                                                  and ((Post.suggest_status == PostStatus.REJECTED.value) |
-                                                       (Post.suggest_status == PostStatus.SUGGESTED.value))
-                                                  ).order_by(Post.date.desc()).limit(3)
-        non_published_posts_list = []
-        for users_post in non_published_posts:
-            non_published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
-        if len(non_published_posts_list) > 0:
-            mes_text += '\nПоследние неопубликованные посты:\n' + '\n'.join(non_published_posts_list) + '\n'
-
-        count_of_comments = len(post.user.comments)
-        if count_of_comments > 0:
-            mes_text += f'\nНаписал комментариев: {count_of_comments}\n'
-
-        count_of_posts_likes = len(PostsLike.select().where(PostsLike.user == post.user))
-        count_of_self_posts_likes = len(
-            PostsLike.select().join(Post).where(
-                (PostsLike.user == post.user) & (PostsLike.liked_object.user == post.user)))
-        if count_of_posts_likes > 0:
-            mes_text += f'\nЛайкнул постов: {count_of_posts_likes}'
-            mes_text += '\n' if count_of_self_posts_likes == 0 else f' (в т.ч. своих: {count_of_self_posts_likes})\n'
-
-        count_of_comments_likes = len(CommentsLike.select().where(CommentsLike.user == post.user))
-        count_of_self_com_likes = len(
-            CommentsLike.select().join(Comment).where(
-                (CommentsLike.user == post.user) & (CommentsLike.liked_object.user == post.user)))
-        if count_of_comments_likes > 0:
-            mes_text += f'\nЛайкнул комментариев: {count_of_comments_likes}'
-            mes_text += '\n' if count_of_self_com_likes == 0 else f' (в т.ч. своих: {count_of_self_com_likes})\n'
+        mes_text = get_short_user_info(post.user)
 
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
@@ -462,8 +409,8 @@ class Server:
 
         message_text = ''
         p_messages = PrivateMessage.select(
-        ).where(PrivateMessage.user == post.user
-                and PrivateMessage.admin == None).order_by(PrivateMessage.date.desc())
+        ).where((PrivateMessage.user == post.user)
+                & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc())
         user_comment = post.user.comment
         if user_comment is not None and user_comment != '':
             message_text += f'({user_comment})' + '\n'
@@ -473,9 +420,9 @@ class Server:
                             f'Чат: {last_message.get_chat_url()}'
 
             admin_messages = PrivateMessage.select(
-            ).join(Admin).where(PrivateMessage.user == post.user
-                                and PrivateMessage.admin != None
-                                and Admin.is_bot == False).order_by(PrivateMessage.date.desc())
+            ).join(Admin).where((PrivateMessage.user == post.user)
+                                & (PrivateMessage.admin.is_null(False))
+                                & (Admin.is_bot == False)).order_by(PrivateMessage.date.desc())
             if len(admin_messages) > 0:
                 last_admin = admin_messages[0].admin
                 message_text += '\n' + f'Последним общался {last_admin}'
@@ -496,11 +443,13 @@ class Server:
         return represent
 
     def run(self):
-        # self._start_polling()
-        try:
+        if config.debug:
             self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        else:
+            try:
+                self._start_polling()
+            except Exception as ex:
+                logger.error(ex)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
