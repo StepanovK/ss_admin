@@ -1,5 +1,3 @@
-from typing import Dict
-
 import config as config
 from config import logger
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
@@ -9,9 +7,12 @@ import pika
 from Models.base import db
 from Models.Posts import Post, PostStatus
 from Models.PrivateMessages import PrivateMessage
+from Models.Admins import Admin
+from Models.Users import User
 from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
+from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from ChatBot.chat_bot import ChatBot
 from Parser import comments, likes, posts, subscriptions
 from Parser import private_messages, conversations, chats, _initial_downloading
@@ -101,9 +102,17 @@ class Server:
                             create_db.unlock_db()
                     else:
                         if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
-                            message = private_messages.parse_private_message(event.object.message,
-                                                                             self.vk_connection_admin)
-                            self._send_alarm(message_type='new_private_message', message=message.id)
+                            if self._user_is_admin(event.object.message.get('peer_id')):
+                                message_text = event.object.message.get('text', '')
+                                user = get_user_from_message(message_text)
+                                if user is not None:
+                                    send_user_info(user=user,
+                                                   vk_connection=self.vk_connection_group,
+                                                   peer_id=event.object.message.get('peer_id'))
+                            else:
+                                message = private_messages.parse_private_message(event.object.message,
+                                                                                 self.vk_connection_admin)
+                                self._send_alarm(message_type='new_private_message', message=message.id)
                         else:
                             message = chats.parse_chat_message(vk_object=event.object.message,
                                                                vk_connection=self.vk_connection_admin,
@@ -116,6 +125,12 @@ class Server:
                             message = private_messages.parse_private_message(event.object,
                                                                              self.vk_connection_admin)
                             self._send_alarm(message_type='new_private_message', message=message.id)
+                elif event.type == VkBotEventType.MESSAGE_EVENT:
+                    peer_id = event.object.get('peer_id')
+                    if PrivateMessage.it_is_private_chat(peer_id):
+                        if ('payload' in event.object
+                                and event.object.payload.get('command').startswith('show_ui')):
+                            parse_event(event=event, vk_connection=self.vk_connection_group, )
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
@@ -157,12 +172,17 @@ class Server:
 
         ConnectionsHolder().close_rabbit_connection()
 
+    @staticmethod
+    def _user_is_admin(user_id):
+        admins = Admin.select().join(User).where(User.id == user_id).limit(1)
+        return len(admins) > 0
+
     def run(self):
-        # self._start_polling()
-        try:
-            self._start_polling()
-        except Exception as ex:
-            logger.error(ex)
+        self._start_polling()
+        # try:
+        #     self._start_polling()
+        # except Exception as ex:
+        #     logger.error(ex)
 
     def run_in_loop(self):
         while True:

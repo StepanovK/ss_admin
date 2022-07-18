@@ -23,6 +23,9 @@ class CommentsAttachment(BaseModel):
         indexes = ['comment']
         order_by = ['comment']
 
+    def __str__(self):
+        return str(self.attachment)
+
 
 class CommentsLike(BaseModel):
     liked_object = ForeignKeyField(Comment,
@@ -49,6 +52,9 @@ class PostsAttachment(BaseModel):
         indexes = ['post']
         order_by = ['post']
 
+    def __str__(self):
+        return str(self.attachment)
+
 
 class PostsLike(BaseModel):
     liked_object = ForeignKeyField(Post,
@@ -74,6 +80,9 @@ class PrivateMessageAttachment(BaseModel):
         table_name = 'private_messages_attachments'
         indexes = ['message']
         order_by = ['message']
+
+    def __str__(self):
+        return str(self.attachment)
 
 
 class ChatMessageAttachment(BaseModel):
@@ -102,6 +111,9 @@ class ConversationsMessageAttachment(BaseModel):
         table_name = 'conv_messages_attachments'
         indexes = ['message']
         order_by = ['message']
+
+    def __str__(self):
+        return str(self.attachment)
 
 
 def add_attachment(attachment_object: Union[Post, Comment, PrivateMessage, ConversationMessage, ChatMessage],
