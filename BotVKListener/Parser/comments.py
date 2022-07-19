@@ -2,8 +2,10 @@ from . import users
 from . import posts
 from . import attachments
 from Models.Comments import Comment
+from Models.Posts import Post
 import datetime
 from config import logger
+from typing import Union
 
 
 def get_comment(owner_id, object_id, vk_connection):
@@ -99,3 +101,11 @@ def get_comment_attributes(comment_obj: dict):
                                                                   int) and replied_to_user > 0 else None
 
     return attributes
+
+
+def mark_posts_comments_as_deleted(post: Post, is_deleted: Union[None, bool] = None):
+    del_mark = post.is_deleted if is_deleted is None else is_deleted
+    posts_comments = Comment.select().where((Comment.post == post) & (Comment.is_deleted != del_mark))
+    for comment in posts_comments:
+        comment.is_deleted = del_mark
+        comment.save()
