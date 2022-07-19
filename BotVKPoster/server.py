@@ -41,7 +41,11 @@ class Server:
         self.vk_admin = ConnectionsHolder().vk_connection_admin
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk = ConnectionsHolder().vk_connection_group
-        self.tg_poster = MyAutoPoster()
+        self.tg_poster = None
+        try:
+            self.tg_poster = MyAutoPoster()
+        except Exception as ex:
+            logger.warning(f'Can`t connect to tg_poster: {ex}')
 
     def _start_polling(self):
 
@@ -159,7 +163,8 @@ class Server:
             else:
                 message_text = message.decode()
                 logger.info(f'new_posted_post {message_text}')
-                self.tg_poster.send_new_post(message_text)
+                if self.tg_poster is not None:
+                    self.tg_poster.send_new_post(message_text)
 
     def _rabbit_get_updated_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_updated_posts'

@@ -42,7 +42,7 @@ def update_wall_post(wall_post: dict, vk_connection=None):
     except Post.DoesNotExist:
         need_update = True
         post = Post()
-    if 'deleted_reason' in wall_post and wall_post['deleted_reason'] != '':
+    if ('deleted_reason' in wall_post and wall_post['deleted_reason'] != '') or post.is_deleted:
         need_update = True
     if not need_update:
         if post.text != post_attributes['text']:

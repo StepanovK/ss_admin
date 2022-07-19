@@ -39,7 +39,7 @@ class Server:
 
         logger.info('Bot listener started!')
 
-        time_to_update_last_posts = 10
+        time_to_update_last_posts = 20
         last_published_posts_update = None
 
         while True:
@@ -148,7 +148,6 @@ class Server:
         last_posts = Post.select().where((Post.date > date_to_start)
                                          & ((Post.suggest_status.is_null())
                                             | (Post.suggest_status != PostStatus.REJECTED.value))
-                                         & (Post.is_deleted == False)
                                          ).order_by(Post.date.desc()).limit(count_of_posts)
         last_posts_list = queri_to_list(last_posts, 'id')
         if len(last_posts_list) > 0:
@@ -158,6 +157,7 @@ class Server:
                 post, was_updated = posts.update_wall_post(post_info, self.vk_connection_admin)
                 if was_updated:
                     self._send_alarm('updated_posts', post.id)
+                    comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
                 # print(f'post {post} was_updated={was_updated}')
 
     def _send_alarm(self, message_type: str, message: str):
