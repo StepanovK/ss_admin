@@ -6,7 +6,11 @@ from datetime import datetime
 def parse_subscription(vk_event, vk_connection, is_subscribed=True, rewrite=False):
     user_id = vk_event.object.get('user_id', 0)
     group_id = vk_event.group_id
-    return add_subscription(group_id, user_id, vk_connection, is_subscribed, rewrite)
+    return add_subscription(group_id=group_id,
+                            user_id=user_id,
+                            vk_connection=vk_connection,
+                            is_subscribed=is_subscribed,
+                            rewrite=rewrite)
 
 
 def add_subscription(group_id, user_id, vk_connection, is_subscribed=True, subs_date=None, rewrite=False):
