@@ -18,6 +18,7 @@ from Models.ConversationMessages import ConversationMessage
 from Models.base import db
 from typing import Union
 
+_SUBS_OFFSET_FILENAME = 'current_offset_of_subscribers.tmp'
 _POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
 _COMMENTS_OFFSET_FILENAME = 'current_offset_of_posts_for_comments.tmp'
 _CONVERSATIONS_OFFSET_FILENAME = 'current_offset_of_conversations.tmp'
@@ -53,17 +54,31 @@ def load_all(vk_connection, group_id=None):
 
 
 def load_subscribers(vk_connection, group_id):
-    subs = vk_connection.groups.getMembers(group_id=group_id, sort='time_asc', fields=users_fields())
-    for user_info in subs['items']:
-        user = add_user_by_info(vk_connection, user_info)
+    offset = get_current_offset_in_file(_SUBS_OFFSET_FILENAME)
+    while True:
+        if offset != 0:
+            logger.info(f'Current subscribers offset = {offset}')
+        subs = vk_connection.groups.getMembers(group_id=group_id,
+                                               sort='time_asc',
+                                               fields=users_fields(),
+                                               offset=offset,
+                                               count=100)['items']
+        if len(subs) == 0:
+            break
 
-        subscriptions.add_subscription(group_id=group_id,
-                                       user_id=user_info['id'],
-                                       vk_connection=vk_connection,
-                                       is_subscribed=True,
-                                       subs_date=datetime.date(2000, 1, 1),
-                                       rewrite=True)
+        with db.atomic():
+            for user_info in subs:
+                user = add_user_by_info(vk_connection, user_info)
 
+                subscriptions.add_subscription(group_id=group_id,
+                                               user_id=user_info['id'],
+                                               vk_connection=vk_connection,
+                                               is_subscribed=True,
+                                               subs_date=datetime.date(2000, 1, 1),
+                                               rewrite=True)
+
+        offset += 100
+        update_current_offset_in_file(offset, _SUBS_OFFSET_FILENAME)
 
 def users_fields():
     return 'bdate, can_post, can_see_all_posts, can_see_audio, can_write_private_message, ' \
@@ -235,6 +250,7 @@ def get_current_offset_in_file(temp_file_name):
 
 
 def delete_offset_files():
+    delete_offset_file(_SUBS_OFFSET_FILENAME)
     delete_offset_file(_POST_OFFSET_FILENAME)
     delete_offset_file(_COMMENTS_OFFSET_FILENAME)
     delete_offset_file(_CONVERSATIONS_OFFSET_FILENAME)
