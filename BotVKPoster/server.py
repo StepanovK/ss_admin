@@ -412,6 +412,9 @@ class Server:
         else:
             text_status = f'Неизвестный пост {post}'
 
+        if post.posted_by is not None:
+            text_status += f'\nадмином: {post.posted_by}'
+
         message_text = ''
         p_messages = PrivateMessage.select(
         ).where((PrivateMessage.user == post.user)
