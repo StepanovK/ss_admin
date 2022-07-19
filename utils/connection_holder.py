@@ -54,12 +54,18 @@ class ConnectionsHolder(metaclass=Singleton):
     def vk_api_admin(self):
         if not self._vk_api_admin:
             try:
+                self._vk_api_admin = vk_api.VkApi(token=config.admin_token)
+                config.logger.info("Init VK api for group")
+            except Exception as ex:
+                config.logger.error(f"Failed to init VK api for group by token: {ex}")
+        if not self._vk_api_admin:
+            try:
                 self._vk_api_admin = vk_api.VkApi(login=config.admin_phone,
                                                   password=config.admin_pass,
                                                   token=config.admin_token)
                 config.logger.info("Init VK api for group")
             except Exception as ex:
-                config.logger.error(f"Failed to init VK api for group: {ex}")
+                config.logger.error(f"Failed to init VK api for group by pass: {ex}")
         return self._vk_api_admin
 
     @property
@@ -83,7 +89,8 @@ class ConnectionsHolder(metaclass=Singleton):
                 try:
                     self._rabbit_connection = pika.BlockingConnection(conn_params)
                 except pika.exceptions.AMQPConnectionError as er:
-                    config.logger.warning(f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
+                    config.logger.warning(
+                        f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
             except Exception as ex:
                 config.logger.error(f"Failed to init rabbitmq client: {ex}")
         return self._rabbit_connection
