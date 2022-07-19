@@ -10,6 +10,7 @@ docker.env
 pgadmin/
 *.env
 lock_db
+*.log.zip
 
 myautoposter.session
 myautoposter.session-journal

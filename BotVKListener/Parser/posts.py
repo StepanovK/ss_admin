@@ -37,17 +37,18 @@ def update_wall_post(wall_post: dict, vk_connection=None):
     post_attributes = get_wall_post_attributes(wall_post)
     post_id = Post.generate_id(vk_id=post_attributes['vk_id'], owner_id=post_attributes['owner_id'])
     need_update = False
+    is_deleted = wall_post.get('is_deleted', False)
     try:
         post = Post.get(id=post_id)
     except Post.DoesNotExist:
         need_update = True
         post = Post()
-    if ('deleted_reason' in wall_post and wall_post['deleted_reason'] != '') or post.is_deleted:
+    if post.is_deleted != is_deleted:
         need_update = True
     if not need_update:
-        if post.text != post_attributes['text']:
+        if not is_deleted and post.text != post_attributes['text']:
             need_update = True
-    if not need_update:
+    if not need_update and not is_deleted:
         vk_attachments = wall_post.get('attachments', [])
         post_attachments = PostsAttachment.select().where((PostsAttachment.is_deleted == False)
                                                           & (PostsAttachment.post == post))
@@ -62,7 +63,7 @@ def update_wall_post(wall_post: dict, vk_connection=None):
 
 def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool = False):
     post_attributes = get_wall_post_attributes(wall_post)
-    is_deleted = 'deleted_reason' in wall_post and wall_post['deleted_reason'] != ''
+    is_deleted = wall_post.get('is_deleted', False)
 
     post_id = Post.generate_id(vk_id=post_attributes['vk_id'], owner_id=post_attributes['owner_id'])
 
