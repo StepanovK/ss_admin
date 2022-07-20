@@ -348,7 +348,7 @@ class Server:
         if not post:
             return
         for ht in PostsHashtag.select().where((PostsHashtag.post == post)
-                                            & (PostsHashtag.hashtag == hashtag)):
+                                              & (PostsHashtag.hashtag == hashtag)):
             ht.delete_instance()
 
     def _set_anonymously(self, post_id, value: bool = True):
@@ -450,15 +450,6 @@ class Server:
 
         return represent
 
-    def run(self):
-        if config.debug:
-            self._start_polling()
-        else:
-            try:
-                self._start_polling()
-            except Exception as ex:
-                logger.error(ex)
-
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
         l_text = post.text.lower()
@@ -492,6 +483,15 @@ class Server:
             logger.info('Connected to DB')
         except Exception as ex:
             logger.warning(f'Can`t reconnect to DB! {ex}')
+
+    def run(self):
+        if config.debug:
+            self._start_polling()
+        else:
+            try:
+                self._start_polling()
+            except Exception as ex:
+                logger.error(ex)
 
     def run_in_loop(self):
         while True:

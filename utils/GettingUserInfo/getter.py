@@ -235,7 +235,7 @@ def get_short_user_info(user: User):
         state = 'ПОДПИСАН' if subscribe.is_subscribed else 'ОТПИСАН'
         if subscribe.date is None:
             date_sub = '<Неизвестно когда>'
-        elif subscribe.date.date == datetime.date(2000, 1, 1):
+        elif subscribe.date == datetime.datetime(2000, 1, 1):
             date_sub = 'Давно'
         else:
             date_sub = f'{subscribe.date:%Y-%m-%d}'

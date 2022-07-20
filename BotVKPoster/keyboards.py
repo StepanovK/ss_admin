@@ -1,3 +1,4 @@
+import functools
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
 from PosterModels.SortedHashtags import SortedHashtag
@@ -73,19 +74,19 @@ def hashtag_menu(post: Post, page: int = 1):
                                      color=color,
                                      payload={"command": command, "post_id": post.id, 'hashtag': ht, 'page': page})
 
-    next_page_hashtags = hashtags_pages[(page + 1)]
-    next_page_exists = len(next_page_hashtags) > 0
+    # next_page_hashtags = hashtags_pages[(page + 1)]
+    next_page_exists = len(hashtags_pages) > page
 
     if page > 1 or next_page_exists:
         keyboard.add_line()
 
     if page > 1:
-        keyboard.add_callback_button(label='<< Назад',
+        keyboard.add_callback_button(label=f'<< Назад ({page-1})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': page - 1})
 
     if next_page_exists:
-        keyboard.add_callback_button(label='Далее >>',
+        keyboard.add_callback_button(label=f'Далее ({len(hashtags_pages) - page}) >>',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': page + 1})
 
@@ -102,6 +103,7 @@ def user_info_menu(post: Post, page: int = 1):
     return keyboard.get_keyboard()
 
 
+@functools.lru_cache()
 def _hashtags_by_pages(post: Post) -> dict[int, list]:
     count_per_page = 4
     sorted_hashtags = queri_to_list(SortedHashtag.select().where(SortedHashtag.post_id == post.id), column='hashtag')
@@ -114,11 +116,10 @@ def _hashtags_by_pages(post: Post) -> dict[int, list]:
     current_page = 1
     current_count = 0
     for ht in sorted_hashtags:
-        if current_count < count_per_page:
-            pages[current_page].append(ht)
-            current_count += 1
-        else:
+        if current_count >= count_per_page:
             current_count = 0
             current_page += 1
+        pages[current_page].append(ht)
+        current_count += 1
 
     return pages

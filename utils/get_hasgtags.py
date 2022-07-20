@@ -22,9 +22,9 @@ def get_hashtags() -> List:
 
 
 def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> List[tuple]:
-    posts_with_hashtag: List[str] = [post.text.lower() for post in Post.select().where(Post.text.contains("#"))]
     ht_posts_dict: Dict[str: set] = defaultdict(set)
-    last_posts = PostsHashtag.select(Post.text, PostsHashtag.hashtag).join(Post).order_by(Post.date.desc()).limit(1000)
+    last_posts = PostsHashtag.select(Post.text, PostsHashtag.hashtag).join(Post).where(
+        (Post.suggest_status.is_null()) & (Post.is_deleted == False)).order_by(Post.date.desc())
     for post_with_ht in last_posts:
         ht = post_with_ht.hashtag
         post_text = post_with_ht.post.text
