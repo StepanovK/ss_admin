@@ -241,7 +241,8 @@ def get_short_user_info(user: User):
             date_sub = f'{subscribe.date:%Y-%m-%d}'
         subscribe_history_list.append(f'{date_sub} {state}')
 
-    mes_text = f'Информация о пользователе {user}:\n'
+    mes_text = f'Информация о пользователе {user} (id {user.id}):\n'
+    mes_text += f'Упоминания в ВК: https://vk.com/feed?obj={user.id}&q=&section=mentions\n'
 
     if user.comment is not None and user.comment != '':
         mes_text += f'ВНИМАНИЕ: {user.comment}\n'
