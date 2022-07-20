@@ -337,7 +337,7 @@ class Server:
                                            conversation_message_id=message_id,
                                            message=text_message,
                                            keyboard=keyboards.hashtag_menu(post, page),
-                                           attachment=[str(att.attachment) for att in post.attachments])
+                                           )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
