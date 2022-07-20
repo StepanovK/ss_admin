@@ -11,7 +11,9 @@ from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
 def main_menu_keyboard(post: Post):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
-    if post.suggest_status == PostStatus.SUGGESTED.value:
+    can_edit = post.suggest_status == PostStatus.SUGGESTED.value and not post.is_deleted
+
+    if can_edit:
         keyboard.add_callback_button(label='Опубликовать',
                                      color=VkKeyboardColor.POSITIVE,
                                      payload={"command": "publish_post", "post_id": post.id})
@@ -33,7 +35,7 @@ def main_menu_keyboard(post: Post):
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
-    if post.suggest_status == PostStatus.SUGGESTED.value:
+    if can_edit:
         keyboard.add_line()
         keyboard.add_callback_button(label='&#128259; Обновить информацию',
                                      color=VkKeyboardColor.SECONDARY,
