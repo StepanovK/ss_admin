@@ -50,6 +50,7 @@ services:
     container_name: rabbitmq
     hostname: rabbitmq
     image: rabbitmq:3.10-management-alpine
+    restart: always
     environment:
       - RABBITMQ_NODENAME=node@rabbitmq
     ports:
@@ -64,7 +65,7 @@ services:
     build:
       context: .
       dockerfile: BotVKPoster/Dockerfile
-    restart: always
+    restart: unless-stopped
     environment:
       - TZ=Europe/Moscow
     volumes:
@@ -82,7 +83,7 @@ services:
     build:
       context: .
       dockerfile: BotVKListener/Dockerfile
-    restart: always
+    restart: unless-stopped
     environment:
       - TZ=Europe/Moscow
     volumes:
