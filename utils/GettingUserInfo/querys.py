@@ -6,7 +6,14 @@ from Models.ChatMessages import ChatMessage
 
 
 def users_posts(user: User, published: bool = True):
-    return Post.select().where((Post.user == user) & (Post.suggest_status.is_null(published))).order_by(Post.date)
+    if published:
+        return Post.select().where((Post.user == user) & (Post.suggest_status.is_null(True))).order_by(Post.date)
+    else:
+        return Post.select().where(
+            (Post.user == user)
+            & ((Post.suggest_status == PostStatus.SUGGESTED.value)
+               | (Post.suggest_status == PostStatus.REJECTED.value))
+        ).order_by(Post.date)
 
 
 def users_comments(user: User):
