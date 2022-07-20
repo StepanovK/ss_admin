@@ -246,7 +246,7 @@ class Server:
                                                attachments=attachment)
         except Exception as ex:
             logger.warning(f'Failed to publish post ID={post.vk_id}\n{ex}')
-            return
+            return None
 
         new_post_id = Post.generate_id(owner_id=-self.group_id, vk_id=new_post['post_id'])
 
@@ -270,7 +270,11 @@ class Server:
         if not post:
             return
 
-        result = self.vk_admin.wall.delete(owner_id=-self.group_id, post_id=post.vk_id)
+        try:
+            result = self.vk_admin.wall.delete(owner_id=-self.group_id, post_id=post.vk_id)
+        except Exception as ex:
+            logger.warning(f'Failed to reject post {post}: {ex}')
+            result = None
 
         if result == 1:
             post.suggest_status = PostStatus.REJECTED.value
@@ -333,7 +337,7 @@ class Server:
                                            conversation_message_id=message_id,
                                            message=text_message,
                                            keyboard=keyboards.hashtag_menu(post, page),
-                                           attachment=[str(att.attachment) for att in post.attachments])
+                                           )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
