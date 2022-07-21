@@ -45,10 +45,10 @@ class Server:
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk = ConnectionsHolder().vk_connection_group
         self.tg_poster = None
-        try:
-            self.tg_poster = MyAutoPoster()
-        except Exception as ex:
-            logger.warning(f'Can`t connect to tg_poster: {ex}')
+        # try:
+        #     self.tg_poster = MyAutoPoster()
+        # except Exception as ex:
+        #     logger.warning(f'Can`t connect to tg_poster: {ex}')
         self._checked_users = []
 
     def _start_polling(self):
