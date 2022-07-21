@@ -62,7 +62,9 @@ class Server:
                 elif event.type == 'like_remove':
                     likes.parse_like_remove(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_NEW:
-                    comments.parse_comment(event.object, self.vk_connection_admin)
+                    comment = comments.parse_comment(event.object, self.vk_connection_admin)
+                    if comment is not None:
+                        self._send_alarm('new_comments', str(comment.id))
                 elif event.type == VkBotEventType.WALL_REPLY_DELETE:
                     comments.parse_delete_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
