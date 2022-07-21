@@ -51,7 +51,6 @@ class Server:
         #     logger.warning(f'Can`t connect to tg_poster: {ex}')
         self._checked_users = []
 
-
     def _start_polling(self):
 
         logger.info('Bot poster started!')
