@@ -44,8 +44,8 @@ class Server:
 
         while True:
             for event in self._longpoll.check():
-
-                print(f'New event: {event.type}')
+                if config.debug:
+                    print(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
                     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
                     str_from_user = '' if new_post.user is None else f'от {new_post.user} '
