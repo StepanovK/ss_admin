@@ -44,8 +44,8 @@ class Server:
 
         while True:
             for event in self._longpoll.check():
-
-                print(f'New event: {event.type}')
+                if config.debug:
+                    print(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
                     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
                     str_from_user = '' if new_post.user is None else f'от {new_post.user} '
@@ -62,7 +62,9 @@ class Server:
                 elif event.type == 'like_remove':
                     likes.parse_like_remove(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_NEW:
-                    comments.parse_comment(event.object, self.vk_connection_admin)
+                    comment = comments.parse_comment(event.object, self.vk_connection_admin)
+                    if comment is not None:
+                        self._send_alarm('new_comments', str(comment.id))
                 elif event.type == VkBotEventType.WALL_REPLY_DELETE:
                     comments.parse_delete_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
