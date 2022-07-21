@@ -127,9 +127,8 @@ def get_comments_from_page(user: User, page=0):
 
     comments_descriptions = []
     for comment in comments_pages[page_number]:
-        del_text = '[DELETED] ' if comment.is_deleted else ''
         descr = f'Комментарий от {comment.date:%Y.%m.%d}\n' \
-                f'{del_text}{comment.get_url()}\n' \
+                f'{comment.get_url()}\n' \
                 f'{comment.text}\n' \
                 f'Вложений:{len(comment.attachments)}; Лайков: {len(comment.likes)}'
         comments_descriptions.append(descr)

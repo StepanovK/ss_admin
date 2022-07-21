@@ -23,6 +23,8 @@ from Models.PrivateMessages import PrivateMessage
 from utils.db_helper import queri_to_list
 import utils.get_hasgtags as get_hasgtags
 from utils.tg_auto_poster import MyAutoPoster
+from utils import user_chek
+from utils.GettingUserInfo import getter
 
 
 class Server:
@@ -36,6 +38,7 @@ class Server:
         self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
+        self.chat_for_comments_check = config.chat_for_comments_check
 
         self.vk_api_admin = ConnectionsHolder().vk_api_admin
         self.vk_admin = ConnectionsHolder().vk_connection_admin
@@ -46,6 +49,8 @@ class Server:
         #     self.tg_poster = MyAutoPoster()
         # except Exception as ex:
         #     logger.warning(f'Can`t connect to tg_poster: {ex}')
+        self._checked_users = []
+
 
     def _start_polling(self):
 
@@ -80,9 +85,12 @@ class Server:
                             post_id=payload['post_id'],
                             message_id=event.object.get('conversation_message_id'))
                     if 'command' in payload:
-                        self._proces_button_click(payload=payload,
-                                                  message_id=event.object.get('conversation_message_id'),
-                                                  admin_id=event.object.get('user_id'))
+                        if event.object.payload.get('command').startswith('show_ui'):
+                            getter.parse_event(event=event, vk_connection=self.vk)
+                        else:
+                            self._proces_button_click(payload=payload,
+                                                      message_id=event.object.get('conversation_message_id'),
+                                                      admin_id=event.object.get('user_id'))
                 elif event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat and str(event.object['message']['peer_id']) == str(self.chat_for_suggest):
                         message_text = event.object.message['text']
@@ -91,7 +99,8 @@ class Server:
 
             now = datetime.datetime.now()
             if not last_broker_update or (now - last_broker_update).total_seconds() >= time_to_update_broker:
-                # logger.info('Проверка новых постов')
+                if config.debug:
+                    logger.info('Проверка сообщений брокера')
                 self._start_consuming()
                 last_broker_update = datetime.datetime.now()
 
@@ -108,6 +117,7 @@ class Server:
         self._rabbit_get_new_posts(channel)
         self._rabbit_get_updated_posts(channel)
         self._rabbit_new_posted_posts(channel)
+        self._rabbit_new_comments(channel)
         ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
@@ -199,6 +209,51 @@ class Server:
                         PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
+
+    def _rabbit_new_comments(self, channel):
+        queue_name = f'{self.queue_name_prefix}_new_comments'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                if config.debug:
+                    logger.info(f'new_comment {message_text}')
+                try:
+                    comment = Comment.get(id=int(message_text))
+                except Exception as ex:
+                    logger.warning(f'comment id={message_text} is not found! {ex}')
+                    continue
+                self._check_comment_danger(comment)
+
+    def _check_comment_danger(self, comment):
+        user = comment.user
+        if user not in self._checked_users:
+            user_danger_degree = user_chek.get_degree_of_user_danger(user)
+            if user_danger_degree >= 10:
+                try:
+                    self.vk.messages.send(peer_id=self.chat_for_comments_check,
+                                          message=self._get_danger_comment_description(comment,
+                                                                                       user_danger_degree),
+                                          random_id=random.randint(10 ** 5, 10 ** 6),
+                                          )
+                except Exception as ex:
+                    logger.warning(f'Failed send message peer_id={self.chat_for_comments_check}\n{ex}')
+
+                getter.send_user_info(user=user,
+                                      vk_connection=self.vk,
+                                      peer_id=self.chat_for_comments_check)
+
+            self._checked_users.append(user)
+
+    @staticmethod
+    def _get_danger_comment_description(comment, user_danger_degree):
+        return f'Комментарий от сомнительного пользователя {comment.user} (оценка опасности: {user_danger_degree})\n' \
+               f'{comment.get_url()}\n' \
+               f'{comment.text}'
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
