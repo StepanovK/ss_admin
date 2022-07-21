@@ -25,6 +25,7 @@ def get_degree_of_user_danger(user: User):
     _add_degree_by_subscription(user, total_danger_degree)
     _add_degree_by_comments(user, total_danger_degree)
     _add_degree_by_posts(user, total_danger_degree)
+    return total_danger_degree
 
 
 def _add_degree_by_subscription(user: User, total_danger_degree: int):
