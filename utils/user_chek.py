@@ -1,26 +1,30 @@
 from Models.Users import User
 from Models.Subscriptions import Subscription
 from Models.Comments import Comment
-from Models.Posts import Post
+from Models.Posts import Post, PostStatus
 from Models.ChatMessages import ChatMessage
 from Models.PrivateMessages import PrivateMessage
 import datetime
+import collections
 
-degree_no_subscription = 80
-degree_subscription_today = 50
-degree_subscription_last_week = 30
+degree_no_subscription = 8
+degree_subscription_today = 6
+degree_subscription_last_week = 5
+degree_subscription_long = -7
 
-degree_no_comments = 80
-degree_one_comment = 80
-degree_one_comment_with_link = 100
-degree_tho_comments = 50
+degree_no_comments = 2
+degree_one_comment = 5
+degree_tho_comments = 4
+degree_one_comment_with_link = 9
 
-degree_no_post = 20
+degree_have_some_posts = -10
 
 
 def get_degree_of_user_danger(user: User):
     total_danger_degree = 0
     _add_degree_by_subscription(user, total_danger_degree)
+    _add_degree_by_comments(user, total_danger_degree)
+    _add_degree_by_posts(user, total_danger_degree)
 
 
 def _add_degree_by_subscription(user: User, total_danger_degree: int):
@@ -36,6 +40,8 @@ def _add_degree_by_subscription(user: User, total_danger_degree: int):
                 total_danger_degree += degree_subscription_today
             elif days <= 7:
                 total_danger_degree += degree_subscription_last_week
+            else:
+                total_danger_degree += degree_subscription_long
 
 
 def _add_degree_by_comments(user: User, total_danger_degree: int):
@@ -67,3 +73,10 @@ def _it_is_comment_with_link(comment: Comment) -> bool:
             degree = degree_one_comment_with_link
             return True
     return False
+
+
+def _add_degree_by_posts(user: User, total_danger_degree: int):
+    last_posted_posts = Post.select().where((Post.user == user)
+                                            & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(2)
+    if len(last_posted_posts) > 0:
+        total_danger_degree += degree_have_some_posts
