@@ -106,7 +106,8 @@ class Server:
             now = datetime.datetime.now()
             if not last_published_posts_update or (
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
-                # logger.info('Обновление опубликованных постов')
+                if config.debug:
+                    logger.info('Обновление опубликованных постов')
                 self._update_published_posts()
                 last_published_posts_update = datetime.datetime.now()
 
@@ -202,6 +203,9 @@ class Server:
                 post_inf.delete_instance()
 
                 suggested_post.posted_in = published_post
+                suggested_post.anonymously = published_post.anonymously
+                suggested_post.marked_as_ads = published_post.marked_as_ads
+                suggested_post.is_deleted = False  # На случай если он уже успел отметиться как удаленный
                 suggested_post.save()
                 with main_db.atomic():
                     for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
@@ -368,6 +372,13 @@ class Server:
         message_id = self._get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
+
+        try:
+            published_post_info = PublishedPost.get(suggested_post_id=post_id)
+            if published_post_info.published_post_id is not None:
+                return  # Пост был опубликован, но информация о его публикации ещё не записалась
+        except PublishedPost.DoesNotExist:
+            pass
 
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
