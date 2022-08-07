@@ -106,7 +106,8 @@ class Server:
             now = datetime.datetime.now()
             if not last_published_posts_update or (
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
-                # logger.info('Обновление опубликованных постов')
+                if config.debug:
+                    logger.info('Обновление опубликованных постов')
                 self._update_published_posts()
                 last_published_posts_update = datetime.datetime.now()
 
@@ -115,8 +116,8 @@ class Server:
         self._rabbit_get_new_private_messages(channel)
         self._rabbit_get_new_posts(channel)
         self._rabbit_get_updated_posts(channel)
-        self._rabbit_new_posted_posts(channel)
-        self._rabbit_new_comments(channel)
+        self._rabbit_get_new_posted_posts(channel)
+        self._rabbit_get_new_comments(channel)
         ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
@@ -161,7 +162,7 @@ class Server:
                         self._update_message_post(users_post.id)
                         current_number += 1
 
-    def _rabbit_new_posted_posts(self, channel):
+    def _rabbit_get_new_posted_posts(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_posted_post'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -202,6 +203,9 @@ class Server:
                 post_inf.delete_instance()
 
                 suggested_post.posted_in = published_post
+                suggested_post.anonymously = published_post.anonymously
+                suggested_post.marked_as_ads = published_post.marked_as_ads
+                suggested_post.is_deleted = False  # На случай если он уже успел отметиться как удаленный
                 suggested_post.save()
                 with main_db.atomic():
                     for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
@@ -209,7 +213,7 @@ class Server:
 
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
 
-    def _rabbit_new_comments(self, channel):
+    def _rabbit_get_new_comments(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_comments'
         channel.queue_declare(queue=queue_name,
                               durable=True)
@@ -368,6 +372,13 @@ class Server:
         message_id = self._get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
+
+        try:
+            published_post_info = PublishedPost.get(suggested_post_id=post_id)
+            if published_post_info.published_post_id is not None:
+                return  # Пост был опубликован, но информация о его публикации ещё не записалась
+        except PublishedPost.DoesNotExist:
+            pass
 
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
