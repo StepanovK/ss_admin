@@ -48,15 +48,7 @@ class Server:
                     logger.info(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
                     new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
-                    str_from_user = '' if new_post.user is None else f'от {new_post.user} '
-                    str_attachments = '' if len(
-                        new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
-                    str_action = 'Post published' if new_post.suggest_status is None else 'Suggested new post'
-                    logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
-                    if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
-                        self._send_alarm(message_type='new_suggested_post', message=new_post.id)
-                    elif self.queue_name_prefix != '' and new_post.suggest_status is None:
-                        self._send_alarm(message_type='new_posted_post', message=new_post.id)
+                    self._process_new_post_event(new_post=new_post)
                 elif event.type == 'like_add':
                     likes.parse_like_add(event.object, self.vk_connection_admin)
                 elif event.type == 'like_remove':
@@ -160,6 +152,17 @@ class Server:
                     self._send_alarm('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
                 # print(f'post {post} was_updated={was_updated}')
+
+    def _process_new_post_event(self, new_post):
+        str_from_user = '' if new_post.user is None else f'от {new_post.user} '
+        str_attachments = '' if len(
+            new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
+        str_action = 'Post published' if new_post.suggest_status is None else 'Suggested new post'
+        logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
+        if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
+            self._send_alarm(message_type='new_suggested_post', message=new_post.id)
+        elif self.queue_name_prefix != '' and new_post.suggest_status is None:
+            self._send_alarm(message_type='new_posted_post', message=new_post.id)
 
     def _send_alarm(self, message_type: str, message: str):
         channel = ConnectionsHolder().rabbit_connection.channel()
