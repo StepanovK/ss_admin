@@ -148,3 +148,41 @@ def extract_hashtags_from_post_text(text: str, replace: bool = False) -> tuple[l
                 new_text = new_text.replace(hashtag, '')
 
     return hashtags, new_text
+
+
+def parse_post_by_url(url: str, vk_connection):
+    post_id = get_post_id_from_url(url=url)
+    try:
+        post = Post.get(id=post_id)
+    except Post.DoesNotExist:
+        post = None
+    except Exception as ex:
+        logger.warning(f'Some problem with getting post by url {url}\n{ex}')
+        post = None
+    need_create = post is None
+    was_updated = False
+    posts_info = vk_connection.wall.getById(posts=post_id)
+    for post_info in posts_info:
+        if need_create:
+            post = parse_wall_post(wall_post=post_info, vk_connection=vk_connection, extract_hashtags=True)
+        else:
+            post, was_updated = update_wall_post(wall_post=post_info, vk_connection=vk_connection)
+
+    was_created = need_create and post is not None
+    return post, was_created, was_updated
+
+
+def it_is_post_url(url: str) -> bool:
+    pref = _post_link_prefix()
+    return url.startswith(pref)
+
+
+def get_post_id_from_url(url: str) -> str:
+    pref = _post_link_prefix()
+    post_id = url.replace(pref, '')
+    return post_id
+
+
+def _post_link_prefix() -> str:
+    vk_link = Post.VK_LINK
+    return f'{vk_link}wall'

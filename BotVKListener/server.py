@@ -16,6 +16,7 @@ from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, 
 from ChatBot.chat_bot import ChatBot
 from Parser import comments, likes, posts, subscriptions
 from Parser import private_messages, conversations, chats, _initial_downloading
+import random
 
 
 class Server:
@@ -97,12 +98,7 @@ class Server:
                     else:
                         if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
                             if self._user_is_admin(event.object.message.get('peer_id')):
-                                message_text = event.object.message.get('text', '')
-                                user = get_user_from_message(message_text)
-                                if user is not None:
-                                    send_user_info(user=user,
-                                                   vk_connection=self.vk_connection_group,
-                                                   peer_id=event.object.message.get('peer_id'))
+                                self._process_admin_chat_event(event)
                             else:
                                 message = private_messages.parse_private_message(event.object.message,
                                                                                  self.vk_connection_admin)
@@ -152,6 +148,32 @@ class Server:
                     self._send_alarm('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
                 # print(f'post {post} was_updated={was_updated}')
+
+    def _process_admin_chat_event(self, event):
+        message_text = event.object.message.get('text', '')
+        user = get_user_from_message(message_text)
+        if user is not None:
+            send_user_info(user=user,
+                           vk_connection=self.vk_connection_group,
+                           peer_id=event.object.message.get('peer_id'))
+        if posts.it_is_post_url(message_text):
+            post, created, updated = posts.parse_post_by_url(
+                url=message_text,
+                vk_connection=self.vk_connection_admin
+            )
+            if created:
+                self._process_new_post_event(new_post=post)
+                text_status = 'загружен'
+            elif updated:
+                self._send_alarm('updated_posts', post.id)
+                text_status = 'обновлен'
+            else:
+                text_status = 'не изменен'
+
+            self.vk_connection_group.messages.send(
+                peer_id=event.object.message.get('peer_id'),
+                message=f'Пост {post} {text_status}',
+                random_id=random.randint(10 ** 5, 10 ** 6))
 
     def _process_new_post_event(self, new_post):
         str_from_user = '' if new_post.user is None else f'от {new_post.user} '
