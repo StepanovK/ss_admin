@@ -172,7 +172,7 @@ class Server:
 
             self.vk_connection_group.messages.send(
                 peer_id=event.object.message.get('peer_id'),
-                message=f'Пост {post} {text_status}',
+                message=f'Пост {post} от {post.user} {text_status}',
                 random_id=random.randint(10 ** 5, 10 ** 6))
 
     def _process_new_post_event(self, new_post):
