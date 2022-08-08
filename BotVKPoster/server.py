@@ -374,13 +374,6 @@ class Server:
             return
 
         try:
-            published_post_info = PublishedPost.get(suggested_post_id=post_id)
-            if published_post_info.published_post_id is not None:
-                return  # Пост был опубликован, но информация о его публикации ещё не записалась
-        except PublishedPost.DoesNotExist:
-            pass
-
-        try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
                                            conversation_message_id=message_id,
                                            message=self._get_post_description(post),
