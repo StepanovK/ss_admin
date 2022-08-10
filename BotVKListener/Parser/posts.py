@@ -52,7 +52,11 @@ def update_wall_post(wall_post: dict, vk_connection=None):
         vk_attachments = wall_post.get('attachments', [])
         post_attachments = PostsAttachment.select().where((PostsAttachment.is_deleted == False)
                                                           & (PostsAttachment.post == post))
-        if len(vk_attachments) != len(post_attachments):
+        vk_attachments_without_links = []
+        for attachment in vk_attachments:
+            if attachment.get('type') != 'link':
+                vk_attachments_without_links.append(attachment)
+        if len(vk_attachments_without_links) != len(post_attachments):
             need_update = True
 
     if need_update:
