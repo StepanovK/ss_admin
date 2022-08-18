@@ -151,6 +151,18 @@ class Server:
 
     def _process_admin_chat_event(self, event):
         message_text = event.object.message.get('text', '')
+        if message_text.startswith('disable_keyboard'):
+            words = message_text.split()
+            if len(words) == 2:
+                peer_id = words[1]
+                try:
+                    self.vk_connection_group.messages.send(peer_id=int(peer_id),
+                                                           message='Клавиатура отключена',
+                                                           keyboard='{"one_time":true,"inline":false,"buttons":[]}',
+                                                           random_id=random.randint(10 ** 5, 10 ** 6))
+                except Exception as ex:
+                    logger.info(f'Failed disable keyboard in chat peer_id={peer_id}:\n{ex}')
+
         user = get_user_from_message(message_text)
         if user is not None:
             send_user_info(user=user,

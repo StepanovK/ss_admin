@@ -206,6 +206,9 @@ def send_user_info(user, vk_connection, peer_id: int):
 
 def get_user_from_message(message_text: str):
     user_str = message_text
+
+    user_str = user_str.replace('https://vk.com/', '')
+
     if user_str.startswith('id'):
         user_str = user_str.replace('id', '')
 
@@ -215,14 +218,12 @@ def get_user_from_message(message_text: str):
             return user
         except User.DoesNotExist:
             pass
-
-    if user_str.startswith('https://vk.com/'):
-        user_str = user_str.replace('https://vk.com/', '')
-    try:
-        user = User.get(domain=user_str)
-        return user
-    except User.DoesNotExist:
-        pass
+    else:
+        try:
+            user = User.get(domain=user_str)
+            return user
+        except User.DoesNotExist:
+            pass
 
     return None
 
