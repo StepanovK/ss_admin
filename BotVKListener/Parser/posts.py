@@ -83,9 +83,10 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
         post.text = post_attributes['text']
         post.date = post_attributes['date']
         post.marked_as_ads = post_attributes['marked_as_ads']
-        post.suggest_status = post_attributes['suggest_status']
-        post.posted_by = post_attributes['admin']
         post.geo = post_attributes['geo']
+        if post_created:
+            post.suggest_status = post_attributes['suggest_status']
+            post.posted_by = post_attributes['admin']
 
         if post_attributes['user_id']:
             user = users.get_or_create_user(post_attributes['user_id'], vk_connection)
