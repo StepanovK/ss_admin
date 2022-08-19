@@ -35,8 +35,6 @@
 
 </details>
 
-</details>
-
 <details><summary>Уведомления об опасных комментариях</summary>
 
 ![image](https://user-images.githubusercontent.com/13664126/185634328-13d4365a-f915-437d-8d2d-73e028893944.png)
