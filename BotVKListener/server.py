@@ -136,7 +136,7 @@ class Server:
         date_to_start = datetime.datetime.now() - datetime.timedelta(days=days_for_update)
         last_posts = Post.select().where((Post.date > date_to_start)
                                          & ((Post.suggest_status.is_null())
-                                            | (Post.suggest_status != PostStatus.REJECTED.value))
+                                            | (Post.suggest_status == PostStatus.SUGGESTED.value))
                                          ).order_by(Post.date.desc()).limit(count_of_posts)
         last_posts_list = queri_to_list(last_posts, 'id')
         if len(last_posts_list) > 0:

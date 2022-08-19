@@ -119,11 +119,12 @@ def parse_vk_photo_attachment(uploaded_file: UploadedFile, vk_photo_info: dict):
     uploaded_file.generate_file_name()
     sizes = vk_photo_info.get('sizes', [])
     if len(sizes) > 0:
-        max_size = sizes[-1]
-        uploaded_file.url = max_size.get('url', '')
-    if len(sizes) > 1:
-        min_size = sizes[0]
-        uploaded_file.preview_url = min_size.get('url', '')
+        size_elem_list = [elem.get('height', 0) * elem.get('width', 0) for elem in sizes]
+        max_size = max(size_elem_list)
+        min_size = min(size_elem_list)
+        uploaded_file.url = sizes[size_elem_list.index(max_size)].get('url', '')
+        if min_size != max_size:
+            uploaded_file.preview_url = sizes[size_elem_list.index(min_size)].get('url', '')
 
 
 def parse_vk_poll_attachment(uploaded_file: UploadedFile, vk_poll_info: dict):
