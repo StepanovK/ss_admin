@@ -35,6 +35,15 @@
 
 </details>
 
+</details>
+
+<details><summary>Уведомления об опасных комментариях</summary>
+
+![image](https://user-images.githubusercontent.com/13664126/185634328-13d4365a-f915-437d-8d2d-73e028893944.png)
+
+![image](https://user-images.githubusercontent.com/13664126/185634492-35070266-37a4-4d5d-88df-91455b0354a9.png)
+
+</details>
 
 ## Устройство бота
 
