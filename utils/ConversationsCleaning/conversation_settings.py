@@ -37,7 +37,7 @@ def default_conv_settings() -> dict:
 
 
 def _get_int_from_str(str_value: str) -> int:
-    if str_value == '' or not str_value.isdigit():
+    if not isinstance(str_value, str) or str_value == '' or not str_value.isdigit():
         int_value = 0
     else:
         try:
