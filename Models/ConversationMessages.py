@@ -24,7 +24,7 @@ class ConversationMessage(BaseModel):
         order_by = ['conversation, date']
 
     def get_url(self):
-        return self.generate_url(conversation=self.conversation, message_id=self.id)
+        return self.generate_url(conversation=self.conversation, message_id=self.message_id)
 
     @classmethod
     def generate_id(cls, owner_id, conversation_id, message_id):
