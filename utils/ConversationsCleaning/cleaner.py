@@ -1,5 +1,6 @@
 import datetime
-from config import logger, group_id
+
+from config import logger
 from conversation_settings import get_conversation_settings, default_conv_settings
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
@@ -8,6 +9,8 @@ from utils.connection_holder import ConnectionsHolder
 
 
 def start_cleaning():
+    logger.info('Conversation cleaning started')
+
     now_time = datetime.datetime.now()
 
     conversation_settings = get_conversation_settings()
@@ -17,8 +20,6 @@ def start_cleaning():
         settings = conversation_settings.get(conversation.conversation_id)
         if settings is None:
             settings = default_conv_settings()
-
-        print(conversation.days_for_cleaning)
 
         for conv_message in ConversationMessage.select().where(
                 (ConversationMessage.conversation == conversation)
@@ -41,19 +42,21 @@ def start_cleaning():
             date_for_cleaning = now_time - datetime.timedelta(days=days_for_cleaning)
 
             if conv_message.date <= date_for_cleaning:
-                print(conversation, conv_message.date, days_for_cleaning, conv_message.text.replace('\n', ' '))
+                remove_conversation_message(conversation, conv_message)
+
+    logger.info('Conversation cleaning finished')
 
 
 def remove_conversation_message(conversation: Conversation, conversation_message: ConversationMessage):
     vk_connection = ConnectionsHolder().vk_connection_admin
 
     try:
-        result = vk_connection.board.deleteComment(group_id=group_id, # group_id=-conversation.owner_id,
+        result = vk_connection.board.deleteComment(group_id=-conversation.owner_id,
                                                    topic_id=conversation.conversation_id,
                                                    comment_id=conversation_message.message_id)
     except Exception as ex:
         result = ex
-        logger.error(f'Failed to delete conversation message {conversation_message}:\n{ex}')
+        logger.error(f'Failed to delete conversation message {conversation_message}: {ex}')
 
     if result == 1:
         conversation_message.is_deleted = True
