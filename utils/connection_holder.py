@@ -70,9 +70,9 @@ class ConnectionsHolder(metaclass=Singleton):
 
     @property
     def vk_connection_admin(self):
-        if not self._vk_connection_admin and self._vk_api_admin:
+        if not self._vk_connection_admin and self.vk_api_admin:
             try:
-                self._vk_connection_admin = self._vk_api_admin.get_api()
+                self._vk_connection_admin = self.vk_api_admin.get_api()
                 config.logger.info("Init VK admin client")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK admin client: {ex}")
