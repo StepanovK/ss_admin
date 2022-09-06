@@ -61,9 +61,9 @@ def remove_conversation_message(conversation: Conversation, conversation_message
     if result == 1:
         conversation_message.is_deleted = True
         conversation_message.save()
-        print(f'Коммент от {conversation_message.date} удалён {conversation_message}')
+        logger.info(f'Conversation comment was deleted {conversation_message}')
     else:
-        print(f'При удалении коммента {conversation_message} возникла ошибка: {result}')
+        logger.warning(f'failed to delete {conversation_message}: {result}')
 
 
 if __name__ == '__main__':
