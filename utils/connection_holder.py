@@ -21,21 +21,24 @@ class ConnectionsHolder(metaclass=Singleton):
             ConnectionsHolder.instance._vk_connection_admin = None
 
         ConnectionsHolder.close_rabbit_connection()
-
-        config.logger.info("Connections closed")
+        if config.debug:
+            config.logger.info("Connections closed")
 
     @staticmethod
     def close_rabbit_connection():
         if ConnectionsHolder.instance._rabbit_connection:
             ConnectionsHolder.instance._rabbit_connection.close()
             ConnectionsHolder.instance._rabbit_connection = None
+            if config.debug:
+                config.logger.info("RabbitMQ connections closed")
 
     @property
     def vk_api_group(self):
         if not self._vk_api_group:
             try:
                 self._vk_api_group = vk_api.VkApi(token=config.group_token)
-                config.logger.info("Init VK api for group")
+                if config.debug:
+                    config.logger.info("Init VK api for group")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK api for group: {ex}")
         return self._vk_api_group
@@ -45,7 +48,8 @@ class ConnectionsHolder(metaclass=Singleton):
         if not self._vk_connection_group and self.vk_api_group:
             try:
                 self._vk_connection_group = self.vk_api_group.get_api()
-                config.logger.info("Init VK group client")
+                if config.debug:
+                    config.logger.info("Init VK group client")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK group client: {ex}")
         return self._vk_connection_group
@@ -55,7 +59,8 @@ class ConnectionsHolder(metaclass=Singleton):
         if not self._vk_api_admin:
             try:
                 self._vk_api_admin = vk_api.VkApi(token=config.admin_token)
-                config.logger.info("Init VK api for group")
+                if config.debug:
+                    config.logger.info("Init VK api for group")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK api for group by token: {ex}")
         if not self._vk_api_admin:
@@ -63,17 +68,19 @@ class ConnectionsHolder(metaclass=Singleton):
                 self._vk_api_admin = vk_api.VkApi(login=config.admin_phone,
                                                   password=config.admin_pass,
                                                   token=config.admin_token)
-                config.logger.info("Init VK api for group")
+                if config.debug:
+                    config.logger.info("Init VK api for group")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK api for group by pass: {ex}")
         return self._vk_api_admin
 
     @property
     def vk_connection_admin(self):
-        if not self._vk_connection_admin and self._vk_api_admin:
+        if not self._vk_connection_admin and self.vk_api_admin:
             try:
-                self._vk_connection_admin = self._vk_api_admin.get_api()
-                config.logger.info("Init VK admin client")
+                self._vk_connection_admin = self.vk_api_admin.get_api()
+                if config.debug:
+                    config.logger.info("Init VK admin client")
             except Exception as ex:
                 config.logger.error(f"Failed to init VK admin client: {ex}")
         return self._vk_connection_admin
@@ -88,7 +95,9 @@ class ConnectionsHolder(metaclass=Singleton):
                                                         credentials=credentials)
                 try:
                     self._rabbit_connection = pika.BlockingConnection(conn_params)
-                except pika.exceptions.AMQPConnectionError as er:
+                    if config.debug:
+                        config.logger.info("Init RabbitMQ connection")
+                except pika.exceptions.AMQPConnectionError:
                     config.logger.warning(
                         f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
             except Exception as ex:
