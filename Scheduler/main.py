@@ -4,7 +4,7 @@ from config import logger
 
 from utils.ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
 
-schedule.every(1).minute.do(conversation_cleaning)
+schedule.every(30).minutes.do(conversation_cleaning)
 
 while True:
     try:
