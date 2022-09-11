@@ -1,7 +1,7 @@
 import datetime
 
 from config import logger
-from utils.ConversationsCleaning.conversation_settings import get_conversation_settings, default_conv_settings
+from utils.Scripts.ConversationsCleaning.conversation_settings import get_conversation_settings, default_conv_settings
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
 from Models.Users import User

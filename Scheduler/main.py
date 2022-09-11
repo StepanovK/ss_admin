@@ -2,9 +2,11 @@ import schedule
 import time
 from config import logger
 
-from utils.ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
+from utils.Scripts.ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
+from utils.Scripts.ADS_Manager.ads_manager import check_ads_posts
 
 schedule.every(30).minutes.do(conversation_cleaning)
+schedule.every(10).minutes.do(check_ads_posts)
 
 while True:
     try:
