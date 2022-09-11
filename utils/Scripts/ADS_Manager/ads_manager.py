@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta, date
-from config import group_id, logger, spreadsheetId
+from config import group_id, logger, spreadsheetId, debug
 from utils.googleSheetsManager import GoogleSheetsManager
 from utils.connection_holder import ConnectionsHolder
 
@@ -85,7 +85,7 @@ class ADSPost:
                     offset += 100
         except Exception as err:
             logger.error(f"ApiError: {err}")
-        return False
+        return None
 
     def __repr__(self):
         return f"ADSPost({self.__dict__})"
@@ -111,7 +111,7 @@ class ADSManager:
             if isinstance(post.date_public, date):
                 if self.date_delta <= post.date_public:
                     current_post = post.find_wall_post()
-                    if current_post.get('is_deleted'):
+                    if current_post is None or current_post.get('is_deleted'):
                         continue
                     datetime_post = datetime.fromtimestamp(current_post.get('date'))
                     time_ = datetime_post.time()
@@ -132,5 +132,12 @@ class ADSManager:
                                 post.unpin_wall_post()
 
 
-if __name__ == "__main__":
+def check_ads_posts():
+    logger.info('ADS posts checking started')
     ADSManager().control_ads_posts()
+    logger.info('ADS posts checking finished')
+
+
+
+if __name__ == "__main__":
+    check_ads_posts()
