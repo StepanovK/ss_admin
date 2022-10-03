@@ -313,15 +313,30 @@ class Server:
                                               )
                     except Exception as ex:
                         logger.error(f'Failed to send chat message in chat_for_comments_check\n{ex}')
+            elif user_danger_degree >= 10:
+                try:
+                    self.vk.messages.send(peer_id=self.chat_for_comments_check,
+                                          message=self._get_danger_chat_message_description(chat_message,
+                                                                                            user_danger_degree),
+                                          random_id=random.randint(10 ** 5, 10 ** 6),
+                                          )
+                except Exception as ex:
+                    logger.warning(f'Failed send message peer_id={self.chat_for_comments_check}\n{ex}')
 
             else:
                 self._checked_users.append(user)
 
     @staticmethod
     def _get_danger_comment_description(comment, user_danger_degree):
-        return f'Комментарий от сомнительного пользователя {comment.user} (оценка опасности: {user_danger_degree})\n' \
+        return f'Комментарий от подозрительного пользователя {comment.user} (оценка опасности: {user_danger_degree})\n' \
                f'{comment.get_url()}\n' \
-               f'{comment.text}'
+               f'Текст: {comment.text}'
+
+    @staticmethod
+    def _get_danger_chat_message_description(chat_message, user_danger_degree):
+        return f'Сообщение в чате {chat_message.chat} от подозрительного пользователя {chat_message.user}' \
+               f' (оценка опасности: {user_danger_degree})\n' \
+               f'Текст: {chat_message.text}'
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
