@@ -49,19 +49,30 @@ def _get_degree_by_subscription(user: User):
 
 def _get_degree_by_comments(user: User):
     degree = 0
-    last_comments = Comment.select().where(Comment.user == user).order_by(Comment.date.desc()).limit(5)
-    if len(last_comments) == 0:
+    last_comments = Comment.select().where(Comment.user == user).order_by(Comment.date.desc()).limit(3)
+    last_chat_messages = ChatMessage.select().where(ChatMessage.user == user).order_by(ChatMessage.date.desc()).limit(3)
+    if len(last_comments) + len(last_chat_messages) == 0:
         degree += _degree_no_comments
-    elif len(last_comments) == 1:
+    elif len(last_comments) == 1 and len(last_chat_messages) == 0:
         comment = last_comments[0]
-        if _it_is_comment_with_link(comment):
+        if _it_is_text_with_link(comment.text):
             degree += _degree_one_comment_with_link
         else:
             degree += _degree_one_comment
-    elif len(last_comments) == 2:
+    elif len(last_chat_messages) == 1 and len(last_comments) == 0:
+        last_chat_message = last_chat_messages[0]
+        if _it_is_text_with_link(last_chat_message.text):
+            degree += _degree_one_comment_with_link
+        else:
+            degree += _degree_one_comment
+    elif len(last_comments) + len(last_chat_messages) <= 2:
         is_comment_with_link = False
         for comment in last_comments:
-            if _it_is_comment_with_link(comment):
+            if _it_is_text_with_link(comment.text):
+                is_comment_with_link = True
+                break
+        for message in last_chat_messages:
+            if _it_is_text_with_link(message.text):
                 is_comment_with_link = True
                 break
         if is_comment_with_link:
@@ -71,11 +82,10 @@ def _get_degree_by_comments(user: User):
     return degree
 
 
-def _it_is_comment_with_link(comment: Comment) -> bool:
+def _it_is_text_with_link(text_for_check: str):
     words_for_check = ['http', 'www', '.ru', '.com']
     for word in words_for_check:
-        if word in comment.text:
-            degree = _degree_one_comment_with_link
+        if word in text_for_check:
             return True
     return False
 

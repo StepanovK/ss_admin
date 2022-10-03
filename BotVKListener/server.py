@@ -108,6 +108,9 @@ class Server:
                             message = chats.parse_chat_message(vk_object=event.object.message,
                                                                vk_connection=self.vk_connection_admin,
                                                                owner_id=-event.group_id)
+                            if message:
+                                self._send_alarm(message_type='new_chat_message', message=message.id)
+
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
                         if event.from_user:
