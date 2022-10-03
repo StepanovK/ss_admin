@@ -1,5 +1,5 @@
 import config as config
-from config import logger
+from config import logger, debug
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
@@ -16,6 +16,7 @@ from Models.base import db as main_db
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.Users import User
 from Models.Comments import Comment
+from Models.ChatMessages import ChatMessage
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Admins import Admin
@@ -118,6 +119,7 @@ class Server:
         self._rabbit_get_updated_posts(channel)
         self._rabbit_get_new_posted_posts(channel)
         self._rabbit_get_new_comments(channel)
+        self._rabbit_get_new_chat_messages(channel)
         ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
@@ -232,7 +234,7 @@ class Server:
                     continue
                 self._check_comment_danger(comment)
 
-    def _check_comment_danger(self, comment):
+    def _check_comment_danger(self, comment: Comment):
         user = comment.user
         if user not in self._checked_users:
             user_danger_degree = user_chek.get_degree_of_user_danger(user)
@@ -251,6 +253,69 @@ class Server:
                                       peer_id=self.chat_for_comments_check)
 
             self._checked_users.append(user)
+
+    def _rabbit_get_new_chat_messages(self, channel):
+        queue_name = f'{self.queue_name_prefix}_new_chat_message'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                if config.debug:
+                    logger.info(f'new_chat_message {message_text}')
+                try:
+                    chat_message = ChatMessage.get(id=message_text)
+                except Exception as ex:
+                    logger.warning(f'chat_message id={message_text} is not found! {ex}')
+                    continue
+                self._check_chat_message_danger(chat_message)
+
+    def _check_chat_message_danger(self, chat_message: ChatMessage):
+        user = chat_message.user
+        if user not in self._checked_users:
+            user_danger_degree = user_chek.get_degree_of_user_danger(user)
+            if user_danger_degree >= 15:
+                chat = chat_message.chat
+                mark_as_spam = user_danger_degree > 15
+                message_is_deleted = False
+                try:
+                    result = self.vk_admin.messages.delete(
+                        peer_id=chat.chat_id,
+                        spam=1 if mark_as_spam and not debug else 0,
+                        group_id=self.group_id,
+                        delete_for_all=1,
+                        cmids=str(chat_message.message_id),
+                    )
+                    if isinstance(result, dict) and result.get(str(chat_message.message_id)) == 1:
+                        message_is_deleted = True
+                        logger.warning(f'Spam chat message in {chat} is deleted!\nText: {chat_message.text}')
+                except Exception as ex:
+                    logger.error(f'Failed delete chat message {chat_message}\n{ex}')
+
+                if message_is_deleted:
+                    try:
+                        spam_text = ' и отмечено как спам' if mark_as_spam else ''
+                        self.vk.messages.send(
+                            peer_id=chat.chat_id,
+                            message=f'Сообщения от пользователя {chat_message.user} удалено ботом{spam_text}!',
+                            random_id=random.randint(10 ** 5, 10 ** 6),
+                        )
+                    except Exception as ex:
+                        logger.error(f'Failed to send chat message in {chat}\n{ex}')
+                    try:
+                        self.vk.messages.send(peer_id=self.chat_for_comments_check,
+                                              message=f'Удалён спам от {user} в чате {chat}\n'
+                                                      f'Текст: {chat_message.text}',
+                                              random_id=random.randint(10 ** 5, 10 ** 6),
+                                              )
+                    except Exception as ex:
+                        logger.error(f'Failed to send chat message in chat_for_comments_check\n{ex}')
+
+            else:
+                self._checked_users.append(user)
 
     @staticmethod
     def _get_danger_comment_description(comment, user_danger_degree):
