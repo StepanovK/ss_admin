@@ -83,7 +83,7 @@ def _get_degree_by_comments(user: User):
 
 
 def _it_is_text_with_link(text_for_check: str):
-    words_for_check = ['http', 'www', '.ru', '.com']
+    words_for_check = ['http', 'www', '.ru', '.com', 't.me/']
     for word in words_for_check:
         if word in text_for_check:
             return True
