@@ -282,9 +282,10 @@ class Server:
                 mark_as_spam = user_danger_degree > 15
                 message_is_deleted = False
                 try:
+                    spam = 1 if mark_as_spam and not debug else 0,
                     result = self.vk_admin.messages.delete(
                         peer_id=chat.chat_id,
-                        spam=1 if mark_as_spam and not debug else 0,
+                        spam=spam,
                         group_id=self.group_id,
                         delete_for_all=1,
                         cmids=str(chat_message.message_id),
@@ -300,7 +301,7 @@ class Server:
                         spam_text = ' и отмечено как спам' if mark_as_spam else ''
                         self.vk.messages.send(
                             peer_id=chat.chat_id,
-                            message=f'Сообщения от пользователя {chat_message.user} удалено ботом{spam_text}!',
+                            message=f'Сообщение от пользователя {chat_message.user} удалено ботом{spam_text}!',
                             random_id=random.randint(10 ** 5, 10 ** 6),
                         )
                     except Exception as ex:
