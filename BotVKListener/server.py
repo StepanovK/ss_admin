@@ -5,6 +5,8 @@ from time import sleep
 import datetime
 import pika
 from Models.base import db
+from Models.Chats import Chat
+from Models.ChatMessages import ChatMessage
 from Models.Posts import Post, PostStatus
 from Models.PrivateMessages import PrivateMessage
 from Models.Admins import Admin
@@ -42,6 +44,8 @@ class Server:
 
         time_to_update_last_posts = 20
         last_published_posts_update = None
+        time_to_update_last_chat_messages = 20
+        last_chat_messages_update = None
 
         while True:
             for event in self._longpoll.check():
@@ -133,6 +137,15 @@ class Server:
                     logger.error(f'Failed to update last posts: {ex}')
                 last_published_posts_update = datetime.datetime.now()
 
+            now = datetime.datetime.now()
+            if not last_chat_messages_update \
+                    or (now - last_chat_messages_update).total_seconds() >= time_to_update_last_chat_messages:
+                try:
+                    self._update_last_chat_messages()
+                except Exception as ex:
+                    logger.error(f'Failed to update last chat messages: {ex}')
+                last_chat_messages_update = datetime.datetime.now()
+
     def _update_last_posts(self, count_of_posts: int = 60):
         days_for_update = 14
 
@@ -151,6 +164,24 @@ class Server:
                     self._send_alarm('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
                 # print(f'post {post} was_updated={was_updated}')
+
+    def _update_last_chat_messages(self):
+        for chat in Chat.select():
+            messages = ChatMessage.select().where(ChatMessage.chat == chat).order_by(ChatMessage.date.desc()).limit(50)
+            ids = [str(mes.message_id) for mes in messages]
+            if len(ids) == 0:
+                continue
+            messages_info = self.vk_connection_admin.messages.getByConversationMessageId(
+                peer_id=str(chat.chat_id),
+                conversation_message_ids=', '.join(ids),
+                group_id=str(config.group_id),
+            )
+            for mess_info in messages_info.get('items', []):
+                message, updated = chats.update_chat_message(vk_object=mess_info,
+                                                             vk_connection=self.vk_connection_admin,
+                                                             owner_id=-config.group_id)
+                if updated:
+                    self._send_alarm(message_type='updated_chat_message', message=message.id)
 
     def _process_admin_chat_event(self, event):
         message_text = event.object.message.get('text', '')
