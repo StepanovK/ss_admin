@@ -120,6 +120,7 @@ class Server:
         self._rabbit_get_new_posted_posts(channel)
         self._rabbit_get_new_comments(channel)
         self._rabbit_get_new_chat_messages(channel)
+        self._rabbit_get_updated_chat_messages(channel)
         ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
@@ -266,6 +267,25 @@ class Server:
                 message_text = message.decode()
                 if config.debug:
                     logger.info(f'new_chat_message {message_text}')
+                try:
+                    chat_message = ChatMessage.get(id=message_text)
+                except Exception as ex:
+                    logger.warning(f'chat_message id={message_text} is not found! {ex}')
+                    continue
+                self._check_chat_message_danger(chat_message)
+
+    def _rabbit_get_updated_chat_messages(self, channel):
+        queue_name = f'{self.queue_name_prefix}_updated_chat_message'
+        channel.queue_declare(queue=queue_name,
+                              durable=True)
+        while True:
+            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
+            if message is None:
+                break
+            else:
+                message_text = message.decode()
+                if config.debug:
+                    logger.info(f'updated_chat_message {message_text}')
                 try:
                     chat_message = ChatMessage.get(id=message_text)
                 except Exception as ex:
