@@ -4,6 +4,6 @@ vk_api
 pika
 pymorphy2
 
-rapidfuzz==2.0.11
+rapidfuzz
 oauth2client==4.1.3
 google-api-python-client==2.37.0
