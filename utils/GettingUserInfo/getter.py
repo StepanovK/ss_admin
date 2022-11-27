@@ -12,6 +12,8 @@ import datetime
 import random
 from . import keyboards, querys
 
+MAX_MESSAGE_SIZE = 4048
+
 
 def parse_event(event, vk_connection):
     user = None
@@ -82,16 +84,18 @@ def show_post_info(event, vk_connection, post, published=True):
     for attachment in attachments:
         attachments_list.append(f'{attachment.attachment}_{attachment.attachment.access_key}')
 
+    post_description = _get_post_description(post)
+
     result = vk_connection.messages.edit(peer_id=event.object.peer_id,
                                          conversation_message_id=event.object.conversation_message_id,
-                                         message=get_post_description(post),
+                                         message=post_description,
                                          attachments=attachments_list,
                                          keyboard=keyboards.post_menu(user=post.user,
                                                                       current_post_id=post.id,
                                                                       published=published))
 
 
-def get_post_description(post: Post):
+def _get_post_description(post: Post):
     post_repr = f'{post} от {post.date:%Y.%m.%d %H:%M}'
 
     represent = f'{post_repr}\n' \
@@ -107,6 +111,13 @@ def get_post_description(post: Post):
     if post.comments:
         represent += f'\nКомментариев: {len(post.comments)}'
 
+    if len(represent) > MAX_MESSAGE_SIZE:
+        represent_without_text = represent.replace(post.text, '')
+        represent = represent.replace(
+            post.text,
+            post.text[:(MAX_MESSAGE_SIZE - len(represent_without_text) - 3)] + '...'
+        )
+
     return represent
 
 
@@ -119,7 +130,10 @@ def show_comments(event, vk_connection, user, page):
 
 
 def get_comments_from_page(user: User, page=0):
-    comments_pages = querys.comments_by_pages(user)
+    comments_per_page = 6
+    splitter = '\n\n'
+    max_comment_size = int(MAX_MESSAGE_SIZE / comments_per_page - len(splitter))
+    comments_pages = querys.comments_by_pages(user, comments_per_page)
     if len(comments_pages) == 0:
         return f'Не найдены комментарии пользователя {user}'
 
@@ -131,9 +145,15 @@ def get_comments_from_page(user: User, page=0):
                 f'{comment.get_url()}\n' \
                 f'{comment.text}\n' \
                 f'Вложений:{len(comment.attachments)}; Лайков: {len(comment.likes)}'
+        if len(descr) >= max_comment_size:
+            descr_without_text = descr.replace(comment.text, '')
+            descr = descr.replace(
+                comment.text,
+                comment.text[:(max_comment_size - len(descr_without_text) - 3)] + '...'
+            )
         comments_descriptions.append(descr)
 
-    return '\n\n'.join(comments_descriptions)
+    return splitter.join(comments_descriptions)
 
 
 def show_conv_messages(event, vk_connection, user, page):
@@ -145,7 +165,10 @@ def show_conv_messages(event, vk_connection, user, page):
 
 
 def get_conv_messages_from_page(user: User, page=0):
-    conv_messages = querys.conv_messages_by_pages(user)
+    messages_per_page = 6
+    splitter = '\n\n'
+    max_conv_message_size = int(MAX_MESSAGE_SIZE / messages_per_page - len(splitter))
+    conv_messages = querys.conv_messages_by_pages(user, count=messages_per_page)
     if len(conv_messages) == 0:
         return f'Не найдены сообщения в обсуждениях пользователя {user}'
 
@@ -153,17 +176,28 @@ def get_conv_messages_from_page(user: User, page=0):
 
     conv_messages_descriptions = []
     for message in conv_messages[page_number]:
-        conversation = message.conversation
-        conversation_text = '' if conversation is None else f'{conversation.title} {conversation.get_url()}\n'
-        del_text = '[DELETED] ' if message.is_deleted else ''
-        descr = f'Сообщение от {message.date:%Y.%m.%d}\n' \
-                f'{conversation_text}' \
-                f'{del_text}{message.get_url()}\n' \
-                f'{message.text}\n' \
-                f'Вложений:{len(message.attachments)}'
+        descr = _chat_message_description(message)
+        if len(descr) >= max_conv_message_size:
+            descr_without_text = descr.replace(message.text, '')
+            descr = descr.replace(
+                message.text,
+                message.text[:(max_conv_message_size - len(descr_without_text) - 3)] + '...'
+            )
         conv_messages_descriptions.append(descr)
 
-    return '\n\n'.join(conv_messages_descriptions)
+    return splitter.join(conv_messages_descriptions)
+
+
+def _chat_message_description(message):
+    conversation = message.conversation
+    conversation_text = '' if conversation is None else f'{conversation.title} {conversation.get_url()}\n'
+    del_text = '[DELETED] ' if message.is_deleted else ''
+    descr = f'Сообщение от {message.date:%Y.%m.%d}\n' \
+            f'{conversation_text}' \
+            f'{del_text}{message.get_url()}\n' \
+            f'{message.text}\n' \
+            f'Вложений:{len(message.attachments)}'
+    return descr
 
 
 def show_chat_messages(event, vk_connection, user, page):
@@ -175,7 +209,10 @@ def show_chat_messages(event, vk_connection, user, page):
 
 
 def get_chat_messages_from_page(user: User, page=0):
-    chat_messages = querys.chat_messages_by_pages(user)
+    messages_per_page = 6
+    splitter = '\n\n'
+    max_chat_message_size = int(MAX_MESSAGE_SIZE / messages_per_page - len(splitter))
+    chat_messages = querys.chat_messages_by_pages(user, messages_per_page)
     if len(chat_messages) == 0:
         return f'Не найдены сообщения в чатах пользователя {user}'
 
@@ -188,9 +225,15 @@ def get_chat_messages_from_page(user: User, page=0):
                 f'в чате {chat_text}' \
                 f'{message.text}\n' \
                 f'Вложений:{len(message.attachments)}'
+        if len(descr) >= max_chat_message_size:
+            descr_without_text = descr.replace(message.text, '')
+            descr = descr.replace(
+                message.text,
+                message.text[:(max_chat_message_size - len(descr_without_text) - 3)] + '...'
+            )
         chat_messages_descriptions.append(descr)
 
-    return '\n\n'.join(chat_messages_descriptions)
+    return splitter.join(chat_messages_descriptions)
 
 
 def send_user_info(user, vk_connection, peer_id: int):
