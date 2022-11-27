@@ -22,7 +22,7 @@ def users_comments(user: User):
 
 def comments_by_pages(user: User, count=6):
     comments = users_comments(user)
-    pages = sort_items_by_pages(items=comments)
+    pages = sort_items_by_pages(items=comments, count_per_page=count)
     return pages
 
 
@@ -32,7 +32,7 @@ def users_conv_messages(user: User):
 
 def conv_messages_by_pages(user: User, count=6):
     messages = users_conv_messages(user=user)
-    pages = sort_items_by_pages(items=messages)
+    pages = sort_items_by_pages(items=messages, count_per_page=count)
     return pages
 
 
@@ -42,7 +42,7 @@ def users_chat_messages(user: User):
 
 def chat_messages_by_pages(user: User, count=6):
     messages = users_chat_messages(user=user)
-    pages = sort_items_by_pages(items=messages)
+    pages = sort_items_by_pages(items=messages, count_per_page=count)
     return pages
 
 
