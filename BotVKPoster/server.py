@@ -27,6 +27,8 @@ from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
 
+MAX_MESSAGE_SIZE = 4048
+
 
 class Server:
     vk_link = 'https://vk.com/'
@@ -610,6 +612,13 @@ class Server:
             hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
             if len(hashtags) > 0:
                 represent = represent + '\n'.join(hashtags)
+
+        if len(represent) > MAX_MESSAGE_SIZE:
+            represent_without_text = represent.replace(post.text, '')
+            represent = represent.replace(
+                post.text,
+                post.text[:(MAX_MESSAGE_SIZE - len(represent_without_text) - 3)] + '...'
+            )
 
         return represent
 
