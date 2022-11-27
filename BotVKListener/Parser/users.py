@@ -58,14 +58,13 @@ def vk_get_user_info(user_id: int, vk_connection, loaded_info: dict = None):
     return user_info
 
 
-def update_user_info_from_vk(user: User, vk_id: int, vk_connection, loaded_info: dict = None ):
+def update_user_info_from_vk(user: User, vk_id: int, vk_connection, loaded_info: dict = None):
     user_info = vk_get_user_info(vk_id, vk_connection, loaded_info)
     if user_info.get('user_info_was_found', False):
-        user.first_name = user_info.get('first_name')
-        user.last_name = user_info.get('last_name')
-        user.city = user_info.get('city', '')
+        user.first_name = user_info.get('first_name', '')[:100]
+        user.last_name = user_info.get('last_name', '')[:100]
+        user.city = user_info.get('city', '')[:100]
         user.birth_date = user_info.get('birth_date')
         user.sex = user_info.get('sex', '')
         user.is_active = user_info.get('deactivated') is None
-        user.domain = user_info.get('domain', '')
-
+        user.domain = user_info.get('domain', '')[:100]
