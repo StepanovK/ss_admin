@@ -99,7 +99,8 @@ def get_main_attachment_attributes(vk_attachment_info: dict):
 def parse_vk_audio_attachment(uploaded_file: UploadedFile, vk_audio_info: dict):
     title = vk_audio_info.get('title', '')
     artist = vk_audio_info.get('artist', '')
-    uploaded_file.file_name = f'{artist} - {title}' if artist != '' else title
+    file_name = f'{artist} - {title}' if artist != '' else title
+    uploaded_file.file_name = file_name[:255]
     uploaded_file.url = vk_audio_info.get('track_code', '')
 
 
@@ -140,7 +141,7 @@ def parse_vk_poll_attachment(uploaded_file: UploadedFile, vk_poll_info: dict):
 def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
     uploaded_file.description = vk_video_info.get('description', '')
     uploaded_file.platform = vk_video_info.get('platform')
-    uploaded_file.file_name = vk_video_info.get('title', '')
+    uploaded_file.file_name = vk_video_info.get('title', '')[:255]
     uploaded_file.url = vk_video_info.get('track_code', '')
     if uploaded_file.file_name == '':
         uploaded_file.generate_file_name()
