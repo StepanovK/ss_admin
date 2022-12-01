@@ -372,6 +372,8 @@ class Server:
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'edit_hashtags':
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'show_conversation_menu':
+            self._show_conversation_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
         elif payload['command'] == 'add_hashtag':
             self._add_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -498,6 +500,23 @@ class Server:
                                            conversation_message_id=message_id,
                                            message=text_message,
                                            keyboard=keyboards.hashtag_menu(post, page),
+                                           )
+        except Exception as ex:
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
+
+    def _show_conversation_menu(self, post_id, message_id: int = None, page: int = 1):
+        post = self._get_post_by_id(post_id=post_id)
+        message_id = self._get_posts_message_id(post_id, message_id)
+        if not post or not message_id:
+            return
+
+        text_message = self._get_post_description(post=post, with_hashtags=False)
+        text_message += '\nВыберите обсуждение:'
+        try:
+            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+                                           conversation_message_id=message_id,
+                                           message=text_message,
+                                           keyboard=keyboards.conversation_menu(post, page),
                                            )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
