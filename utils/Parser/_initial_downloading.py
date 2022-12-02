@@ -14,7 +14,6 @@ from config import logger
 from Models.Users import User
 from Models.Posts import Post
 from Models.Conversations import Conversation
-from Models.ConversationMessages import ConversationMessage
 from Models.base import db
 from typing import Union
 

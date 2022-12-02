@@ -1,5 +1,4 @@
 from Models.PrivateMessages import PrivateMessage
-from Models.Users import User
 from Models.Admins import Admin
 from . import users
 from . import attachments
