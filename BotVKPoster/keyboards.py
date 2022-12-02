@@ -10,6 +10,9 @@ import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
 from peewee import fn, JOIN
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
+from utils.text_cutter import cut
+
+MAX_BUTTON_LENGTH = 40
 
 
 def main_menu_keyboard(post: Post):
@@ -81,7 +84,7 @@ def hashtag_menu(post: Post, page: int = 1):
         else:
             command = 'add_hashtag'
             color = VkKeyboardColor.SECONDARY
-        keyboard.add_callback_button(label=ht,
+        keyboard.add_callback_button(label=cut(ht, MAX_BUTTON_LENGTH),
                                      color=color,
                                      payload={"command": command, "post_id": post.id, 'hashtag': ht, 'page': page})
 
@@ -158,12 +161,12 @@ def conversation_menu(post: Post, page: int = 1):
         if message_url != '':
             keyboard.add_openlink_button(
                 link=message_url,
-                label=str(conversation)[:50],
+                label=cut(str(conversation), MAX_BUTTON_LENGTH),
             )
 
         else:
             keyboard.add_callback_button(
-                label=str(conversation)[:50],
+                label=cut(str(conversation), MAX_BUTTON_LENGTH),
                 color=VkKeyboardColor.SECONDARY,
                 payload={
                     "command": 'repost_to_conversation',
