@@ -2,10 +2,8 @@ import datetime
 
 from Models.ChatMessages import ChatMessage
 from Models.Chats import Chat
-from Models.Users import User
 from . import users
 from . import attachments
-from config import logger
 
 
 def parse_chat_message(vk_object: dict, vk_connection=None, chat=None, owner_id=0) -> ChatMessage:

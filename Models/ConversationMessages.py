@@ -2,6 +2,7 @@ from peewee import *
 from Models.base import BaseModel
 from Models.Users import User
 from Models.Conversations import Conversation
+from Models.Posts import Post
 
 
 class ConversationMessage(BaseModel):
@@ -14,6 +15,7 @@ class ConversationMessage(BaseModel):
     from_group = BooleanField(default=False)
     is_edited = BooleanField(default=False)
     is_deleted = BooleanField(default=False)
+    from_post = ForeignKeyField(Post, null=True)
 
     def __str__(self):
         url = self.get_url()
