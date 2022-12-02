@@ -1,0 +1,4 @@
+Pillow
+youtube_dl
+moviepy
+TG-AutoPoster

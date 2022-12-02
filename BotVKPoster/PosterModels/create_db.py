@@ -3,6 +3,7 @@ from .base import db
 from .MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from .PublishedPosts import PublishedPost
 from .SortedHashtags import SortedHashtag
+from .RepostedToConversationsPosts import RepostedToConversationPost
 
 
 def create_all_tables():
@@ -10,6 +11,7 @@ def create_all_tables():
         MessageOfSuggestedPost,
         PublishedPost,
         SortedHashtag,
+        RepostedToConversationPost,
     ]
 
     with db:

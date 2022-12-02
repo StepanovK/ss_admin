@@ -8,6 +8,7 @@ from utils.Scripts.ADS_Manager.ads_manager import check_ads_posts
 schedule.every(30).minutes.do(conversation_cleaning)
 schedule.every(10).minutes.do(check_ads_posts)
 
+logger.error(f'Starting...')
 while True:
     try:
         schedule.run_pending()

@@ -2,7 +2,6 @@ import datetime
 
 from Models.ConversationMessages import ConversationMessage
 from Models.Conversations import Conversation
-from Models.Users import User
 from . import users
 from . import attachments
 from config import logger

@@ -58,7 +58,7 @@ def remove_conversation_message(conversation: Conversation, conversation_message
         result = ex
         logger.error(f'Failed to delete conversation message {conversation_message}: {ex}')
 
-    if result == 1:
+    if result == 1 or '[15] Access denied' in str(result):
         conversation_message.is_deleted = True
         conversation_message.save()
         logger.info(f'Conversation comment was deleted {conversation_message}')

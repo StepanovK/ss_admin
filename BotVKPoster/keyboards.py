@@ -1,11 +1,15 @@
 import functools
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
+from Models.Conversations import Conversation
+from Models.ConversationMessages import ConversationMessage
 from PosterModels.SortedHashtags import SortedHashtag
 import config as config
 from utils.db_helper import queri_to_list
 import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
+from peewee import fn, JOIN
+from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 
 
 def main_menu_keyboard(post: Post):
@@ -34,6 +38,11 @@ def main_menu_keyboard(post: Post):
     keyboard.add_callback_button(label='&#128214; Информация о пользователе',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
+
+    keyboard.add_line()
+    keyboard.add_callback_button(label='&#128172; Переслать в обсуждение',
+                                 color=VkKeyboardColor.SECONDARY,
+                                 payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
 
     if can_edit:
         keyboard.add_line()
@@ -83,7 +92,7 @@ def hashtag_menu(post: Post, page: int = 1):
         keyboard.add_line()
 
     if page > 1:
-        keyboard.add_callback_button(label=f'<< Назад ({page-1})',
+        keyboard.add_callback_button(label=f'<< Назад ({page - 1})',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': page - 1})
 
@@ -101,6 +110,82 @@ def user_info_menu(post: Post, page: int = 1):
     keyboard.add_callback_button(label='<< Назад',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_main_menu", "post_id": post.id})
+
+    return keyboard.get_keyboard()
+
+
+def conversation_menu(post: Post, page: int = 1):
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    keyboard.add_callback_button(label='<< Вернуться в главное меню',
+                                 color=VkKeyboardColor.SECONDARY,
+                                 payload={"command": "show_main_menu", "post_id": post.id})
+
+    conversations_of_post = Conversation.select(Conversation.id).join(
+        ConversationMessage).where(
+        (ConversationMessage.from_post == post) &
+        (ConversationMessage.is_deleted == False)).distinct().execute()
+    processed_conversations_of_post_tmp = queri_to_list(conversations_of_post, 'id')
+
+    reposted_posts = RepostedToConversationPost.select(RepostedToConversationPost.conversation_id).where(
+        RepostedToConversationPost.post_id == post.id
+    ).distinct().execute()
+    conversations_of_post_tmp = queri_to_list(reposted_posts, 'conversation_id')
+
+    pages = _conversations_by_pages(post)
+    page = min(max(pages.keys()), page)
+    current_page = pages[page]
+
+    for conversation in current_page:
+        keyboard.add_line()
+        message_url = ''
+        if conversation.id in processed_conversations_of_post_tmp:
+            messages = ConversationMessage.select().where(
+                ConversationMessage.from_post == post
+            ).order_by(ConversationMessage.date.desc()).limit(1).execute()
+            if len(messages) > 0:
+                message_url = messages[0].get_url()
+        elif conversation.id in conversations_of_post_tmp:
+            messages = RepostedToConversationPost.select().where(
+                (RepostedToConversationPost.post_id == post.id) &
+                (RepostedToConversationPost.conversation_id == conversation.id)
+            ).order_by(RepostedToConversationPost.id.desc()).limit(1).execute()
+            if len(messages) > 0:
+                message_url = ConversationMessage.generate_url(
+                    conversation=conversation,
+                    message_id=messages[0].conversation_message_id.replace(f'{conversation.id}_', ''))
+
+        if message_url != '':
+            keyboard.add_openlink_button(
+                link=message_url,
+                label=str(conversation)[:50],
+            )
+
+        else:
+            keyboard.add_callback_button(
+                label=str(conversation)[:50],
+                color=VkKeyboardColor.SECONDARY,
+                payload={
+                    "command": 'repost_to_conversation',
+                    "post_id": post.id,
+                    'conversation_id': conversation.id,
+                    'page': page})
+
+    next_page_exists = len(pages) > page
+    if page > 1 or next_page_exists:
+        keyboard.add_line()
+
+    if page > 1:
+        keyboard.add_callback_button(
+            label=f'<< Назад ({page - 1})',
+            color=VkKeyboardColor.SECONDARY,
+            payload={"command": "show_conversation_menu", "post_id": post.id, 'page': page - 1})
+
+    if next_page_exists:
+        keyboard.add_callback_button(
+            label=f'Далее ({len(pages) - page}) >>',
+            color=VkKeyboardColor.SECONDARY,
+            payload={"command": "show_conversation_menu", "post_id": post.id, 'page': page + 1})
 
     return keyboard.get_keyboard()
 
@@ -125,3 +210,37 @@ def _hashtags_by_pages(post: Post) -> dict[int, list]:
         current_count += 1
 
     return pages
+
+
+@functools.lru_cache()
+def _conversations_by_pages(post: Post):
+    count_messages = ConversationMessage.select(
+        ConversationMessage.conversation,
+        fn.Count(ConversationMessage.id).alias('count_messages')
+    ).where(
+        (ConversationMessage.is_deleted == False)
+    ).join(Post).group_by(ConversationMessage.conversation)
+
+    conversations_query = Conversation.select(
+        Conversation, count_messages.c.count_messages
+    ).join(count_messages,
+           JOIN.LEFT_OUTER,
+           on=(count_messages.c.conversation_id == Conversation.id)
+           ).order_by(count_messages.c.count_messages.desc(nulls='last'))
+
+    pages = collections.defaultdict(list)
+
+    for i in range(1, 100):
+        res = conversations_query.paginate(i, paginate_by=4).execute()
+        if len(res) == 0:
+            break
+        page = []
+        for conv in res:
+            page.append(conv)
+        pages[i] = page
+
+    return pages
+
+
+if __name__ == '__main__':
+    _conversations_by_pages(None)

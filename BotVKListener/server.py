@@ -16,8 +16,8 @@ from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from ChatBot.chat_bot import ChatBot
-from Parser import comments, likes, posts, subscriptions
-from Parser import private_messages, conversations, chats, _initial_downloading
+from utils.Parser import _initial_downloading, subscriptions, private_messages
+from utils.Parser import chats, conversations, comments, likes, posts
 import random
 
 
@@ -71,7 +71,9 @@ class Server:
                 elif event.type == VkBotEventType.GROUP_LEAVE:
                     subscriptions.parse_subscription(event, self.vk_connection_admin, False)
                 elif event.type == VkBotEventType.BOARD_POST_NEW:
-                    conversations.parse_conversation_message(event.object, self.vk_connection_admin)
+                    conv_mes = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
+                    if conv_mes is not None:
+                        self._send_alarm('new_conversation_message', str(conv_mes.id))
                 elif event.type == VkBotEventType.BOARD_POST_EDIT:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
                 elif event.type == VkBotEventType.BOARD_POST_DELETE:
