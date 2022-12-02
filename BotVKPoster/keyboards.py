@@ -9,6 +9,7 @@ from utils.db_helper import queri_to_list
 import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
 from peewee import fn, JOIN
+from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 
 
 def main_menu_keyboard(post: Post):
@@ -39,7 +40,7 @@ def main_menu_keyboard(post: Post):
                                  payload={"command": "show_user_info", "post_id": post.id})
 
     keyboard.add_line()
-    keyboard.add_callback_button(label='Переслать в обсуждение',
+    keyboard.add_callback_button(label='&#128172; Переслать в обсуждение',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
 
@@ -120,10 +121,16 @@ def conversation_menu(post: Post, page: int = 1):
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_main_menu", "post_id": post.id})
 
-    conversations_of_post = Conversation.select().join(
+    conversations_of_post = Conversation.select(Conversation.id).join(
         ConversationMessage).where(
         (ConversationMessage.from_post == post) &
         (ConversationMessage.is_deleted == False)).distinct().execute()
+    processed_conversations_of_post_tmp = queri_to_list(conversations_of_post, 'id')
+
+    reposted_posts = RepostedToConversationPost.select(RepostedToConversationPost.conversation_id).where(
+        RepostedToConversationPost.post_id == post.id
+    ).distinct().execute()
+    conversations_of_post_tmp = queri_to_list(reposted_posts, 'conversation_id')
 
     pages = _conversations_by_pages(post)
     page = min(max(pages.keys()), page)
@@ -131,18 +138,38 @@ def conversation_menu(post: Post, page: int = 1):
 
     for conversation in current_page:
         keyboard.add_line()
-        if conversation in conversations_of_post.row_cache:
-            color = VkKeyboardColor.PRIMARY
+        message_url = ''
+        if conversation.id in processed_conversations_of_post_tmp:
+            messages = ConversationMessage.select().where(
+                ConversationMessage.from_post == post
+            ).order_by(ConversationMessage.date.desc()).limit(1).execute()
+            if len(messages) > 0:
+                message_url = messages[0].get_url()
+        elif conversation.id in conversations_of_post_tmp:
+            messages = RepostedToConversationPost.select().where(
+                (RepostedToConversationPost.post_id == post.id) &
+                (RepostedToConversationPost.conversation_id == conversation.id)
+            ).order_by(RepostedToConversationPost.id.desc()).limit(1).execute()
+            if len(messages) > 0:
+                message_url = ConversationMessage.generate_url(
+                    conversation=conversation,
+                    message_id=messages[0].conversation_message_id.replace(f'{conversation.id}_', ''))
+
+        if message_url != '':
+            keyboard.add_openlink_button(
+                link=message_url,
+                label=str(conversation)[:50],
+            )
+
         else:
-            color = VkKeyboardColor.SECONDARY
-        keyboard.add_callback_button(
-            label=str(conversation)[:50],
-            color=color,
-            payload={
-                "command": 'post_to_conversation',
-                "post_id": post.id,
-                'conversation': conversation.id,
-                'page': page})
+            keyboard.add_callback_button(
+                label=str(conversation)[:50],
+                color=VkKeyboardColor.SECONDARY,
+                payload={
+                    "command": 'repost_to_conversation',
+                    "post_id": post.id,
+                    'conversation_id': conversation.id,
+                    'page': page})
 
     next_page_exists = len(pages) > page
     if page > 1 or next_page_exists:
