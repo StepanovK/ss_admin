@@ -195,28 +195,16 @@ def conversation_menu(post: Post, page: int = 1):
 
 @functools.lru_cache()
 def _hashtags_by_pages(post: Post) -> dict[int, list]:
-    count_per_page = 4
     sorted_hashtags = queri_to_list(SortedHashtag.select().where(SortedHashtag.post_id == post.id), column='hashtag')
     for ht in get_hashtags():
         if ht not in sorted_hashtags:
             sorted_hashtags.append(ht)
 
-    pages = collections.defaultdict(list)
-
-    current_page = 1
-    current_count = 0
-    for ht in sorted_hashtags:
-        if current_count >= count_per_page:
-            current_count = 0
-            current_page += 1
-        pages[current_page].append(ht)
-        current_count += 1
-
-    return pages
+    return _paginate(sorted_hashtags)
 
 
 @functools.lru_cache()
-def _conversations_by_pages(post: Post):
+def _conversations_by_pages(post: Post) -> dict[int, list]:
     count_messages = ConversationMessage.select(
         ConversationMessage.conversation,
         fn.Count(ConversationMessage.id).alias('count_messages')
@@ -231,16 +219,24 @@ def _conversations_by_pages(post: Post):
            on=(count_messages.c.conversation_id == Conversation.id)
            ).order_by(count_messages.c.count_messages.desc(nulls='last'))
 
+    conversations = []
+    for conv in conversations_query.execute():
+        conversations.append(conv)
+
+    return _paginate(conversations)
+
+
+def _paginate(objects: list, paginate_by: int = 4) -> dict[int, list]:
     pages = collections.defaultdict(list)
 
-    for i in range(1, 100):
-        res = conversations_query.paginate(i, paginate_by=4).execute()
-        if len(res) == 0:
-            break
-        page = []
-        for conv in res:
-            page.append(conv)
-        pages[i] = page
+    current_page = 1
+    current_count = 0
+    for ht in objects:
+        if current_count >= paginate_by:
+            current_count = 0
+            current_page += 1
+        pages[current_page].append(ht)
+        current_count += 1
 
     return pages
 
