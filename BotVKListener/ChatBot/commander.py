@@ -5,6 +5,7 @@ import config
 from .command_enum import Command
 from utils.connection_holder import ConnectionsHolder
 from .mode_enum import Mode
+from functools import lru_cache
 
 
 class Commander:
@@ -135,21 +136,37 @@ class Commander:
                                    '\nДля срочной публикации воспользуйтесь функцией "Позвать администратора"'
 
         if self.now_mode == Mode.advertising:
+
+            rules = self.get_ads_rules()
+
             if msg in Command.advertisingRules.value:
-
-                try:
-                    return self._vk.board.getComments(group_id=494898,
-                                                      topic_id=30606622,
-                                                      count=1)["items"][0]["text"].split('$$$')[1]
-                except Exception as ex:
-                    config.logger.error(f'Can`t get advertising post: {ex}')
-
-            if msg in Command.advertisingPrice.value:
-                try:
-                    return self._vk.board.getComments(group_id=494898,
-                                                      topic_id=30606622,
-                                                      count=1)["items"][0]["text"].split('$$$')[2]
-                except Exception as ex:
-                    config.logger.error(f'Can`t get advertising post: {ex}')
+                return rules.get('terms')
+            elif msg in Command.advertisingPrice.value:
+                return rules.get('price')
+            elif msg in Command.advertisingProcedure.value:
+                return rules.get('procedure')
 
         return None
+
+    @lru_cache()
+    def get_ads_rules(self) -> dict:
+        rules = {}
+
+        try:
+            rules_text = self._vk_admin.board.getComments(group_id=config.group_id,
+                                                          topic_id=config.advertising_conversation_id,
+                                                          count=1)["items"][0]["text"]
+        except Exception as ex:
+            config.logger.error(f'Can`t get advertising post: {ex}')
+            return rules
+
+        blocs = rules_text.split('\n\n')
+        for block in blocs:
+            if block.lower().startswith('условия'):
+                rules['terms'] = block
+            elif block.lower().startswith('стоимость'):
+                rules['price'] = block
+            elif block.lower().startswith('порядок'):
+                rules['procedure'] = block
+
+        return rules

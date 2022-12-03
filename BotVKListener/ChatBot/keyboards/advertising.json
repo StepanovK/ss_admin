@@ -1,26 +1,41 @@
 {
   "one_time": false,
   "buttons": [
-    [{
-      "action": {
-        "type": "text",
-        "label": "Правила рекламы"
-      },
-      "color": "positive"
-    },
+    [
+      {
+        "action": {
+          "type": "text",
+          "label": "Правила рекламы"
+        },
+        "color": "default"
+      }
+    ],
+    [
       {
         "action": {
           "type": "text",
           "label": "Стоимость рекламы"
         },
-        "color": "positive"
-      }],
-    [{
-      "action": {
-        "type": "text",
-        "label": "<< Назад"
-      },
-      "color": "negative"
-    }]
+        "color": "default"
+      }
+    ],
+    [
+      {
+        "action": {
+          "type": "text",
+          "label": "Порядок размещения рекламы"
+        },
+        "color": "default"
+      }
+    ],
+    [
+      {
+        "action": {
+          "type": "text",
+          "label": "<< Назад"
+        },
+        "color": "negative"
+      }
+    ]
   ]
 }
