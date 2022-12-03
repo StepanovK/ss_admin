@@ -18,6 +18,7 @@ chat_for_suggest = env.int("chat_for_suggest")
 chat_for_alarm = env.int("chat_for_alarm")  # Уведомления из ЛК СС
 chat_for_comments_check = env.int("chat_for_comments_check")  # Уведомления о подозрительных комментах
 chat_bot_keyboard_path = 'BotVKListener/ChatBot/keyboards/'
+advertising_conversation_id = env.int("advertising_conversation_id")
 
 db_host = 'postgres_ru'
 db_port = 5432
