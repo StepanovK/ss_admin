@@ -20,6 +20,9 @@ class Command(Enum):
     """ advertisingPrice """
     advertisingPrice = ["advertising price", "Стоимость рекламы"]
 
+    """ advertisingProcedure """
+    advertisingProcedure = ["advertising procedure", "Порядок размещения рекламы"]
+
     """ offerNews """
     offerNews = ["offer news", "Предложить новость"]
 
