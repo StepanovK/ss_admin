@@ -419,6 +419,8 @@ class Server:
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
         elif payload['command'] == 'show_user_info':
             self._show_user_info(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'show_ban_menu':
+            self._show_ban_menu(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'repost_to_conversation':
             self._repost_to_conversation(post_id=payload['post_id'], conversation_id=payload['conversation_id'])
             self._show_conversation_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -593,6 +595,20 @@ class Server:
                                            conversation_message_id=message_id,
                                            message=mes_text,
                                            keyboard=keyboards.user_info_menu(post))
+        except Exception as ex:
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
+
+    def _show_ban_menu(self, post_id, message_id: int):
+        post = self._get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        mes_text = f'Выберите причину блокировки пользователя {post.user}, предложившего пост {post}'
+
+        try:
+            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
+                                           conversation_message_id=message_id,
+                                           message=mes_text,
+                                           keyboard=keyboards.user_ban_menu(post))
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 

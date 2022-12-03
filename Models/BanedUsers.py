@@ -4,11 +4,17 @@ from Models.Users import User
 from Models.Admins import Admin
 
 BAN_REASONS = {
-    0: 'другое',
     1: 'спам',
     2: 'оскорбление участников',
     3: 'нецензурные выражения',
     4: 'сообщения не по теме',
+    0: 'другое',
+}
+
+REPORT_TYPES_BY_BAN_REASONS = {
+    1: 'spam',
+    2: 'insult',
+    3: 'insult',
 }
 
 
