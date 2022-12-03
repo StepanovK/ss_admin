@@ -25,4 +25,4 @@ COPY ./utils/ ./BotVKListener/utils/
 COPY ./Models ./BotVKListener/Models
 COPY ./BotVKListener/ ./BotVKListener/
 
-CMD ["python", "./BotVKListener/server.py"]
+CMD ["python", "./BotVKListener/bot_listener.py"]
