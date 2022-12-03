@@ -107,7 +107,7 @@ def hashtag_menu(post: Post, page: int = 1):
     return keyboard.get_keyboard()
 
 
-def user_info_menu(post: Post, page: int = 1):
+def user_info_menu(post: Post):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
     keyboard.add_callback_button(label='<< Назад',
