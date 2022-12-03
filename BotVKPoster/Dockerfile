@@ -19,4 +19,4 @@ COPY ./Models ./BotVKPoster/Models
 RUN pip install -r BotVKPoster/Models/requirements.txt
 COPY ./BotVKPoster/ ./BotVKPoster/
 COPY ./utils/ ./BotVKPoster/utils/
-CMD ["python", "./BotVKPoster/server.py"]
+CMD ["python", "./BotVKPoster/bot_poster.py"]
