@@ -2,7 +2,7 @@ import config
 from Models.Comments import Comment
 from Models.ChatMessages import ChatMessage
 from Models.Users import User
-from Models.Admins import Admin
+from Models.Admins import Admin, get_admin_by_vk_id
 from Models.BanedUsers import BanedUser, BAN_REASONS
 from Models.Posts import Post, PostStatus
 from Models.Relations import PostsLike, CommentsLike, PostsAttachment
@@ -384,7 +384,7 @@ def get_short_user_info(user: User):
 
 def _ban_user_from_info_message(event, vk_connection_admin, user, payload: dict):
     admin_id = event.object.get('user_id')
-    admin = None if admin_id is None else _get_admin_by_vk_id(admin_id)
+    admin = None if admin_id is None else get_admin_by_vk_id(admin_id)
 
     report_type = payload.get('report_type', '')
     comment = 'по результатам анализа информации о пользователе' if report_type == '' else ''
@@ -393,7 +393,7 @@ def _ban_user_from_info_message(event, vk_connection_admin, user, payload: dict)
                          reason=payload.get('reason', 0),
                          report_type=report_type,
                          comment=comment,
-                         admin=_get_admin_by_vk_id(admin_id))
+                         admin=get_admin_by_vk_id(admin_id))
 
 
 def ban_user_with_report(vk_connection_admin, user: User, reason: int, report_type='', comment='',
@@ -453,9 +453,3 @@ def _report_user(vk_connection_admin, user: User, report_type, comment=''):
         logger.warning(f'Failed to report user {user}\n{ex}')
 
     return reported
-
-
-def _get_admin_by_vk_id(admin_id):
-    admin_user, _ = User.get_or_create(id=admin_id)
-    admin, _ = Admin.get_or_create(user=admin_user)
-    return admin

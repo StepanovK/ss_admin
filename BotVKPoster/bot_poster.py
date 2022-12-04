@@ -15,7 +15,6 @@ import pika
 import datetime
 import random
 from Models.base import db as main_db
-from Models.BanedUsers import BanedUser
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.Users import User
 from Models.Comments import Comment
@@ -24,7 +23,7 @@ from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
 from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
-from Models.Admins import Admin
+from Models.Admins import Admin, get_admin_by_vk_id
 from Models.PrivateMessages import PrivateMessage
 from utils.db_helper import queri_to_list
 import utils.get_hasgtags as get_hasgtags
@@ -462,7 +461,7 @@ class Server:
 
         post.suggest_status = PostStatus.POSTED.value
         if admin_id:
-            post.posted_by = _get_admin_by_vk_id(admin_id)
+            post.posted_by = get_admin_by_vk_id(admin_id)
         post.is_deleted = True
         post.save()
 
@@ -585,7 +584,7 @@ class Server:
                                     reason=reason,
                                     report_type=report_type,
                                     comment=str(post),
-                                    admin=_get_admin_by_vk_id(admin_id))
+                                    admin=get_admin_by_vk_id(admin_id))
 
     @staticmethod
     def _remove_hashtag(post_id, hashtag):
@@ -719,12 +718,6 @@ class Server:
         while True:
             self.run()
             sleep(10)
-
-
-def _get_admin_by_vk_id(admin_id):
-    admin_user, _ = User.get_or_create(id=admin_id)
-    admin, _ = Admin.get_or_create(user=admin_user)
-    return admin
 
 
 def _get_post_by_id(post_id) -> Union[Post, None]:

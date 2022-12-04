@@ -22,3 +22,16 @@ class Admin(BaseModel):
             st = f'id{self.id}'
 
         return st
+
+
+def get_admin_by_vk_id(user_id: int) -> Admin:
+    user, _ = User.get_or_create(id=user_id)
+    return get_admin_by_user(user)
+
+
+def get_admin_by_user(user: User) -> Admin:
+    admin, created = Admin.get_or_create(user=user)
+    if created:
+        admin.name = user.full_name()
+        admin.save()
+    return admin
