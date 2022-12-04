@@ -12,6 +12,7 @@ RUN pip install --upgrade pip
 RUN mkdir -p /app
 WORKDIR /app
 ENV PYTHONPATH="/app/BotVKPoster/"
+COPY ./base_config.py ./BotVKPoster/base_config.py
 COPY ./Docker/config.py ./BotVKPoster/config.py
 COPY ./BotVKPoster/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt

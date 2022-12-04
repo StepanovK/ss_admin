@@ -13,6 +13,7 @@ RUN pip install --upgrade pip
 
 RUN mkdir -p /app
 WORKDIR /app
+COPY ./base_config.py ./Scheduler/base_config.py
 COPY ./Docker/config.py ./Scheduler/config.py
 ENV PYTHONPATH="/app/Scheduler/"
 
