@@ -5,6 +5,7 @@ import os
 from config import logger
 from Models.base import db
 from Models.Admins import Admin
+from Models.BanedUsers import BanedUser
 from Models.UploadedFiles import UploadedFile
 from Models.Comments import Comment
 from Models.Conversations import Conversation
@@ -25,6 +26,7 @@ def create_all_tables():
     models = [
         Admin,
         User,
+        BanedUser,
         UploadedFile,
         Post,
         PostsHashtag,
@@ -147,4 +149,5 @@ def db_is_locked():
 
 
 if __name__ == '__main__':
-    recreate_database()
+    # recreate_database()
+    create_all_tables()
