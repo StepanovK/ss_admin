@@ -16,9 +16,9 @@ admin_pass = env.str("admin_pass")
 
 chat_for_suggest = env.int("chat_for_suggest")
 chat_for_alarm = env.int("chat_for_alarm")  # Уведомления из ЛК СС
-chat_for_comments_check = env.int("chat_for_comments_check")  # Уведомления о подозрительных комментах
+chat_for_comments_check = env.int("chat_for_comments_check", 0)  # Уведомления о подозрительных комментах
 chat_bot_keyboard_path = 'ChatBot/keyboards/'
-advertising_conversation_id = env.int("advertising_conversation_id")
+advertising_conversation_id = env.int("advertising_conversation_id", 0)
 
 db_host = 'localhost'
 db_port = 5432
@@ -42,5 +42,8 @@ telegram = dict(
     bot_token=env.str("bot_token"),
 )
 channel = env.int("channel")
+
+# for dynamic title
+token_weather = env.str("token_weather")
 
 debug = True

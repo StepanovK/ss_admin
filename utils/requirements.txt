@@ -5,6 +5,7 @@ environs==9.5.0
 loguru==0.6.0
 vk_api
 pika==1.2.1
+Pillow==9.3.0
 peewee
 psycopg2
 psycopg2-binary
