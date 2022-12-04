@@ -462,7 +462,7 @@ class Server:
 
         post.suggest_status = PostStatus.POSTED.value
         if admin_id:
-            post.posted_by = server._get_admin_by_vk_id(admin_id)
+            post.posted_by = _get_admin_by_vk_id(admin_id)
         post.is_deleted = True
         post.save()
 
