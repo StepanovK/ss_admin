@@ -10,7 +10,7 @@ if debug:
     time_conversation_cleaning = 1
     time_check_ads_posts = 1
     time_update_title_vk = 1
-    time_send_happy_birthday = "08:00"
+    time_send_happy_birthday = "22:23"
 else:
     time_conversation_cleaning = 30
     time_check_ads_posts = 10

@@ -100,7 +100,7 @@ class PhotoCreator:
                     title_text_size -= 1
                     font = ImageFont.truetype(self.text_font_title, title_text_size)
                     w_title_text, h_title_text = font.getsize(title_text)
-            self.last_title_text = Image.open('last_title_text.png').convert("RGBA")
+            self.last_title_text = Image.open(self._last_title_text).convert("RGBA")
             self.last_title_text = crop(self.last_title_text,
                                         (self.title_w, h_title_text + 20))
             self.title.paste(self.last_title_text, (0, 0),

@@ -3,10 +3,10 @@ from PIL import Image
 import os
 from datetime import datetime, date, timedelta
 import time
-from photo_creater import PhotoCreator
+from utils.Scripts.vk_birthday_manager.photo_creater import PhotoCreator
 import requests
 
-from connection_holder import ConnectionsHolder
+from utils.connection_holder import ConnectionsHolder
 from config import group_id, logger
 
 

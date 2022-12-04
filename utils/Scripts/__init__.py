@@ -1,4 +1,4 @@
-from ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
-from ADS_Manager.ads_manager import check_ads_posts
-from Dynamic_title_vk.dynamic_title_manager import update_title_vk
-from vk_birthday_manager.vk_birthday_manager import send_happy_birthday
+from utils.Scripts.ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
+from utils.Scripts.ADS_Manager.ads_manager import check_ads_posts
+from utils.Scripts.Dynamic_title_vk.dynamic_title_manager import update_title_vk
+from utils.Scripts.vk_birthday_manager.vk_birthday_manager import send_happy_birthday
