@@ -43,4 +43,7 @@ telegram = dict(
 )
 channel = env.int("channel")
 
+# for dynamic title
+token_weather = env.str("token_weather")
+
 debug = False
