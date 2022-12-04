@@ -1,6 +1,11 @@
 from .commander import Commander
 from utils.connection_holder import ConnectionsHolder
 import config
+import os
+
+dir_name = os.path.dirname(os.path.abspath(__file__))
+keyboard_path = os.path.join(dir_name, 'keyboards/keyboard.json')
+none_keyboard_path = os.path.join(dir_name, 'keyboards/none.json')
 
 
 class ChatBot:
@@ -11,7 +16,7 @@ class ChatBot:
         self.user_call_admin = None
 
     def send_msg(self, random_id, send_id, message,
-                 keyboard=open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read(),
+                 keyboard=open(keyboard_path, "r", encoding="UTF-8").read(),
                  attachment=None):
         """
         Отправка сообщения через метод messages.send
@@ -49,7 +54,7 @@ class ChatBot:
             if event.object.message.get("peer_id") != self.user_call_admin:
                 self.send_msg(event.object.message.get("random_id"), config.chat_for_alarm,
                               'Админы, Вас там зовут!!!\n{}'.format(msg_url),
-                              keyboard=open(config.chat_bot_keyboard_path + "none.json", "r", encoding="UTF-8").read())
+                              keyboard=open(none_keyboard_path, "r", encoding="UTF-8").read())
                 self.user_call_admin = event.object.message.get("peer_id")
 
         elif answer is not None:
