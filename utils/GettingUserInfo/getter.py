@@ -1,6 +1,8 @@
+import config
 from Models.Comments import Comment
 from Models.ChatMessages import ChatMessage
 from Models.Users import User
+from Models.Admins import Admin
 from Models.BanedUsers import BanedUser, BAN_REASONS
 from Models.Posts import Post, PostStatus
 from Models.Relations import PostsLike, CommentsLike, PostsAttachment
@@ -11,12 +13,13 @@ from config import logger
 from utils.db_helper import queri_to_list
 import datetime
 import random
+from typing import Union, Optional
 from . import keyboards, querys
 
 MAX_MESSAGE_SIZE = 4048
 
 
-def parse_event(event, vk_connection):
+def parse_event(event, vk_connection, vk_connection_admin=None):
     user = None
     if ('payload' in event.object
             and event.object.payload.get('command').startswith('show_ui')):
@@ -70,6 +73,15 @@ def parse_event(event, vk_connection):
         page = payload.get('page', 0)
         show_chat_messages(event, vk_connection, user, page)
 
+    elif command == 'show_ui_user_ban_menu':
+        show_ban_menu(event, vk_connection, user)
+
+    elif command == 'show_ui_ban_user':
+
+        if vk_connection_admin:
+            _ban_user_from_info_message(event, vk_connection_admin, user, payload)
+        show_ban_menu(event, vk_connection, user)
+
     else:
 
         result = vk_connection.messages.edit(peer_id=event.object.peer_id,
@@ -87,13 +99,28 @@ def show_post_info(event, vk_connection, post, published=True):
 
     post_description = _get_post_description(post)
 
-    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
-                                         conversation_message_id=event.object.conversation_message_id,
-                                         message=post_description,
-                                         attachments=attachments_list,
-                                         keyboard=keyboards.post_menu(user=post.user,
-                                                                      current_post_id=post.id,
-                                                                      published=published))
+    try:
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=post_description,
+                                             attachments=attachments_list,
+                                             keyboard=keyboards.post_menu(user=post.user,
+                                                                          current_post_id=post.id,
+                                                                          published=published))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
+
+
+def show_ban_menu(event, vk_connection, user: User):
+    mes_text = f'Выберите причину блокировки пользователя {user}'
+
+    try:
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=mes_text,
+                                             keyboard=keyboards.user_ban_menu(user=user))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
 
 
 def _get_post_description(post: Post):
@@ -123,11 +150,14 @@ def _get_post_description(post: Post):
 
 
 def show_comments(event, vk_connection, user, page):
-    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
-                                         conversation_message_id=event.object.conversation_message_id,
-                                         message=get_comments_from_page(user, page),
-                                         keyboard=keyboards.comments_menu(user=user,
-                                                                          current_page=page))
+    try:
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=get_comments_from_page(user, page),
+                                             keyboard=keyboards.comments_menu(user=user,
+                                                                              current_page=page))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
 
 
 def get_comments_from_page(user: User, page=0):
@@ -158,11 +188,14 @@ def get_comments_from_page(user: User, page=0):
 
 
 def show_conv_messages(event, vk_connection, user, page):
-    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
-                                         conversation_message_id=event.object.conversation_message_id,
-                                         message=get_conv_messages_from_page(user, page),
-                                         keyboard=keyboards.conv_messages_menu(user=user,
-                                                                               current_page=page))
+    try:
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=get_conv_messages_from_page(user, page),
+                                             keyboard=keyboards.conv_messages_menu(user=user,
+                                                                                   current_page=page))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
 
 
 def get_conv_messages_from_page(user: User, page=0):
@@ -202,11 +235,14 @@ def _chat_message_description(message):
 
 
 def show_chat_messages(event, vk_connection, user, page):
-    result = vk_connection.messages.edit(peer_id=event.object.peer_id,
-                                         conversation_message_id=event.object.conversation_message_id,
-                                         message=get_chat_messages_from_page(user, page),
-                                         keyboard=keyboards.chat_messages_menu(user=user,
-                                                                               current_page=page))
+    try:
+        result = vk_connection.messages.edit(peer_id=event.object.peer_id,
+                                             conversation_message_id=event.object.conversation_message_id,
+                                             message=get_chat_messages_from_page(user, page),
+                                             keyboard=keyboards.chat_messages_menu(user=user,
+                                                                                   current_page=page))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
 
 
 def get_chat_messages_from_page(user: User, page=0):
@@ -299,7 +335,7 @@ def get_short_user_info(user: User):
     if bun_record:
         reason_str = BAN_REASONS.get(bun_record.reason, 'просто так')
         admin_str = f' админом {bun_record.admin}' if bun_record.admin else ''
-        mes_text += f'\nЗАБАНЕН {bun_record.date:%Y-%m-%d} за {reason_str}{admin_str}\n'
+        mes_text += f'\nЗАБАНЕН{admin_str} {bun_record.date:%Y-%m-%d} за {reason_str}\n'
 
     if len(subscribe_history_list) == 0:
         mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'
@@ -344,3 +380,82 @@ def get_short_user_info(user: User):
         mes_text += '\n' if count_of_self_com_likes == 0 else f' (в т.ч. своих: {count_of_self_com_likes})\n'
 
     return mes_text
+
+
+def _ban_user_from_info_message(event, vk_connection_admin, user, payload: dict):
+    admin_id = event.object.get('user_id')
+    admin = None if admin_id is None else _get_admin_by_vk_id(admin_id)
+
+    report_type = payload.get('report_type', '')
+    comment = 'по результатам анализа информации о пользователе' if report_type == '' else ''
+    ban_user_with_report(vk_connection_admin=vk_connection_admin,
+                         user=user,
+                         reason=payload.get('reason', 0),
+                         report_type=report_type,
+                         comment=comment,
+                         admin=_get_admin_by_vk_id(admin_id))
+
+
+def ban_user_with_report(vk_connection_admin, user: User, reason: int, report_type='', comment='',
+                         admin: Optional[Admin] = None, end_date=0, comment_visible=0) -> Union[BanedUser, None]:
+    banned = _ban_user(vk_connection_admin, user, reason, comment, end_date, comment_visible)
+
+    if banned:
+        if report_type != '':
+            _report_user(vk_connection_admin, user, report_type, comment)
+
+        new_record, _ = BanedUser.get_or_create(user=user)
+        new_record.user = user
+        new_record.date = datetime.datetime.now()
+        new_record.reason = reason
+        new_record.admin = admin
+        new_record.report_type = report_type
+        new_record.comment = comment
+        new_record.save()
+
+        return new_record
+
+
+def _ban_user(vk_connection_admin, user: User, reason: int, comment='', end_date=0, comment_visible=0):
+    banned = False
+    try:
+        result = vk_connection_admin.groups.ban(group_id=config.group_id,
+                                                owner_id=user.id,
+                                                end_date=end_date,
+                                                reason=reason,
+                                                comment=comment,
+                                                comment_visible=comment_visible,
+                                                )
+        if result:
+            banned = True
+            logger.info(f'Пользователь {user} забанен')
+    except Exception as ex:
+        logger.warning(f'Failed to ban user {user}\n{ex}')
+
+    return banned
+
+
+def _report_user(vk_connection_admin, user: User, report_type, comment=''):
+    reported = False
+    if config.debug:
+        logger.warning('Предотвращена попытка отправки жалобы при отладке!')
+        return reported
+
+    try:
+        result = vk_connection_admin.users.report(user_id=user.id,
+                                                  type=report_type,
+                                                  comment=comment,
+                                                  )
+        if result:
+            reported = True
+            logger.info(f'Отправлена жалоба на пользователя {user}')
+    except Exception as ex:
+        logger.warning(f'Failed to report user {user}\n{ex}')
+
+    return reported
+
+
+def _get_admin_by_vk_id(admin_id):
+    admin_user, _ = User.get_or_create(id=admin_id)
+    admin, _ = Admin.get_or_create(user=admin_user)
+    return admin

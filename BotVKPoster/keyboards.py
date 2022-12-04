@@ -9,6 +9,7 @@ import config as config
 from utils.db_helper import queri_to_list
 import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
+from utils.GettingUserInfo.keyboards import add_ban_buttons
 from peewee import fn, JOIN
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from utils.text_cutter import cut
@@ -117,7 +118,7 @@ def user_info_menu(post: Post):
 
     keyboard.add_callback_button(label='ЗАБАНИТЬ',
                                  color=VkKeyboardColor.NEGATIVE,
-                                 payload={"command": "show_ban_menu", "post_id": post.id})
+                                 payload={"command": "show_ban_from_post_menu", "post_id": post.id})
 
     return keyboard.get_keyboard()
 
@@ -129,34 +130,8 @@ def user_ban_menu(post: Post):
                                  color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
-    user_bans = BanedUser.select().where(BanedUser.user == post.user).execute()
-
-    for reason, reason_name in BAN_REASONS.items():
-        keyboard.add_line()
-
-        color_ban = VkKeyboardColor.SECONDARY
-        color_report = VkKeyboardColor.SECONDARY
-        report_type = REPORT_TYPES_BY_BAN_REASONS.get(reason)
-
-        for user_ban in user_bans:
-            if user_ban.reason == reason:
-                color_ban = VkKeyboardColor.PRIMARY
-                if user_ban.report_type != '' and user_ban.report_type == report_type:
-                    color_report = VkKeyboardColor.PRIMARY
-                break
-
-        payload = {"command": "ban_user_from_suggest_post",
-                   "post_id": post.id,
-                   'reason': reason}
-        keyboard.add_callback_button(label=reason_name.capitalize(),
-                                     color=color_ban,
-                                     payload=payload)
-
-        if report_type:
-            payload['report_type'] = report_type
-            keyboard.add_callback_button(label='с жалобой',
-                                         color=color_report,
-                                         payload=payload)
+    payload = {"command": "ban_user_from_suggest_post", "post_id": post.id}
+    add_ban_buttons(keyboard=keyboard, user=post.user, payload=payload)
 
     return keyboard.get_keyboard()
 

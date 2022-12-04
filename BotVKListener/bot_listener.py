@@ -128,7 +128,8 @@ class Server:
                     if PrivateMessage.it_is_private_chat(peer_id):
                         if ('payload' in event.object
                                 and event.object.payload.get('command').startswith('show_ui')):
-                            parse_event(event=event, vk_connection=self.vk_connection_group, )
+                            parse_event(event=event, vk_connection=self.vk_connection_group,
+                                        vk_connection_admin=self.vk_connection_admin)
 
             now = datetime.datetime.now()
             if not last_published_posts_update \

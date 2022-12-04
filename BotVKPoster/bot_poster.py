@@ -424,7 +424,7 @@ class Server:
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
         elif payload['command'] == 'show_user_info':
             self._show_user_info(post_id=payload['post_id'], message_id=message_id)
-        elif payload['command'] == 'show_ban_menu':
+        elif payload['command'] == 'show_ban_from_post_menu':
             self._show_ban_menu(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'repost_to_conversation':
             self._repost_to_conversation(post_id=payload['post_id'], conversation_id=payload['conversation_id'])
@@ -575,15 +575,17 @@ class Server:
         PostsHashtag.get_or_create(post=post, hashtag=hashtag)
 
     def _ban_from_suggest_post(self, post_id, reason, admin_id, report_type):
+
         post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
-        self.ban_user_with_report(user=post.user,
-                                  reason=reason,
-                                  report_type=report_type,
-                                  comment=str(post),
-                                  admin=_get_admin_by_vk_id(admin_id))
+        getter.ban_user_with_report(vk_connection_admin=self.vk_admin,
+                                    user=post.user,
+                                    reason=reason,
+                                    report_type=report_type,
+                                    comment=str(post),
+                                    admin=_get_admin_by_vk_id(admin_id))
 
     @staticmethod
     def _remove_hashtag(post_id, hashtag):
@@ -692,59 +694,6 @@ class Server:
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
-
-    def ban_user_with_report(self, user: User, reason: int, report_type='', comment='',
-                             admin: Optional[Admin] = None, end_date=0, comment_visible=0) -> Union[BanedUser, None]:
-
-        banned = self._ban_user(user, reason, comment, end_date, comment_visible)
-
-        if banned:
-            if report_type != '':
-                self._report_user(user, report_type, comment)
-
-            new_record, _ = BanedUser.get_or_create(user=user)
-            new_record.user = user
-            new_record.date = datetime.datetime.now()
-            new_record.reason = reason
-            new_record.admin = admin
-            new_record.report_type = report_type
-            new_record.comment = comment
-            new_record.save()
-
-            return new_record
-
-    def _ban_user(self, user: User, reason: int, comment='', end_date=0, comment_visible=0):
-
-        banned = False
-        try:
-            result = self.vk_admin.groups.ban(group_id=self.group_id,
-                                              owner_id=user.id,
-                                              end_date=end_date,
-                                              reason=reason,
-                                              comment=comment,
-                                              comment_visible=comment_visible,
-                                              )
-            if result:
-                banned = True
-        except Exception as ex:
-            logger.warning(f'Failed to ban user {user}\n{ex}')
-
-        return banned
-
-    def _report_user(self, user: User, report_type, comment=''):
-
-        reported = False
-        try:
-            result = self.vk_admin.users.report(user_id=user.id,
-                                                type=report_type,
-                                                comment=comment,
-                                                )
-            if result:
-                reported = True
-        except Exception as ex:
-            logger.warning(f'Failed to report user {user}\n{ex}')
-
-        return reported
 
     @staticmethod
     def reconnect_db():
