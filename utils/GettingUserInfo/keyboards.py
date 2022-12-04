@@ -1,6 +1,7 @@
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
 from Models.Users import User
+from Models.BanedUsers import BanedUser, BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS
 from Models.Comments import Comment
 from Models.ConversationMessages import ConversationMessage
 from Models.ChatMessages import ChatMessage
@@ -62,6 +63,9 @@ def main_menu_keyboard(user: User):
     keyboard.add_callback_button(label='Обновить',
                                  color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_ui_user_short_info", "user_id": user.id})
+    keyboard.add_callback_button(label='ЗАБАНИТЬ',
+                                 color=VkKeyboardColor.NEGATIVE,
+                                 payload={"command": "show_ui_user_ban_menu", "user_id": user.id})
 
     return keyboard.get_keyboard()
 
@@ -207,3 +211,47 @@ def page_menu(user: User, command, pages: list, current_page=0, count_per_page=6
                                  payload={"command": "show_ui_user_short_info", "user_id": user.id})
 
     return keyboard.get_keyboard()
+
+
+def user_ban_menu(user: User):
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    keyboard.add_callback_button(label='<< Назад',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_ui_user_short_info", "user_id": user.id})
+
+    payload = {"command": "show_ui_ban_user", "user_id": user.id}
+    add_ban_buttons(keyboard=keyboard, user=user, payload=payload)
+
+    return keyboard.get_keyboard()
+
+
+def add_ban_buttons(keyboard: VkKeyboard, user: User, payload: dict):
+    user_bans = BanedUser.select().where(BanedUser.user == user).execute()
+
+    for reason, reason_name in BAN_REASONS.items():
+        keyboard.add_line()
+
+        color_ban = VkKeyboardColor.SECONDARY
+        color_report = VkKeyboardColor.SECONDARY
+        report_type = REPORT_TYPES_BY_BAN_REASONS.get(reason)
+
+        for user_ban in user_bans:
+            if user_ban.reason == reason:
+                color_ban = VkKeyboardColor.PRIMARY
+                if user_ban.report_type != '' and user_ban.report_type == report_type:
+                    color_report = VkKeyboardColor.PRIMARY
+                break
+
+        ban_payload = payload.copy()
+        ban_payload['reason'] = reason
+        keyboard.add_callback_button(label=reason_name.capitalize(),
+                                     color=color_ban,
+                                     payload=ban_payload)
+
+        if report_type:
+            report_payload = ban_payload.copy()
+            report_payload['report_type'] = report_type
+            keyboard.add_callback_button(label='с жалобой',
+                                         color=color_report,
+                                         payload=report_payload)
