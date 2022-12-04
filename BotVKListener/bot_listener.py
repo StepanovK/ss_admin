@@ -17,7 +17,7 @@ from utils.connection_holder import ConnectionsHolder
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from ChatBot.chat_bot import ChatBot
 from utils.Parser import _initial_downloading, subscriptions, private_messages
-from utils.Parser import chats, conversations, comments, likes, posts
+from utils.Parser import chats, conversations, comments, likes, posts, bans
 import random
 
 
@@ -130,6 +130,10 @@ class Server:
                                 and event.object.payload.get('command').startswith('show_ui')):
                             parse_event(event=event, vk_connection=self.vk_connection_group,
                                         vk_connection_admin=self.vk_connection_admin)
+                elif event.type == VkBotEventType.USER_BLOCK:
+                    bans.parse_user_block(event, self.vk_connection_admin)
+                elif event.type == VkBotEventType.USER_UNBLOCK:
+                    bans.parse_user_unblock(event, self.vk_connection_admin)
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
