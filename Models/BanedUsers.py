@@ -23,6 +23,7 @@ class BanedUser(BaseModel):
     date = DateTimeField(null=True, formats=['%Y-%m-%d %H:%M:%S'])
     reason = IntegerField(null=True)
     admin = ForeignKeyField(Admin, null=True)
+    report_type = CharField(30, default='')
     comment = CharField(255, default='')
 
     class Meta:

@@ -2,7 +2,7 @@ import config as config
 from config import logger, debug
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
-from typing import Union
+from typing import Union, Optional
 from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.PublishedPosts import PublishedPost
@@ -15,6 +15,7 @@ import pika
 import datetime
 import random
 from Models.base import db as main_db
+from Models.BanedUsers import BanedUser
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.Users import User
 from Models.Comments import Comment
@@ -414,6 +415,10 @@ class Server:
         elif payload['command'] == 'add_hashtag':
             self._add_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
+        elif payload['command'] == 'ban_user_from_suggest_post':
+            self._ban_from_suggest_post(post_id=payload['post_id'], reason=payload['reason'],
+                                        admin_id=admin_id, report_type=payload.get('report_type', ''))
+            self._show_ban_menu(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'remove_hashtag':
             self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -457,8 +462,7 @@ class Server:
 
         post.suggest_status = PostStatus.POSTED.value
         if admin_id:
-            admin_user, _ = User.get_or_create(id=admin_id)
-            post.posted_by, _ = Admin.get_or_create(user=admin_user)
+            post.posted_by = server._get_admin_by_vk_id(admin_id)
         post.is_deleted = True
         post.save()
 
@@ -502,7 +506,7 @@ class Server:
         self._set_anonymously_by_post_text(post)
 
         message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
-                                           message=self._get_post_description(post),
+                                           message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            random_id=random.randint(10 ** 5, 10 ** 6),
                                            attachment=[str(att.attachment) for att in post.attachments])
@@ -515,7 +519,7 @@ class Server:
 
     def _update_message_post(self, post_id, message_id: int = None):
 
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         message_id = self._get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
@@ -523,19 +527,19 @@ class Server:
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
                                            conversation_message_id=message_id,
-                                           message=self._get_post_description(post),
+                                           message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            attachment=[str(att.attachment) for att in post.attachments])
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         message_id = self._get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
 
-        text_message = self._get_post_description(post=post, with_hashtags=False)
+        text_message = _get_post_description(post=post, with_hashtags=False)
         text_message += '\nВыберите хэштеги:'
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
@@ -547,12 +551,12 @@ class Server:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _show_conversation_menu(self, post_id, message_id: int = None, page: int = 1):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         message_id = self._get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
 
-        text_message = self._get_post_description(post=post, with_hashtags=False)
+        text_message = _get_post_description(post=post, with_hashtags=False)
         text_message += '\nВыберите обсуждение:'
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
@@ -563,29 +567,43 @@ class Server:
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
-    def _add_hashtag(self, post_id, hashtag):
-        post = self._get_post_by_id(post_id=post_id)
+    @staticmethod
+    def _add_hashtag(post_id, hashtag):
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
         PostsHashtag.get_or_create(post=post, hashtag=hashtag)
 
-    def _remove_hashtag(self, post_id, hashtag):
-        post = self._get_post_by_id(post_id=post_id)
+    def _ban_from_suggest_post(self, post_id, reason, admin_id, report_type):
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+
+        self.ban_user_with_report(user=post.user,
+                                  reason=reason,
+                                  report_type=report_type,
+                                  comment=str(post),
+                                  admin=_get_admin_by_vk_id(admin_id))
+
+    @staticmethod
+    def _remove_hashtag(post_id, hashtag):
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
         for ht in PostsHashtag.select().where((PostsHashtag.post == post)
                                               & (PostsHashtag.hashtag == hashtag)):
             ht.delete_instance()
 
-    def _set_anonymously(self, post_id, value: bool = True):
-        post = self._get_post_by_id(post_id=post_id)
+    @staticmethod
+    def _set_anonymously(post_id, value: bool = True):
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
         post.anonymously = value
         post.save()
 
     def _show_user_info(self, post_id, message_id: int = None):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
         mes_text = get_short_user_info(post.user)
@@ -599,7 +617,7 @@ class Server:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _show_ban_menu(self, post_id, message_id: int):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
         mes_text = f'Выберите причину блокировки пользователя {post.user}, предложившего пост {post}'
@@ -613,7 +631,7 @@ class Server:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
     def _repost_to_conversation(self, post_id, conversation_id):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
@@ -653,80 +671,6 @@ class Server:
         return message_id
 
     @staticmethod
-    def _get_post_by_id(post_id) -> Union[Post, None]:
-        try:
-            return Post.get(id=post_id)
-        except Post.DoesNotExist:
-            logger.warning(f'Post not found ID={post_id}')
-
-    @staticmethod
-    def _get_post_description(post: Post, with_hashtags: bool = True):
-
-        if post.suggest_status == PostStatus.SUGGESTED.value:
-            text_status = f'Новый пост {post}'
-        elif post.suggest_status == PostStatus.POSTED.value:
-            if post.posted_in:
-                post_url = str(post.posted_in)
-            else:
-                try:
-                    new_post_record = PublishedPost.get(suggested_post_id=post.id)
-                    post_url = Post.generate_url(post_id=new_post_record.published_post_id)
-                except Exception as ex:
-                    logger.error(f'Error getting information about published post for {post}: {ex}')
-                    post_url = ''
-            anon_text = ' анонимно' if post.anonymously else ''
-            text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'
-        elif post.suggest_status == PostStatus.REJECTED.value:
-            text_status = '[ОТКЛОНЁН]'
-        else:
-            text_status = f'Неизвестный пост {post}'
-
-        if post.posted_by is not None:
-            text_status += f'\nадмином: {post.posted_by}'
-
-        message_text = ''
-        p_messages = PrivateMessage.select(
-        ).where((PrivateMessage.user == post.user)
-                & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc())
-        user_comment = post.user.comment
-        if user_comment is not None and user_comment != '':
-            message_text += f'({user_comment})' + '\n'
-        if len(p_messages) > 0:
-            last_message = p_messages[0]
-            message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
-                            f'Чат: {last_message.get_chat_url()}'
-
-            admin_messages = PrivateMessage.select(
-            ).join(Admin).where((PrivateMessage.user == post.user)
-                                & (PrivateMessage.admin.is_null(False))
-                                & (Admin.is_bot == False)).order_by(PrivateMessage.date.desc())
-            if len(admin_messages) > 0:
-                last_admin = admin_messages[0].admin
-                message_text += '\n' + f'Последним общался {last_admin}'
-
-            message_text = message_text + '\n'
-
-        represent = f'{text_status}\n' \
-                    f'Автор: {post.user}\n' \
-                    f'{message_text}' \
-                    f'Текст поста:\n' \
-                    f'{post.text}\n'
-
-        if with_hashtags:
-            hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-            if len(hashtags) > 0:
-                represent = represent + '\n'.join(hashtags)
-
-        if len(represent) > MAX_MESSAGE_SIZE:
-            represent_without_text = represent.replace(post.text, '')
-            represent = represent.replace(
-                post.text,
-                post.text[:(MAX_MESSAGE_SIZE - len(represent_without_text) - 3)] + '...'
-            )
-
-        return represent
-
-    @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
         l_text = post.text.lower()
         anon_words = ['анон', 'ононимн', 'ананимн']
@@ -748,6 +692,59 @@ class Server:
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
+
+    def ban_user_with_report(self, user: User, reason: int, report_type='', comment='',
+                             admin: Optional[Admin] = None, end_date=0, comment_visible=0) -> Union[BanedUser, None]:
+
+        banned = self._ban_user(user, reason, comment, end_date, comment_visible)
+
+        if banned:
+            if report_type != '':
+                self._report_user(user, report_type, comment)
+
+            new_record, _ = BanedUser.get_or_create(user=user)
+            new_record.user = user
+            new_record.date = datetime.datetime.now()
+            new_record.reason = reason
+            new_record.admin = admin
+            new_record.report_type = report_type
+            new_record.comment = comment
+            new_record.save()
+
+            return new_record
+
+    def _ban_user(self, user: User, reason: int, comment='', end_date=0, comment_visible=0):
+
+        banned = False
+        try:
+            result = self.vk_admin.groups.ban(group_id=self.group_id,
+                                              owner_id=user.id,
+                                              end_date=end_date,
+                                              reason=reason,
+                                              comment=comment,
+                                              comment_visible=comment_visible,
+                                              )
+            if result:
+                banned = True
+        except Exception as ex:
+            logger.warning(f'Failed to ban user {user}\n{ex}')
+
+        return banned
+
+    def _report_user(self, user: User, report_type, comment=''):
+
+        reported = False
+        try:
+            result = self.vk_admin.users.report(user_id=user.id,
+                                                type=report_type,
+                                                comment=comment,
+                                                )
+            if result:
+                reported = True
+        except Exception as ex:
+            logger.warning(f'Failed to report user {user}\n{ex}')
+
+        return reported
 
     @staticmethod
     def reconnect_db():
@@ -773,6 +770,85 @@ class Server:
         while True:
             self.run()
             sleep(10)
+
+
+def _get_admin_by_vk_id(admin_id):
+    admin_user, _ = User.get_or_create(id=admin_id)
+    admin, _ = Admin.get_or_create(user=admin_user)
+    return admin
+
+
+def _get_post_by_id(post_id) -> Union[Post, None]:
+    try:
+        return Post.get(id=post_id)
+    except Post.DoesNotExist:
+        logger.warning(f'Post not found ID={post_id}')
+
+
+def _get_post_description(post: Post, with_hashtags: bool = True):
+    if post.suggest_status == PostStatus.SUGGESTED.value:
+        text_status = f'Новый пост {post}'
+    elif post.suggest_status == PostStatus.POSTED.value:
+        if post.posted_in:
+            post_url = str(post.posted_in)
+        else:
+            try:
+                new_post_record = PublishedPost.get(suggested_post_id=post.id)
+                post_url = Post.generate_url(post_id=new_post_record.published_post_id)
+            except Exception as ex:
+                logger.error(f'Error getting information about published post for {post}: {ex}')
+                post_url = ''
+        anon_text = ' анонимно' if post.anonymously else ''
+        text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'
+    elif post.suggest_status == PostStatus.REJECTED.value:
+        text_status = '[ОТКЛОНЁН]'
+    else:
+        text_status = f'Неизвестный пост {post}'
+
+    if post.posted_by is not None:
+        text_status += f'\nадмином: {post.posted_by}'
+
+    message_text = ''
+    p_messages = PrivateMessage.select(
+    ).where((PrivateMessage.user == post.user)
+            & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc())
+    user_comment = post.user.comment
+    if user_comment is not None and user_comment != '':
+        message_text += f'({user_comment})' + '\n'
+    if len(p_messages) > 0:
+        last_message = p_messages[0]
+        message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
+                        f'Чат: {last_message.get_chat_url()}'
+
+        admin_messages = PrivateMessage.select(
+        ).join(Admin).where((PrivateMessage.user == post.user)
+                            & (PrivateMessage.admin.is_null(False))
+                            & (Admin.is_bot == False)).order_by(PrivateMessage.date.desc())
+        if len(admin_messages) > 0:
+            last_admin = admin_messages[0].admin
+            message_text += '\n' + f'Последним общался {last_admin}'
+
+        message_text = message_text + '\n'
+
+    represent = f'{text_status}\n' \
+                f'Автор: {post.user}\n' \
+                f'{message_text}' \
+                f'Текст поста:\n' \
+                f'{post.text}\n'
+
+    if with_hashtags:
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            represent = represent + '\n'.join(hashtags)
+
+    if len(represent) > MAX_MESSAGE_SIZE:
+        represent_without_text = represent.replace(post.text, '')
+        represent = represent.replace(
+            post.text,
+            post.text[:(MAX_MESSAGE_SIZE - len(represent_without_text) - 3)] + '...'
+        )
+
+    return represent
 
 
 if __name__ == '__main__':

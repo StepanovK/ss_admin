@@ -3,7 +3,7 @@ from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
-from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS
+from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS, BanedUser
 from PosterModels.SortedHashtags import SortedHashtag
 import config as config
 from utils.db_helper import queri_to_list
@@ -129,22 +129,33 @@ def user_ban_menu(post: Post):
                                  color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
+    user_bans = BanedUser.select().where(BanedUser.user == post.user).execute()
+
     for reason, reason_name in BAN_REASONS.items():
         keyboard.add_line()
-        payload = {"command": "ban_user",
-                   'user_id': post.user.id,
-                   'reason': reason,
-                   'comment': str(post),
-                   "post_id": post.id}
+
+        color_ban = VkKeyboardColor.SECONDARY
+        color_report = VkKeyboardColor.SECONDARY
+        report_type = REPORT_TYPES_BY_BAN_REASONS.get(reason)
+
+        for user_ban in user_bans:
+            if user_ban.reason == reason:
+                color_ban = VkKeyboardColor.PRIMARY
+                if user_ban.report_type != '' and user_ban.report_type == report_type:
+                    color_report = VkKeyboardColor.PRIMARY
+                break
+
+        payload = {"command": "ban_user_from_suggest_post",
+                   "post_id": post.id,
+                   'reason': reason}
         keyboard.add_callback_button(label=reason_name.capitalize(),
-                                     color=VkKeyboardColor.SECONDARY,
+                                     color=color_ban,
                                      payload=payload)
 
-        report_type = REPORT_TYPES_BY_BAN_REASONS.get(reason)
         if report_type:
             payload['report_type'] = report_type
             keyboard.add_callback_button(label='с жалобой',
-                                         color=VkKeyboardColor.SECONDARY,
+                                         color=color_report,
                                          payload=payload)
 
     return keyboard.get_keyboard()
