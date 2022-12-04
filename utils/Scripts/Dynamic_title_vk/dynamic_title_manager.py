@@ -6,6 +6,7 @@ from PIL import ImageFont
 from PIL import ImageDraw
 
 import requests
+import os
 
 from utils.connection_holder import ConnectionsHolder
 from config import group_id, token_weather, logger
@@ -13,21 +14,22 @@ from config import group_id, token_weather, logger
 
 class DynamicTitleManager:
     def __init__(self, groupId: str = group_id, tokenWeather: str = token_weather):
+        dir_name = os.path.dirname(os.path.abspath(__file__))
         self._vk = ConnectionsHolder().vk_connection_admin
         self._group_id = groupId
         self._token_weather = tokenWeather
         self._weather: dict = None
-        self._img_ava_d: str = 'ava_d.png'
-        self._img_ava_n: str = 'ava_n.png'
-        self._img_ava: str = 'ava.png'
-        self._img_title_d: str = 'title.jpg'
-        self._img_title_n: str = 'title.jpg'
-        self._img_title: str = 'title.png'
-        self._img_default_weather_icon: str = 'icon_weather_0.png'
-        self._img_weather_icon: str = 'icon_weather.png'
-        self._img_title_output: str = 'title_img-out.png'
-        self._img_back_avatar: str = 'image_back_white.png'
-        self._font: str = 'Roboto-Bold.ttf'
+        self._img_ava_d: str = os.path.join(dir_name, 'ava_d.png')
+        self._img_ava_n: str = os.path.join(dir_name, 'ava_n.png')
+        self._img_ava: str = os.path.join(dir_name, 'ava.png')
+        self._img_title_d: str = os.path.join(dir_name, 'title.jpg')
+        self._img_title_n: str = os.path.join(dir_name, 'title.jpg')
+        self._img_title: str = os.path.join(dir_name, 'title.png')
+        self._img_default_weather_icon: str = os.path.join(dir_name, 'icon_weather_0.png')
+        self._img_weather_icon: str = os.path.join(dir_name, 'icon_weather.png')
+        self._img_title_output: str = os.path.join(dir_name, 'title_img-out.png')
+        self._img_back_avatar: str = os.path.join(dir_name, 'image_back_white.png')
+        self._font: str = os.path.join(dir_name, 'Roboto-Bold.ttf')
         self._font_size: int = 16
 
     def _get_weather(self, lat: str = '56.328674', lon: str = '44.002048') -> str:
@@ -156,7 +158,8 @@ class DynamicTitleManager:
         self.create_title()
         logger.info('Запуск функции загрузки обложки на сервер VK')
         upload_url = \
-            self._vk.photos.getOwnerCoverPhotoUploadServer(group_id=self._group_id, crop_x=0, crop_y=0, crop_x2=911, crop_y2=364)[
+            self._vk.photos.getOwnerCoverPhotoUploadServer(group_id=self._group_id, crop_x=0, crop_y=0, crop_x2=911,
+                                                           crop_y2=364)[
                 'upload_url']
         request = requests.post(upload_url, files={'photo': open(self._img_title_output, "rb")})
         params = {'hash': request.json()['hash'],

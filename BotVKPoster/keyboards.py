@@ -3,11 +3,13 @@ from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
+from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS, BanedUser
 from PosterModels.SortedHashtags import SortedHashtag
 import config as config
 from utils.db_helper import queri_to_list
 import collections
 from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
+from utils.GettingUserInfo.keyboards import add_ban_buttons
 from peewee import fn, JOIN
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from utils.text_cutter import cut
@@ -96,23 +98,40 @@ def hashtag_menu(post: Post, page: int = 1):
 
     if page > 1:
         keyboard.add_callback_button(label=f'<< Назад ({page - 1})',
-                                     color=VkKeyboardColor.SECONDARY,
+                                     color=VkKeyboardColor.PRIMARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': page - 1})
 
     if next_page_exists:
         keyboard.add_callback_button(label=f'Далее ({len(hashtags_pages) - page}) >>',
-                                     color=VkKeyboardColor.SECONDARY,
+                                     color=VkKeyboardColor.PRIMARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': page + 1})
 
     return keyboard.get_keyboard()
 
 
-def user_info_menu(post: Post, page: int = 1):
+def user_info_menu(post: Post):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
     keyboard.add_callback_button(label='<< Назад',
-                                 color=VkKeyboardColor.SECONDARY,
+                                 color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_main_menu", "post_id": post.id})
+
+    keyboard.add_callback_button(label='ЗАБАНИТЬ',
+                                 color=VkKeyboardColor.NEGATIVE,
+                                 payload={"command": "show_ban_from_post_menu", "post_id": post.id})
+
+    return keyboard.get_keyboard()
+
+
+def user_ban_menu(post: Post):
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    keyboard.add_callback_button(label='<< Назад',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_user_info", "post_id": post.id})
+
+    payload = {"command": "ban_user_from_suggest_post", "post_id": post.id}
+    add_ban_buttons(keyboard=keyboard, user=post.user, payload=payload)
 
     return keyboard.get_keyboard()
 
@@ -121,7 +140,7 @@ def conversation_menu(post: Post, page: int = 1):
     keyboard = VkKeyboard(one_time=False, inline=True)
 
     keyboard.add_callback_button(label='<< Вернуться в главное меню',
-                                 color=VkKeyboardColor.SECONDARY,
+                                 color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_main_menu", "post_id": post.id})
 
     conversations_of_post = Conversation.select(Conversation.id).join(
@@ -181,13 +200,13 @@ def conversation_menu(post: Post, page: int = 1):
     if page > 1:
         keyboard.add_callback_button(
             label=f'<< Назад ({page - 1})',
-            color=VkKeyboardColor.SECONDARY,
+            color=VkKeyboardColor.PRIMARY,
             payload={"command": "show_conversation_menu", "post_id": post.id, 'page': page - 1})
 
     if next_page_exists:
         keyboard.add_callback_button(
             label=f'Далее ({len(pages) - page}) >>',
-            color=VkKeyboardColor.SECONDARY,
+            color=VkKeyboardColor.PRIMARY,
             payload={"command": "show_conversation_menu", "post_id": post.id, 'page': page + 1})
 
     return keyboard.get_keyboard()

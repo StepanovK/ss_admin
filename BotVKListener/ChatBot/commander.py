@@ -6,6 +6,10 @@ from .command_enum import Command
 from utils.connection_holder import ConnectionsHolder
 from .mode_enum import Mode
 from functools import lru_cache
+import os
+
+dir_name = os.path.dirname(os.path.abspath(__file__))
+keyboard_path = os.path.join(dir_name, 'keyboards/keyboard.json')
 
 
 class Commander:
@@ -19,8 +23,8 @@ class Commander:
         self._vk_admin = ConnectionsHolder().vk_connection_admin
 
         self.last_command = None
-        self.now_keyboard = open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read()
-        self.last_keyboard = open(config.chat_bot_keyboard_path + "keyboard.json", "r", encoding="UTF-8").read()
+        self.now_keyboard = open(keyboard_path, "r", encoding="UTF-8").read()
+        self.last_keyboard = open(keyboard_path, "r", encoding="UTF-8").read()
         self.now_attachment = None
         self.last_attachment = None
         # Для запомминания ответов пользователя
