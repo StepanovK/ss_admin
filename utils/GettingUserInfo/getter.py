@@ -1,6 +1,7 @@
 from Models.Comments import Comment
 from Models.ChatMessages import ChatMessage
 from Models.Users import User
+from Models.BanedUsers import BanedUser, BAN_REASONS
 from Models.Posts import Post, PostStatus
 from Models.Relations import PostsLike, CommentsLike, PostsAttachment
 from Models.Relations import CommentsAttachment, ConversationsMessageAttachment, ChatMessageAttachment
@@ -284,11 +285,21 @@ def get_short_user_info(user: User):
             date_sub = f'{subscribe.date:%Y-%m-%d}'
         subscribe_history_list.append(f'{date_sub} {state}')
 
+    bun_record = None
+    bun_records = BanedUser.select().where(BanedUser.user == user).order_by(BanedUser.date.desc()).execute()
+    if len(bun_records):
+        bun_record = bun_records[0]
+
     mes_text = f'Информация о пользователе {user} (id {user.id}):\n'
     mes_text += f'Упоминания в ВК: https://vk.com/feed?obj={user.id}&q=&section=mentions\n'
 
     if user.comment is not None and user.comment != '':
         mes_text += f'ВНИМАНИЕ: {user.comment}\n'
+
+    if bun_record:
+        reason_str = BAN_REASONS.get(bun_record.reason, 'просто так')
+        admin_str = f' админом {bun_record.admin}' if bun_record.admin else ''
+        mes_text += f'\nЗАБАНЕН {bun_record.date:%Y-%m-%d} за {reason_str}{admin_str}\n'
 
     if len(subscribe_history_list) == 0:
         mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'

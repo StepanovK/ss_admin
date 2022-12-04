@@ -214,8 +214,8 @@ class Server:
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
-            published_post = self._get_post_by_id(post_id=post_inf.published_post_id)
-            suggested_post = self._get_post_by_id(post_id=post_inf.suggested_post_id)
+            published_post = _get_post_by_id(post_id=post_inf.published_post_id)
+            suggested_post = _get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
                 if post_inf.admin_id:
@@ -242,7 +242,7 @@ class Server:
         except RepostedToConversationPost.DoesNotExist:
             return
 
-        post = self._get_post_by_id(post_id=repost_inf.post_id)
+        post = _get_post_by_id(post_id=repost_inf.post_id)
         if not post:
             return
 
@@ -436,7 +436,7 @@ class Server:
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
@@ -475,7 +475,7 @@ class Server:
         return new_post_id
 
     def _reject_post(self, post_id: str, admin_id: int = None):
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
@@ -497,7 +497,7 @@ class Server:
 
     def _add_new_message_post(self, post_id):
 
-        post = self._get_post_by_id(post_id=post_id)
+        post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
