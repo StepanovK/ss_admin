@@ -15,9 +15,9 @@ else:
     time_check_ads_posts = 10
     time_update_title_vk = 10
 
-schedule.every(30).minutes.do(conversation_cleaning)
-schedule.every(10).minutes.do(check_ads_posts)
-schedule.every(10).minutes.do(update_title_vk)
+schedule.every(time_conversation_cleaning).minutes.do(conversation_cleaning)
+schedule.every(time_check_ads_posts).minutes.do(check_ads_posts)
+schedule.every(time_update_title_vk).minutes.do(update_title_vk)
 
 logger.error(f'Starting...')
 while True:
