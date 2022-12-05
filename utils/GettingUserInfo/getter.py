@@ -335,7 +335,9 @@ def get_short_user_info(user: User):
     if bun_record:
         reason_str = BAN_REASONS.get(bun_record.reason, 'просто так')
         admin_str = f' админом {bun_record.admin}' if bun_record.admin else ''
-        mes_text += f'\nЗАБАНЕН{admin_str} {bun_record.date:%Y-%m-%d} за {reason_str}\n'
+        date_from_str = ' давно' if bun_record.date is None else f' {bun_record.date:%Y-%m-%d}'
+        date_to_str = ' навсегда' if bun_record.unblock_date is None else f' до {bun_record.unblock_date:%Y-%m-%d}'
+        mes_text += f'\nЗАБАНЕН{admin_str}{date_from_str}{date_to_str} за {reason_str}\n'
 
     if len(subscribe_history_list) == 0:
         mes_text += '\nПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН!'
