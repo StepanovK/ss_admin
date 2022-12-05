@@ -130,6 +130,10 @@ def user_ban_menu(post: Post):
                                  color=VkKeyboardColor.PRIMARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
+    keyboard.add_callback_button(label='В главное меню',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_main_menu", "post_id": post.id})
+
     payload = {"command": "ban_user_from_suggest_post", "post_id": post.id}
     add_ban_buttons(keyboard=keyboard, user=post.user, payload=payload)
 
