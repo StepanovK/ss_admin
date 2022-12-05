@@ -60,7 +60,8 @@ class VKBirthdayManager:
         count = members["count"] // 1000
         if members["count"] > 1000:
             for i in range(1, count + 1):
-                data += self._vk.groups.getMembers(group_id=self._group_id, fields='bdate,sex', offset=i * 1000)["items"]
+                data += self._vk.groups.getMembers(group_id=self._group_id, fields='bdate,sex', offset=i * 1000)[
+                    "items"]
         members_list = []
         for elem in data:
             member = {'id': None, 'first_name': None, 'last_name': None, 'bdate': None, 'sex': None}
@@ -150,5 +151,6 @@ def send_happy_birthday():
     VKBirthdayManager().send_happy_birthday()
     logger.info('send happy birthday finished')
 
-# if __name__ == "__main__":
-#     VKBirthdayManager().send_happy_birthday()
+
+if __name__ == "__main__":
+    VKBirthdayManager().send_happy_birthday()
