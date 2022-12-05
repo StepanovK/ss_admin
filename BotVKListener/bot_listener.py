@@ -101,6 +101,8 @@ class Server:
                             create_db.lock_db()
                         elif event.object.message['text'] == 'unlock_db':
                             create_db.unlock_db()
+                        elif event.object.message['text'] == 'load_bans':
+                            _initial_downloading.load_bans(self.vk_connection_admin, self.group_id)
                     else:
                         if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
                             if self._user_is_admin(event.object.message.get('peer_id')):
@@ -131,9 +133,9 @@ class Server:
                             parse_event(event=event, vk_connection=self.vk_connection_group,
                                         vk_connection_admin=self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_BLOCK:
-                    bans.parse_user_block(event, self.vk_connection_admin)
+                    bans.parse_user_block(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_UNBLOCK:
-                    bans.parse_user_unblock(event, self.vk_connection_admin)
+                    bans.parse_user_unblock(event.object, self.vk_connection_admin)
 
             now = datetime.datetime.now()
             if not last_published_posts_update \

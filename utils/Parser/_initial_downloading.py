@@ -8,6 +8,7 @@ import config
 from . import subscriptions
 from . import posts
 from . import users
+from . import bans
 from . import comments
 from . import conversations
 from config import logger
@@ -19,6 +20,7 @@ from typing import Union
 
 _SUBS_OFFSET_FILENAME = 'current_offset_of_subscribers.tmp'
 _POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
+_BAN_OFFSET_FILENAME = 'current_offset_of_bans.tmp'
 _COMMENTS_OFFSET_FILENAME = 'current_offset_of_posts_for_comments.tmp'
 _CONVERSATIONS_OFFSET_FILENAME = 'current_offset_of_conversations.tmp'
 _CONVERSATIONS_MESS_OFFSET_FILENAME = 'current_offset_of_conversations_mess.tmp'
@@ -30,6 +32,10 @@ def load_all(vk_connection, group_id=None):
     logger.info('Loading subscribers started')
     load_subscribers(vk_connection, group_id)
     logger.info('Loading subscribers completed')
+
+    logger.info('Loading bans started')
+    load_bans(vk_connection, group_id)
+    logger.info('Loading bans completed')
 
     logger.info('Loading posts started')
     load_posts(vk_connection, group_id)
@@ -79,6 +85,7 @@ def load_subscribers(vk_connection, group_id):
         offset += 100
         update_current_offset_in_file(offset, _SUBS_OFFSET_FILENAME)
 
+
 def users_fields():
     return 'bdate, can_post, can_see_all_posts, can_see_audio, can_write_private_message, ' \
            'city, common_count, connections, contacts, country, domain, education, has_mobile, ' \
@@ -106,6 +113,28 @@ def load_posts(vk_connection, group_id):
 
         offset += 100
         update_current_offset_in_file(offset, _POST_OFFSET_FILENAME)
+
+
+def load_bans(vk_connection, group_id):
+    offset = get_current_offset_in_file(_BAN_OFFSET_FILENAME)
+    while True:
+        if offset != 0:
+            logger.info(f'Current bans offset = {offset}')
+        vk_bans = vk_connection.groups.getBanned(group_id=group_id,
+                                                 offset=offset,
+                                                 count=100)['items']
+        if len(vk_bans) == 0:
+            break
+        with db.atomic():
+            for vk_ban in vk_bans:
+                ban_info = vk_ban['ban_info']
+                ban_info['user_id'] = vk_ban['profile']['id']
+                ban_info['unblock_date'] = ban_info['end_date']
+                ban = bans.parse_user_block(vk_ban=vk_ban['ban_info'], vk_connection=vk_connection)
+                print(f'Ban loaded {ban}')
+
+        offset += 100
+        update_current_offset_in_file(offset, _BAN_OFFSET_FILENAME)
 
 
 def load_comments(vk_connection, group_id):
@@ -254,6 +283,7 @@ def delete_offset_files():
     delete_offset_file(_COMMENTS_OFFSET_FILENAME)
     delete_offset_file(_CONVERSATIONS_OFFSET_FILENAME)
     delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+    delete_offset_file(_BAN_OFFSET_FILENAME)
 
 
 def delete_offset_file(file_name):
