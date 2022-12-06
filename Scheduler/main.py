@@ -23,7 +23,7 @@ else:
 schedule.every(time_conversation_cleaning).minutes.do(conversation_cleaning)
 schedule.every(time_check_ads_posts).minutes.do(check_ads_posts)
 schedule.every(time_update_title_vk).minutes.do(update_title_vk)
-schedule.every().day.at(time_send_happy_birthday).do(send_happy_birthday)
+# schedule.every().day.at(time_send_happy_birthday).do(send_happy_birthday)
 
 logger.info(f'Starting...')
 while True:
