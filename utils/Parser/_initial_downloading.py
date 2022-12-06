@@ -128,10 +128,11 @@ def load_bans(vk_connection, group_id):
         with db.atomic():
             for vk_ban in vk_bans:
                 ban_info = vk_ban['ban_info']
-                ban_info['user_id'] = vk_ban['profile']['id']
-                ban_info['unblock_date'] = ban_info['end_date']
-                ban = bans.parse_user_block(vk_ban=vk_ban['ban_info'], vk_connection=vk_connection)
-                print(f'Ban loaded {ban}')
+                if 'profile' in vk_ban:
+                    ban_info['user_id'] = vk_ban['profile']['id']
+                    ban_info['unblock_date'] = ban_info['end_date']
+                    ban = bans.parse_user_block(vk_ban=vk_ban['ban_info'], vk_connection=vk_connection)
+                    print(f'Ban loaded {ban}')
 
         offset += 100
         update_current_offset_in_file(offset, _BAN_OFFSET_FILENAME)
