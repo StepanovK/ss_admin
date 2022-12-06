@@ -213,7 +213,7 @@ class Server:
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
-            published_post = _get_post_by_id(post_id=post_inf.published_post_id)
+            published_post = _get_post_by_id(post_id=post_inf.published_post_id, send_warning=False)
             suggested_post = _get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
@@ -402,6 +402,11 @@ class Server:
         if payload['command'] == 'publish_post':
             new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id)
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'publish_post_pending':
+            time_to_post = datetime.datetime.now() + datetime.timedelta(hours=1)
+            new_post_id = self._publish_post(post_id=payload['post_id'], admin_id=admin_id, time_to_post=time_to_post)
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+
         elif payload['command'] == 'reject_post':
             self._reject_post(post_id=payload['post_id'], admin_id=admin_id)
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
@@ -434,7 +439,7 @@ class Server:
         elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
-    def _publish_post(self, post_id: str, admin_id: int = None):
+    def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
         if not post:
             return
@@ -448,11 +453,16 @@ class Server:
         attachment = [str(att.attachment) for att in post.attachments]
 
         try:
-            new_post = self.vk_admin.wall.post(owner_id=-self.group_id,
-                                               signed=0 if post.anonymously else 1,
-                                               post_id=post.vk_id,
-                                               message=message,
-                                               attachments=attachment)
+            post_params = {
+                'owner_id': -self.group_id,
+                'signed': 0 if post.anonymously else 1,
+                'post_id': post.vk_id,
+                'message': message,
+                'attachments': attachment,
+            }
+            if time_to_post is not None:
+                post_params['publish_date'] = time_to_post.timestamp()
+            new_post = self.vk_admin.wall.post(**post_params)
         except Exception as ex:
             logger.warning(f'Failed to publish post ID={post.vk_id}\n{ex}')
             return None
@@ -720,11 +730,12 @@ class Server:
             sleep(10)
 
 
-def _get_post_by_id(post_id) -> Union[Post, None]:
+def _get_post_by_id(post_id, send_warning=True) -> Union[Post, None]:
     try:
         return Post.get(id=post_id)
     except Post.DoesNotExist:
-        logger.warning(f'Post not found ID={post_id}')
+        if send_warning:
+            logger.warning(f'Post not found ID={post_id}')
 
 
 def _get_post_description(post: Post, with_hashtags: bool = True):

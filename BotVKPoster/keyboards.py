@@ -34,6 +34,10 @@ def main_menu_keyboard(post: Post):
             keyboard.add_callback_button(label='&#9725; анонимно',
                                          color=VkKeyboardColor.SECONDARY,
                                          payload={"command": "set_anonymously", "post_id": post.id, 'val': True})
+        keyboard.add_callback_button(label='&#128336; В отложку',
+                                     color=VkKeyboardColor.POSITIVE,
+                                     payload={"command": "publish_post_pending", "post_id": post.id})
+
         keyboard.add_line()
         keyboard.add_callback_button(label='# Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,
