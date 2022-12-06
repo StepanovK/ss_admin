@@ -104,7 +104,7 @@ class Server:
                         if 'load_bans' in event.object.message['text']:
                             words = event.object.message['text'].split()
                             if len(words) == 1:
-                                _initial_downloading.load_bans(self.vk_connection_admin)
+                                _initial_downloading.load_bans(self.vk_connection_admin, self.group_id)
                             elif len(words) == 2 and words[1].isdigit():
                                 group_id = int(event.object.message['text'].split()[1])
                                 _initial_downloading.load_bans(self.vk_connection_admin, group_id)
