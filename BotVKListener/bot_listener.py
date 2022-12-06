@@ -101,8 +101,13 @@ class Server:
                             create_db.lock_db()
                         elif event.object.message['text'] == 'unlock_db':
                             create_db.unlock_db()
-                        elif event.object.message['text'] == 'load_bans':
-                            _initial_downloading.load_bans(self.vk_connection_admin, self.group_id)
+                        if 'load_bans' in event.object.message['text']:
+                            words = event.object.message['text'].split()
+                            if len(words) == 1:
+                                _initial_downloading.load_bans(self.vk_connection_admin)
+                            elif len(words) == 2 and words[1].isdigit():
+                                group_id = int(event.object.message['text'].split()[1])
+                                _initial_downloading.load_bans(self.vk_connection_admin, group_id)
                     else:
                         if PrivateMessage.it_is_private_chat(event.object.message.get('peer_id')):
                             if self._user_is_admin(event.object.message.get('peer_id')):
