@@ -291,8 +291,8 @@ class Server:
                 getter.send_user_info(user=user,
                                       vk_connection=self.vk,
                                       peer_id=self.chat_for_comments_check)
-
-            self._checked_users.append(user)
+            else:
+                self._checked_users.append(user)
 
     def _rabbit_get_new_chat_messages(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_chat_message'
