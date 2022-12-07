@@ -92,7 +92,7 @@ class Server:
                             message_id=event.object.get('conversation_message_id'))
                     if 'command' in payload:
                         if event.object.payload.get('command').startswith('show_ui'):
-                            getter.parse_event(event=event, vk_connection=self.vk)
+                            getter.parse_event(event=event, vk_connection=self.vk, vk_connection_admin=self.vk_admin)
                         else:
                             self._proces_button_click(payload=payload,
                                                       message_id=event.object.get('conversation_message_id'),
