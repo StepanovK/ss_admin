@@ -66,6 +66,10 @@ def main_menu_keyboard(user: User):
     keyboard.add_callback_button(label='ЗАБАНИТЬ',
                                  color=VkKeyboardColor.NEGATIVE,
                                  payload={"command": "show_ui_user_ban_menu", "user_id": user.id})
+    if user_is_banned(user) and user_has_comments(user):
+        keyboard.add_callback_button(label='Удалить все комментарии',
+                                     color=VkKeyboardColor.NEGATIVE,
+                                     payload={"command": "show_ui_delete_all_comments", "user_id": user.id})
 
     return keyboard.get_keyboard()
 
@@ -255,3 +259,17 @@ def add_ban_buttons(keyboard: VkKeyboard, user: User, payload: dict):
             keyboard.add_callback_button(label='с жалобой',
                                          color=color_report,
                                          payload=report_payload)
+
+
+def user_is_banned(user):
+    try:
+        BanedUser.get(user=user)
+        return True
+    except BanedUser.DoesNotExist:
+        return False
+
+
+def user_has_comments(user):
+    user_comment = Comment.select().where(
+        (Comment.user == user) & (Comment.is_deleted == False)).limit(1).execute()
+    return len(user_comment) != 0

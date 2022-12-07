@@ -92,7 +92,7 @@ class Server:
                             message_id=event.object.get('conversation_message_id'))
                     if 'command' in payload:
                         if event.object.payload.get('command').startswith('show_ui'):
-                            getter.parse_event(event=event, vk_connection=self.vk)
+                            getter.parse_event(event=event, vk_connection=self.vk, vk_connection_admin=self.vk_admin)
                         else:
                             self._proces_button_click(payload=payload,
                                                       message_id=event.object.get('conversation_message_id'),
@@ -291,8 +291,8 @@ class Server:
                 getter.send_user_info(user=user,
                                       vk_connection=self.vk,
                                       peer_id=self.chat_for_comments_check)
-
-            self._checked_users.append(user)
+            else:
+                self._checked_users.append(user)
 
     def _rabbit_get_new_chat_messages(self, channel):
         queue_name = f'{self.queue_name_prefix}_new_chat_message'
@@ -741,6 +741,12 @@ def _get_post_by_id(post_id, send_warning=True) -> Union[Post, None]:
 def _get_post_description(post: Post, with_hashtags: bool = True):
     if post.suggest_status == PostStatus.SUGGESTED.value:
         text_status = f'Новый пост {post}'
+        if post.date is not None:
+            delta = datetime.datetime.now() - post.date
+            if delta.days == 0:
+                text_status += f' ({post.date:%H:%M})'
+            else:
+                text_status += f'\nДата: {post.date:%Y.%m.%d %H:%M}'
     elif post.suggest_status == PostStatus.POSTED.value:
         if post.posted_in:
             post_url = str(post.posted_in)
@@ -783,11 +789,12 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
 
         message_text = message_text + '\n'
 
+    post_text = '[Текст отсутствует]' if post.text == '' else f'Текст поста:\n{post.text}'
+
     represent = f'{text_status}\n' \
                 f'Автор: {post.user}\n' \
                 f'{message_text}' \
-                f'Текст поста:\n' \
-                f'{post.text}\n'
+                f'{post_text}\n'
 
     if with_hashtags:
         hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]

@@ -82,12 +82,25 @@ def parse_event(event, vk_connection, vk_connection_admin=None):
             _ban_user_from_info_message(event, vk_connection_admin, user, payload)
         show_ban_menu(event, vk_connection, user)
 
+    elif command == 'show_ui_delete_all_comments':
+
+        if vk_connection_admin:
+            _delete_all_comments(vk_connection_admin, user)
+        show_main_user_info_menu(event, vk_connection, user)
+
     else:
 
+        show_main_user_info_menu(event, vk_connection, user)
+
+
+def show_main_user_info_menu(event, vk_connection, user):
+    try:
         result = vk_connection.messages.edit(peer_id=event.object.peer_id,
                                              conversation_message_id=event.object.conversation_message_id,
                                              message=get_short_user_info(user),
                                              keyboard=keyboards.main_menu_keyboard(user=user))
+    except Exception as ex:
+        logger.warning(f'Failed to edit message ID={event.object.conversation_message_id}\n{ex}')
 
 
 def show_post_info(event, vk_connection, post, published=True):
@@ -455,3 +468,17 @@ def _report_user(vk_connection_admin, user: User, report_type, comment=''):
         logger.warning(f'Failed to report user {user}\n{ex}')
 
     return reported
+
+
+def _delete_all_comments(vk_connection_admin, user: User):
+    for comment in Comment.select().where((Comment.user == user) & (Comment.is_deleted == False)):
+        try:
+            result = vk_connection_admin.wall.deleteComment(owner_id=comment.owner_id,
+                                                            comment_id=comment.vk_id)
+        except Exception as ex:
+            logger.error(f'Не удалось удалить комментарий {comment} {ex}')
+            result = None
+
+        if result == 1:
+            comment.is_deleted = True
+            comment.save()

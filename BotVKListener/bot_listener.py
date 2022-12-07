@@ -131,12 +131,10 @@ class Server:
                                                                              self.vk_connection_admin)
                             self._send_alarm(message_type='new_private_message', message=message.id)
                 elif event.type == VkBotEventType.MESSAGE_EVENT:
-                    peer_id = event.object.get('peer_id')
-                    if PrivateMessage.it_is_private_chat(peer_id):
-                        if ('payload' in event.object
-                                and event.object.payload.get('command').startswith('show_ui')):
-                            parse_event(event=event, vk_connection=self.vk_connection_group,
-                                        vk_connection_admin=self.vk_connection_admin)
+                    if ('payload' in event.object
+                            and event.object.payload.get('command', '').startswith('show_ui')):
+                        parse_event(event=event, vk_connection=self.vk_connection_group,
+                                    vk_connection_admin=self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_BLOCK:
                     bans.parse_user_block(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_UNBLOCK:
