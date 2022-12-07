@@ -789,11 +789,12 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
 
         message_text = message_text + '\n'
 
+    post_text = '[Текст отсутствует]' if post.text == '' else f'Текст поста:\n{post.text}'
+
     represent = f'{text_status}\n' \
                 f'Автор: {post.user}\n' \
                 f'{message_text}' \
-                f'Текст поста:\n' \
-                f'{post.text}\n'
+                f'{post_text}\n'
 
     if with_hashtags:
         hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
