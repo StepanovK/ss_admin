@@ -741,6 +741,12 @@ def _get_post_by_id(post_id, send_warning=True) -> Union[Post, None]:
 def _get_post_description(post: Post, with_hashtags: bool = True):
     if post.suggest_status == PostStatus.SUGGESTED.value:
         text_status = f'Новый пост {post}'
+        if post.date is not None:
+            delta = datetime.datetime.now() - post.date
+            if delta.days == 0:
+                text_status += f' ({post.date:%H:%M})'
+            else:
+                text_status += f'\nДата: {post.date:%Y.%m.%d %H:%M}'
     elif post.suggest_status == PostStatus.POSTED.value:
         if post.posted_in:
             post_url = str(post.posted_in)
