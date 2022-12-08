@@ -30,6 +30,7 @@ import utils.get_hasgtags as get_hasgtags
 from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
+from utils.rabbit_connector import get_messages_from_chanel
 
 MAX_MESSAGE_SIZE = 4048
 
@@ -39,10 +40,6 @@ class Server:
 
     def __init__(self):
         self.group_id = config.group_id
-
-        self.rabbitmq_host = config.rabbitmq_host
-        self.rabbitmq_port = config.rabbitmq_port
-        self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
         self.chat_for_comments_check = config.chat_for_comments_check
@@ -131,85 +128,45 @@ class Server:
         ConnectionsHolder().close_rabbit_connection()
 
     def _rabbit_get_new_posts(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_suggested_post'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                logger.info(f'new_suggested_post {message_text}')
-                self._add_new_message_post(message_text)
+        for message_text in get_messages_from_chanel(message_type='new_suggested_post', channel=channel):
+            logger.info(f'new_suggested_post {message_text}')
+            self._add_new_message_post(message_text)
 
     def _rabbit_get_new_private_messages(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_private_message'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                logger.info(f'new_private_message {message_text}')
-                pm = None
-                try:
-                    pm = PrivateMessage.get(id=message_text)
-                except PrivateMessage.DoesNotExist:
-                    logger.warning(f'can`t find private message {message_text}!')
-                    continue
-                if pm:
-                    users_suggested_posts = Post.select().where((Post.user == pm.user) &
-                                                                (Post.suggest_status == PostStatus.SUGGESTED.value) &
-                                                                (Post.is_deleted == False)).order_by(Post.date.desc())
-                    max_count_to_update = 5
-                    current_number = 1
-                    for users_post in users_suggested_posts:
-                        if current_number > max_count_to_update:
-                            break
-                        self._update_message_post(users_post.id)
-                        current_number += 1
+        for message_text in get_messages_from_chanel(message_type='new_private_message', channel=channel):
+            logger.info(f'new_private_message {message_text}')
+            pm = None
+            try:
+                pm = PrivateMessage.get(id=message_text)
+            except PrivateMessage.DoesNotExist:
+                logger.warning(f'can`t find private message {message_text}!')
+                continue
+            if pm:
+                users_suggested_posts = Post.select().where((Post.user == pm.user) &
+                                                            (Post.suggest_status == PostStatus.SUGGESTED.value) &
+                                                            (Post.is_deleted == False)).order_by(Post.date.desc())
+                max_count_to_update = 5
+                current_number = 1
+                for users_post in users_suggested_posts:
+                    if current_number > max_count_to_update:
+                        break
+                    self._update_message_post(users_post.id)
+                    current_number += 1
 
     def _rabbit_get_new_posted_posts(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_posted_post'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                logger.info(f'new_posted_post {message_text}')
-                if self.tg_poster is not None:
-                    self.tg_poster.send_new_post(message_text)
+        for message_text in get_messages_from_chanel(message_type='new_posted_post', channel=channel):
+            logger.info(f'new_posted_post {message_text}')
+            if self.tg_poster is not None:
+                self.tg_poster.send_new_post(message_text)
 
     def _rabbit_get_new_conversation_messages(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_conversation_message'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                self._update_reposted_conversation_message(message_text)
+        for message_text in get_messages_from_chanel(message_type='new_conversation_message', channel=channel):
+            self._update_reposted_conversation_message(message_text)
 
     def _rabbit_get_updated_posts(self, channel):
-        queue_name = f'{self.queue_name_prefix}_updated_posts'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                logger.info(f'updated_posts {message_text}')
-                self._update_message_post(post_id=message_text)
+        for message_text in get_messages_from_chanel(message_type='updated_posts', channel=channel):
+            logger.info(f'updated_posts {message_text}')
+            self._update_message_post(post_id=message_text)
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -256,23 +213,15 @@ class Server:
         repost_inf.delete_instance()
 
     def _rabbit_get_new_comments(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_comments'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                if config.debug:
-                    logger.info(f'new_comment {message_text}')
-                try:
-                    comment = Comment.get(id=int(message_text))
-                except Exception as ex:
-                    logger.warning(f'comment id={message_text} is not found! {ex}')
-                    continue
-                self._check_comment_danger(comment)
+        for message_text in get_messages_from_chanel(message_type='new_comments', channel=channel):
+            if config.debug:
+                logger.info(f'new_comment {message_text}')
+            try:
+                comment = Comment.get(id=int(message_text))
+            except Exception as ex:
+                logger.warning(f'comment id={message_text} is not found! {ex}')
+                continue
+            self._check_comment_danger(comment)
 
     def _check_comment_danger(self, comment: Comment):
         user = comment.user
@@ -295,42 +244,26 @@ class Server:
                 self._checked_users.append(user)
 
     def _rabbit_get_new_chat_messages(self, channel):
-        queue_name = f'{self.queue_name_prefix}_new_chat_message'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                if config.debug:
-                    logger.info(f'new_chat_message {message_text}')
-                try:
-                    chat_message = ChatMessage.get(id=message_text)
-                except Exception as ex:
-                    logger.warning(f'chat_message id={message_text} is not found! {ex}')
-                    continue
-                self._check_chat_message_danger(chat_message)
+        for message_text in get_messages_from_chanel(message_type='new_chat_message', channel=channel):
+            if config.debug:
+                logger.info(f'new_chat_message {message_text}')
+            try:
+                chat_message = ChatMessage.get(id=message_text)
+            except Exception as ex:
+                logger.warning(f'chat_message id={message_text} is not found! {ex}')
+                continue
+            self._check_chat_message_danger(chat_message)
 
     def _rabbit_get_updated_chat_messages(self, channel):
-        queue_name = f'{self.queue_name_prefix}_updated_chat_message'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        while True:
-            status, properties, message = channel.basic_get(queue=queue_name, auto_ack=True)
-            if message is None:
-                break
-            else:
-                message_text = message.decode()
-                if config.debug:
-                    logger.info(f'updated_chat_message {message_text}')
-                try:
-                    chat_message = ChatMessage.get(id=message_text)
-                except Exception as ex:
-                    logger.warning(f'chat_message id={message_text} is not found! {ex}')
-                    continue
-                self._check_chat_message_danger(chat_message)
+        for message_text in get_messages_from_chanel(message_type='updated_chat_message', channel=channel):
+            if config.debug:
+                logger.info(f'updated_chat_message {message_text}')
+            try:
+                chat_message = ChatMessage.get(id=message_text)
+            except Exception as ex:
+                logger.warning(f'chat_message id={message_text} is not found! {ex}')
+                continue
+            self._check_chat_message_danger(chat_message)
 
     def _check_chat_message_danger(self, chat_message: ChatMessage):
         user = chat_message.user

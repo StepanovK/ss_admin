@@ -14,6 +14,7 @@ from Models.Users import User
 from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
+from utils.rabbit_connector import send_message, send_message_by_chanel, get_messages_from_chanel
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from ChatBot.chat_bot import ChatBot
 from utils.Parser import _initial_downloading, subscriptions, private_messages
@@ -27,8 +28,6 @@ class Server:
     def __init__(self):
         self.group_id = config.group_id
         self.chat_bot = ChatBot()
-
-        self.queue_name_prefix = config.queue_name_prefix
 
         self.chat_for_suggest = config.chat_for_suggest
 
@@ -61,7 +60,7 @@ class Server:
                 elif event.type == VkBotEventType.WALL_REPLY_NEW:
                     comment = comments.parse_comment(event.object, self.vk_connection_admin)
                     if comment is not None:
-                        self._send_alarm('new_comments', str(comment.id))
+                        send_message('new_comments', str(comment.id))
                 elif event.type == VkBotEventType.WALL_REPLY_DELETE:
                     comments.parse_delete_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
@@ -73,7 +72,7 @@ class Server:
                 elif event.type == VkBotEventType.BOARD_POST_NEW:
                     conv_mes = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
                     if conv_mes is not None:
-                        self._send_alarm('new_conversation_message', str(conv_mes.id))
+                        send_message('new_conversation_message', str(conv_mes.id))
                 elif event.type == VkBotEventType.BOARD_POST_EDIT:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
                 elif event.type == VkBotEventType.BOARD_POST_DELETE:
@@ -115,21 +114,21 @@ class Server:
                             else:
                                 message = private_messages.parse_private_message(event.object.message,
                                                                                  self.vk_connection_admin)
-                                self._send_alarm(message_type='new_private_message', message=message.id)
+                                send_message(message_type='new_private_message', message=message.id)
                             self.chat_bot.chat(event)
                         else:
                             message = chats.parse_chat_message(vk_object=event.object.message,
                                                                vk_connection=self.vk_connection_admin,
                                                                owner_id=-event.group_id)
                             if message:
-                                self._send_alarm(message_type='new_chat_message', message=message.id)
+                                send_message(message_type='new_chat_message', message=message.id)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
                         if event.from_user:
                             message = private_messages.parse_private_message(event.object,
                                                                              self.vk_connection_admin)
-                            self._send_alarm(message_type='new_private_message', message=message.id)
+                            send_message(message_type='new_private_message', message=message.id)
                 elif event.type == VkBotEventType.MESSAGE_EVENT:
                     if ('payload' in event.object
                             and event.object.payload.get('command', '').startswith('show_ui')):
@@ -158,6 +157,18 @@ class Server:
                     logger.error(f'Failed to update last chat messages: {ex}')
                 last_chat_messages_update = datetime.datetime.now()
 
+            self._answer_healthcheck_messages()
+
+    @staticmethod
+    def _answer_healthcheck_messages():
+        channel = ConnectionsHolder().rabbit_connection.channel()
+        messages = get_messages_from_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
+                                            channel=channel)
+        for message_text in messages:
+            send_message_by_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_answers',
+                                   message=message_text, channel=channel)
+        ConnectionsHolder().close_rabbit_connection()
+
     def _update_last_posts(self, count_of_posts: int = 60):
         days_for_update = 14
 
@@ -173,7 +184,7 @@ class Server:
             for post_info in posts_info:
                 post, was_updated = posts.update_wall_post(post_info, self.vk_connection_admin)
                 if was_updated:
-                    self._send_alarm('updated_posts', post.id)
+                    send_message('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
                 # print(f'post {post} was_updated={was_updated}')
 
@@ -193,7 +204,7 @@ class Server:
                                                              vk_connection=self.vk_connection_admin,
                                                              owner_id=-config.group_id)
                 if updated:
-                    self._send_alarm(message_type='updated_chat_message', message=message.id)
+                    send_message(message_type='updated_chat_message', message=message.id)
 
     def _process_admin_chat_event(self, event):
         message_text = event.object.message.get('text', '')
@@ -223,7 +234,7 @@ class Server:
                 self._process_new_post_event(new_post=post)
                 text_status = 'загружен'
             elif updated:
-                self._send_alarm('updated_posts', post.id)
+                send_message('updated_posts', post.id)
                 text_status = 'обновлен'
             else:
                 text_status = 'не изменен'
@@ -233,28 +244,18 @@ class Server:
                 message=f'Пост {post} от {post.user} {text_status}',
                 random_id=random.randint(10 ** 5, 10 ** 6))
 
-    def _process_new_post_event(self, new_post):
+    @staticmethod
+    def _process_new_post_event(new_post):
         str_from_user = '' if new_post.user is None else f'от {new_post.user} '
         str_attachments = '' if len(
             new_post.attachments) == 0 else f', вложений: {len(new_post.attachments)}'
         str_action = 'Post published' if new_post.suggest_status is None else 'Suggested new post'
         logger.info(f'{str_action} {str_from_user}{new_post}{str_attachments}')
-        if self.queue_name_prefix != '' and new_post.suggest_status == PostStatus.SUGGESTED.value:
-            self._send_alarm(message_type='new_suggested_post', message=new_post.id)
-        elif self.queue_name_prefix != '' and new_post.suggest_status is None:
-            self._send_alarm(message_type='new_posted_post', message=new_post.id)
 
-    def _send_alarm(self, message_type: str, message: str):
-        channel = ConnectionsHolder().rabbit_connection.channel()
-        queue_name = f'{self.queue_name_prefix}_{message_type}'
-        channel.queue_declare(queue=queue_name,
-                              durable=True)
-        channel.basic_publish(exchange='',
-                              routing_key=queue_name,
-                              body=message.encode(),
-                              properties=pika.BasicProperties(delivery_mode=2))
-
-        ConnectionsHolder().close_rabbit_connection()
+        if new_post.suggest_status == PostStatus.SUGGESTED.value:
+            send_message(message_type='new_suggested_post', message=new_post.id)
+        elif new_post.suggest_status is None:
+            send_message(message_type='new_posted_post', message=new_post.id)
 
     @staticmethod
     def _user_is_admin(user_id):

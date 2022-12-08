@@ -45,3 +45,8 @@ channel = env.int("channel")
 # for dynamic title
 token_weather = env.str("token_weather")
 
+# healthcheck
+healthcheck_interval = env.int("healthcheck_interval")
+healthcheck_timeout = env.int("healthcheck_timeout")
+healthcheck_chat_id = env.int("healthcheck_chat_id")
+healthcheck_queue_name_prefix = 'healthcheck'
