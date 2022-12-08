@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: BotVKPoster/Dockerfile
-    restart: unless-stopped
+    restart: on-failure
     environment:
       - TZ=Europe/Moscow
     volumes:
@@ -74,7 +74,7 @@ services:
     build:
       context: .
       dockerfile: BotVKListener/Dockerfile
-    restart: unless-stopped
+    restart: on-failure
     environment:
       - TZ=Europe/Moscow
     volumes:
@@ -91,7 +91,7 @@ services:
     build:
       context: .
       dockerfile: Scheduler/Dockerfile
-    restart: unless-stopped
+    restart: on-failure
     environment:
       - TZ=Europe/Moscow
     volumes:
