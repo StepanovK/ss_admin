@@ -8,6 +8,7 @@ from PIL import ImageDraw
 import requests
 import os
 
+import config
 from utils.connection_holder import ConnectionsHolder
 from config import group_id, token_weather, logger
 
@@ -33,7 +34,8 @@ class DynamicTitleManager:
         self._font_size: int = 16
 
     def _get_weather(self, lat: str = '56.328674', lon: str = '44.002048') -> str:
-        logger.info("Start get weather")
+        if config.debug:
+            logger.info("Start get weather")
 
         data = {'lat': lat, 'lon': lon,
                 'units': 'metric', 'lang': 'ru',
@@ -89,7 +91,8 @@ class DynamicTitleManager:
             OWNER_ID = OWNER_ID[1:]
         if time_post < time.time():
             time_post = time.time() + 600
-        logger.info('Запуск функции отложенной  до {} публикации на стене'.format(time_post))
+        if config.debug:
+            logger.info('Запуск функции отложенной  до {} публикации на стене'.format(time_post))
         upload_url = self._vk.photos.getWallUploadServer(group_id=OWNER_ID)['upload_url']
         request = requests.post(upload_url, files={'photo': open(attachment, "rb")})
         params = {'server': request.json()['server'],
@@ -111,7 +114,8 @@ class DynamicTitleManager:
         self._vk.wall.post(**params)
 
     def getlostuser(self, group_id):
-        logger.info('Запуск функции получения данных о последнем вступившем в группу пользователе')
+        if config.debug:
+            logger.info('Запуск функции получения данных о последнем вступившем в группу пользователе')
         count_users = self._vk.groups.getMembers(group_id=int(group_id),
                                                  sort='time_desc')['count']
         lostuser = self._vk.groups.getMembers(group_id=int(group_id),
@@ -119,7 +123,8 @@ class DynamicTitleManager:
         return lostuser
 
     def getuseravatar(self, user_id):
-        logger.info('Запуск функции получения аватара и имени пользователя')
+        if config.debug:
+            logger.info('Запуск функции получения аватара и имени пользователя')
         response = self._vk.users.get(user_ids=user_id, fields='photo_max,last_seen')
         if 'deactivated' not in response[0]:
             if 'last_seen' in response[0] and response[0]['last_seen']["time"] > time.time() - 31536000:
@@ -156,7 +161,8 @@ class DynamicTitleManager:
 
     def upload_title(self):
         self.create_title()
-        logger.info('Запуск функции загрузки обложки на сервер VK')
+        if config.debug:
+            logger.info('Запуск функции загрузки обложки на сервер VK')
         upload_url = \
             self._vk.photos.getOwnerCoverPhotoUploadServer(group_id=self._group_id, crop_x=0, crop_y=0, crop_x2=911,
                                                            crop_y2=364)[
@@ -211,9 +217,11 @@ class DynamicTitleManager:
 
 
 def update_title_vk():
-    logger.info('Dynamic title post started')
+    if config.debug:
+        logger.info('Dynamic title post started')
     DynamicTitleManager().upload_title()
-    logger.info('Dynamic title post finished')
+    if config.debug:
+        logger.info('Dynamic title post finished')
 
 # if __name__ == "__main__":
 #     print(DynamicTitleManager().upload_title_img())
