@@ -11,7 +11,7 @@ from config import logger
 def start_status_check():
     vk_connection_group = ConnectionsHolder().vk_connection_group
 
-    logger.info('Status checking is started!')
+    logger.info('Status checking started!')
 
     message_type_listener_requests = f'{config.healthcheck_queue_name_prefix}_listener_requests'
     message_type_listener_answers = f'{config.healthcheck_queue_name_prefix}_listener_answers'
