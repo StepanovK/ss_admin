@@ -32,9 +32,12 @@ def start_status_check():
             else:
                 text_message = f'ВНИМАНИЕ! Бот не работает!!!'
                 logger.warning(text_message)
-                vk_connection_group.messages.send(peer_id=config.healthcheck_chat_id,
-                                                  message=text_message,
-                                                  random_id=random.randint(10 ** 5, 10 ** 6))
+                try:
+                    vk_connection_group.messages.send(peer_id=config.healthcheck_chat_id,
+                                                      message=text_message,
+                                                      random_id=random.randint(10 ** 5, 10 ** 6))
+                except Exception as ex:
+                    logger.warning(f'Failed send message peer_id={config.healthcheck_chat_id}\n{ex}')
                 break
 
         time.sleep(config.healthcheck_interval)

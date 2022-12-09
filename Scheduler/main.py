@@ -10,8 +10,17 @@ from utils.Scripts.ADS_Manager.ads_manager import check_ads_posts
 from utils.Scripts.Dynamic_title_vk.dynamic_title_manager import update_title_vk
 from utils.healthcheck import start_status_check
 
-healthcheck = threading.Thread(target=start_status_check)
-healthcheck.start()
+healthcheck = None
+
+
+def start_healthcheck():
+    global healthcheck
+    healthcheck = threading.Thread(target=start_status_check)
+    healthcheck.start()
+
+
+start_healthcheck()
+
 if debug:
     time_conversation_cleaning = 1
     time_check_ads_posts = 1
@@ -37,4 +46,9 @@ while True:
         schedule.run_pending()
     except Exception as ex:
         logger.error(f'Failed to run pending: {ex}')
+
     time.sleep(1)
+
+    if healthcheck is None or (isinstance(healthcheck, threading.Thread) and not healthcheck.is_alive()):
+        logger.warning(f'healthcheck упал! Перезапускаем!')
+        start_healthcheck()
