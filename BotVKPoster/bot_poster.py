@@ -118,16 +118,20 @@ class Server:
                 last_published_posts_update = datetime.datetime.now()
 
     def _start_consuming(self):
-        channel = ConnectionsHolder().rabbit_connection.channel()
-        self._rabbit_get_new_private_messages(channel)
-        self._rabbit_get_new_posts(channel)
-        self._rabbit_get_updated_posts(channel)
-        self._rabbit_get_new_posted_posts(channel)
-        self._rabbit_get_new_conversation_messages(channel)
-        self._rabbit_get_new_comments(channel)
-        self._rabbit_get_new_chat_messages(channel)
-        self._rabbit_get_updated_chat_messages(channel)
-        ConnectionsHolder().close_rabbit_connection()
+        rabbit_connection = ConnectionsHolder().rabbit_connection
+        if rabbit_connection:
+            channel = rabbit_connection.channel()
+            self._rabbit_get_new_private_messages(channel)
+            self._rabbit_get_new_posts(channel)
+            self._rabbit_get_updated_posts(channel)
+            self._rabbit_get_new_posted_posts(channel)
+            self._rabbit_get_new_conversation_messages(channel)
+            self._rabbit_get_new_comments(channel)
+            self._rabbit_get_new_chat_messages(channel)
+            self._rabbit_get_updated_chat_messages(channel)
+            ConnectionsHolder().close_rabbit_connection()
+        else:
+            logger.warning(f'Failed connect to rabbit!')
 
     def _rabbit_get_new_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_suggested_post', channel=channel):

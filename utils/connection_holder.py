@@ -108,7 +108,7 @@ class ConnectionsHolder(metaclass=Singleton):
                         config.logger.info("Init RabbitMQ connection")
                 except pika.exceptions.AMQPConnectionError:
                     config.logger.warning(
-                        f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
+                        f'failed to connect to rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
             except Exception as ex:
                 config.logger.error(f"Failed to init rabbitmq client: {ex}")
         return self._rabbit_connection
