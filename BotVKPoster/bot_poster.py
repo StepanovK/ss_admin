@@ -44,10 +44,12 @@ class Server:
         self.chat_for_suggest = config.chat_for_suggest
         self.chat_for_comments_check = config.chat_for_comments_check
 
-        self.vk_api_admin = ConnectionsHolder().vk_api_admin
-        self.vk_admin = ConnectionsHolder().vk_connection_admin
-        self.vk_api_group = ConnectionsHolder().vk_api_group
-        self.vk = ConnectionsHolder().vk_connection_group
+        self.vk_api_admin = None
+        self.vk_admin = None
+        self.vk_api_group = None
+        self.vk = None
+        self.reconnect_vk()
+
         self.tg_poster = None
         # try:
         #     self.tg_poster = MyAutoPoster()
@@ -638,6 +640,17 @@ class Server:
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
 
     @staticmethod
+    def close_rabbit_connection():
+        ConnectionsHolder.close_rabbit_connection()
+
+    def reconnect_vk(self):
+        ConnectionsHolder.close_vk_connections()
+        self.vk_api_admin = ConnectionsHolder().vk_api_admin
+        self.vk_admin = ConnectionsHolder().vk_connection_admin
+        self.vk_api_group = ConnectionsHolder().vk_api_group
+        self.vk = ConnectionsHolder().vk_connection_group
+
+    @staticmethod
     def reconnect_db():
         try:
             main_db.close()
@@ -655,7 +668,11 @@ class Server:
             try:
                 self._start_polling()
             except Exception as ex:
+                self.close_rabbit_connection()
+                self.reconnect_vk()
+                self.reconnect_db()
                 logger.error(ex)
+
 
     def run_in_loop(self):
         while True:
