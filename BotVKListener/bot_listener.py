@@ -161,13 +161,17 @@ class Server:
 
     @staticmethod
     def _answer_healthcheck_messages():
-        channel = ConnectionsHolder().rabbit_connection.channel()
-        messages = get_messages_from_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
-                                            channel=channel)
-        for message_text in messages:
-            send_message_by_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_answers',
-                                   message=message_text, channel=channel)
-        ConnectionsHolder().close_rabbit_connection()
+        rabbit_connection = ConnectionsHolder().rabbit_connection
+        if rabbit_connection:
+            channel = rabbit_connection.channel()
+            messages = get_messages_from_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
+                                                channel=channel)
+            for message_text in messages:
+                send_message_by_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_answers',
+                                       message=message_text, channel=channel)
+            ConnectionsHolder().close_rabbit_connection()
+        else:
+            logger.warning(f'Failed connect to rabbit!')
 
     def _update_last_posts(self, count_of_posts: int = 60):
         days_for_update = 14
