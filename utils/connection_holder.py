@@ -15,22 +15,31 @@ class ConnectionsHolder(metaclass=Singleton):
 
     @staticmethod
     def close():
-        if ConnectionsHolder.instance._vk_connection_group:
-            ConnectionsHolder.instance._vk_connection_group = None
-        if ConnectionsHolder.instance._vk_connection_admin:
-            ConnectionsHolder.instance._vk_connection_admin = None
-
+        ConnectionsHolder.close_vk_connections()
         ConnectionsHolder.close_rabbit_connection()
         if config.debug:
             config.logger.info("Connections closed")
 
     @staticmethod
     def close_rabbit_connection():
-        if ConnectionsHolder.instance._rabbit_connection:
-            ConnectionsHolder.instance._rabbit_connection.close()
-            ConnectionsHolder.instance._rabbit_connection = None
-            if config.debug:
-                config.logger.info("RabbitMQ connections closed")
+        if ConnectionsHolder.instance:
+            if ConnectionsHolder.instance._rabbit_connection:
+                ConnectionsHolder.instance._rabbit_connection.close()
+                ConnectionsHolder.instance._rabbit_connection = None
+                if config.debug:
+                    config.logger.info("RabbitMQ connection closed")
+
+    @staticmethod
+    def close_vk_connections():
+        if ConnectionsHolder.instance:
+            if ConnectionsHolder.instance._vk_connection_group:
+                ConnectionsHolder.instance._vk_connection_group = None
+                if config.debug:
+                    config.logger.info("vk_connection_group closed")
+            if ConnectionsHolder.instance._vk_connection_admin:
+                ConnectionsHolder.instance._vk_connection_admin = None
+                if config.debug:
+                    config.logger.info("vk_connection_admin closed")
 
     @property
     def vk_api_group(self):
@@ -99,7 +108,7 @@ class ConnectionsHolder(metaclass=Singleton):
                         config.logger.info("Init RabbitMQ connection")
                 except pika.exceptions.AMQPConnectionError:
                     config.logger.warning(
-                        f'failed to connect with rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
+                        f'failed to connect to rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
             except Exception as ex:
                 config.logger.error(f"Failed to init rabbitmq client: {ex}")
         return self._rabbit_connection
