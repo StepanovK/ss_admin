@@ -4,9 +4,15 @@ from utils.connection_holder import ConnectionsHolder
 
 
 def send_message(message_type: str, message: str):
-    channel = ConnectionsHolder().rabbit_connection.channel()
-    send_message_by_chanel(message_type, message, channel)
-    ConnectionsHolder().close_rabbit_connection()
+    rabbit_connection = ConnectionsHolder().rabbit_connection
+    if rabbit_connection:
+        channel = rabbit_connection.channel()
+        send_message_by_chanel(message_type, message, channel)
+        ConnectionsHolder().close_rabbit_connection()
+        return True
+    else:
+        config.logger.warning(f'Failed connect to rabbit!')
+        return False
 
 
 def send_message_by_chanel(message_type: str, message: str, channel):
@@ -20,10 +26,15 @@ def send_message_by_chanel(message_type: str, message: str, channel):
 
 
 def get_messages(message_type: str):
-    channel = ConnectionsHolder().rabbit_connection.channel()
-    messages = get_messages_from_chanel(message_type, channel)
-    ConnectionsHolder().close_rabbit_connection()
-    return messages
+    rabbit_connection = ConnectionsHolder().rabbit_connection
+    if rabbit_connection:
+        channel = rabbit_connection.channel()
+        messages = get_messages_from_chanel(message_type, channel)
+        ConnectionsHolder().close_rabbit_connection()
+        return messages
+    else:
+        config.logger.warning(f'Failed connect to rabbit!')
+        return []
 
 
 def get_messages_from_chanel(message_type: str, channel):

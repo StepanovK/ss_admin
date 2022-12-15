@@ -44,10 +44,12 @@ class Server:
         self.chat_for_suggest = config.chat_for_suggest
         self.chat_for_comments_check = config.chat_for_comments_check
 
-        self.vk_api_admin = ConnectionsHolder().vk_api_admin
-        self.vk_admin = ConnectionsHolder().vk_connection_admin
-        self.vk_api_group = ConnectionsHolder().vk_api_group
-        self.vk = ConnectionsHolder().vk_connection_group
+        self.vk_api_admin = None
+        self.vk_admin = None
+        self.vk_api_group = None
+        self.vk = None
+        self.reconnect_vk()
+
         self.tg_poster = None
         # try:
         #     self.tg_poster = MyAutoPoster()
@@ -67,6 +69,9 @@ class Server:
         time_to_update_published_posts = 30
         last_published_posts_update = None
 
+        time_to_check_old_messages = 20
+        last_check_old_messages = None
+
         """
         События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
         Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
@@ -84,9 +89,22 @@ class Server:
                         ID сообщения при его отправке не совпадает с реальным ID сообщения.
                         Придётся фиксировать соответствие при нажатии пользователем на кнопку 
                         """
-                        message_of_post, _ = MessageOfSuggestedPost.get_or_create(
-                            post_id=payload['post_id'],
-                            message_id=event.object.get('conversation_message_id'))
+                        message_id = event.object.get('conversation_message_id')
+                        post_id = payload['post_id']
+                        message_of_post = _get_posts_message_record(post_id, message_id=message_id)
+                        if message_of_post is None:
+                            message_of_post = _get_posts_message_record(post_id, need_null_id=True)
+                            if message_of_post is None:
+                                date = self._get_date_of_post_message(peer_id=event.object['peer_id'],
+                                                                      message_id=message_id)
+                                date = datetime.datetime.now() if date is None else date
+                                message_of_post = MessageOfSuggestedPost.create(post_id=post_id,
+                                                                                message_id=message_id,
+                                                                                message_date=date)
+                            else:
+                                message_of_post.message_id = message_id
+                                message_of_post.save()
+
                     if 'command' in payload:
                         if event.object.payload.get('command').startswith('show_ui'):
                             getter.parse_event(event=event, vk_connection=self.vk, vk_connection_admin=self.vk_admin)
@@ -115,17 +133,29 @@ class Server:
                 self._update_published_posts()
                 last_published_posts_update = datetime.datetime.now()
 
+            now = datetime.datetime.now()
+            if not last_check_old_messages or (
+                    now - last_check_old_messages).total_seconds() >= time_to_check_old_messages:
+                if config.debug:
+                    logger.info('Обновление старых сообщений в чате предложки')
+                self._update_old_messages_of_suggested_posts()
+                last_check_old_messages = datetime.datetime.now()
+
     def _start_consuming(self):
-        channel = ConnectionsHolder().rabbit_connection.channel()
-        self._rabbit_get_new_private_messages(channel)
-        self._rabbit_get_new_posts(channel)
-        self._rabbit_get_updated_posts(channel)
-        self._rabbit_get_new_posted_posts(channel)
-        self._rabbit_get_new_conversation_messages(channel)
-        self._rabbit_get_new_comments(channel)
-        self._rabbit_get_new_chat_messages(channel)
-        self._rabbit_get_updated_chat_messages(channel)
-        ConnectionsHolder().close_rabbit_connection()
+        rabbit_connection = ConnectionsHolder().rabbit_connection
+        if rabbit_connection:
+            channel = rabbit_connection.channel()
+            self._rabbit_get_new_private_messages(channel)
+            self._rabbit_get_new_posts(channel)
+            self._rabbit_get_updated_posts(channel)
+            self._rabbit_get_new_posted_posts(channel)
+            self._rabbit_get_new_conversation_messages(channel)
+            self._rabbit_get_new_comments(channel)
+            self._rabbit_get_new_chat_messages(channel)
+            self._rabbit_get_updated_chat_messages(channel)
+            ConnectionsHolder().close_rabbit_connection()
+        else:
+            logger.warning(f'Failed connect to rabbit!')
 
     def _rabbit_get_new_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_suggested_post', channel=channel):
@@ -170,7 +200,7 @@ class Server:
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
-            published_post = _get_post_by_id(post_id=post_inf.published_post_id, send_warning=False)
+            published_post = _get_post_by_id(post_id=post_inf.published_post_id, show_warning=False)
             suggested_post = _get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
@@ -192,7 +222,8 @@ class Server:
 
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
 
-    def _update_reposted_conversation_message(self, conversation_message_id):
+    @staticmethod
+    def _update_reposted_conversation_message(conversation_message_id):
         try:
             repost_inf = RepostedToConversationPost.get(conversation_message_id=conversation_message_id)
         except RepostedToConversationPost.DoesNotExist:
@@ -452,18 +483,27 @@ class Server:
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            random_id=random.randint(10 ** 5, 10 ** 6),
                                            attachment=[str(att.attachment) for att in post.attachments])
+        now = datetime.datetime.now()
+        now = now + datetime.timedelta(microseconds=-now.microsecond)
+        MessageOfSuggestedPost.create(post_id=post_id, message_date=now)
 
     @staticmethod
     def _add_most_common_hashtag(post: Post):
-        for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
-            if hashtag.rating is not None and hashtag.rating > 1:
-                PostsHashtag.get_or_create(post=post, hashtag=hashtag.hashtag)
+        if len(PostsHashtag.select().where(PostsHashtag.post == post)) == 0:
+            for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
+                if hashtag.rating is not None and hashtag.rating > 1:
+                    PostsHashtag.get_or_create(post=post, hashtag=hashtag.hashtag)
 
     def _update_message_post(self, post_id, message_id: int = None):
 
         post = _get_post_by_id(post_id=post_id)
-        message_id = self._get_posts_message_id(post_id, message_id)
-        if not post or not message_id:
+        if not post:
+            return
+        message_id = _get_posts_message_id(post_id, message_id)
+        if not message_id:
+            post_record = _get_posts_message_record(post_id)
+            if not post_record:
+                self._add_new_message_post(post_id)
             return
 
         try:
@@ -477,7 +517,7 @@ class Server:
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
         post = _get_post_by_id(post_id=post_id)
-        message_id = self._get_posts_message_id(post_id, message_id)
+        message_id = _get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
 
@@ -494,7 +534,7 @@ class Server:
 
     def _show_conversation_menu(self, post_id, message_id: int = None, page: int = 1):
         post = _get_post_by_id(post_id=post_id)
-        message_id = self._get_posts_message_id(post_id, message_id)
+        message_id = _get_posts_message_id(post_id, message_id)
         if not post or not message_id:
             return
 
@@ -605,16 +645,6 @@ class Server:
         )
 
     @staticmethod
-    def _get_posts_message_id(post_id, message_id: int = None):
-        if not message_id:
-            try:
-                message_of_post = MessageOfSuggestedPost.get(post_id=post_id)
-                message_id = message_of_post.message_id
-            except MessageOfSuggestedPost.DoesNotExist:
-                logger.warning(f'Post message information not found! Post ID={post_id}')
-        return message_id
-
-    @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
         l_text = post.text.lower()
         anon_words = ['анон', 'ононимн', 'ананимн']
@@ -633,9 +663,72 @@ class Server:
                                                        SortedHashtag.rating,
                                                        SortedHashtag.post_id]).execute()
 
+    def _update_old_messages_of_suggested_posts(self):
+        min_date = datetime.datetime.now() + datetime.timedelta(
+            days=-config.days_for_checking_messages_of_suggested_posts)
+
+        suggested_posts = Post.select(Post.id, Post.user).where(
+            (Post.suggest_status == PostStatus.SUGGESTED.value) &
+            (Post.is_deleted == False) &
+            (Post.date >= min_date)
+        ).order_by(Post.date.asc()).execute()
+
+        td = datetime.timedelta(seconds=config.time_to_update_messages_of_suggested_posts)
+        date_for_update = datetime.datetime.now() - td
+        for post in suggested_posts:
+            post_message_record = _get_posts_message_record(post_id=post.id)
+            if post_message_record is not None and post_message_record.message_date is not None:
+                if post_message_record.message_date < date_for_update:
+                    self._add_new_message_post(post_id=post.id)
+                    message_id = post_message_record.message_id
+                    if message_id is not None:
+                        try:
+                            self.vk.messages.edit(
+                                peer_id=config.chat_for_suggest,
+                                conversation_message_id=message_id,
+                                message=f'[УСТАРЕЛО]\nПост: {post} от {post.user}',
+                            )
+                        except Exception as ex:
+                            logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
+                    post_message_record.delete_instance()
+
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
+
+    def _get_date_of_post_message(self, peer_id, message_id) -> Union[datetime.datetime, None]:
+        mess_info = self._get_post_message_info(peer_id, message_id)
+        if mess_info:
+            return datetime.datetime.fromtimestamp(mess_info.get('date', 0))
+        else:
+            return None
+
+    def _get_post_message_info(self, peer_id, message_id) -> Union[dict, None]:
+        try:
+            messages = self.vk.messages.getByConversationMessageId(
+                peer_id=peer_id,
+                conversation_message_ids=str(message_id)
+            )
+        except Exception as ex:
+            logger.error(f'Can`t getByConversationMessageId peer_id={peer_id} message_id={message_id}: {ex}')
+            return None
+        if len(messages['items']) == 1:
+            return messages['items'][0]
+        elif len(messages['items']) > 1:
+            logger.info(f'Too match of messages are found! peer_id={peer_id} message_id={message_id}')
+        else:
+            logger.info(f'Message not found! peer_id={peer_id} message_id={message_id}')
+
+    @staticmethod
+    def close_rabbit_connection():
+        ConnectionsHolder.close_rabbit_connection()
+
+    def reconnect_vk(self):
+        ConnectionsHolder.close_vk_connections()
+        self.vk_api_admin = ConnectionsHolder().vk_api_admin
+        self.vk_admin = ConnectionsHolder().vk_connection_admin
+        self.vk_api_group = ConnectionsHolder().vk_api_group
+        self.vk = ConnectionsHolder().vk_connection_group
 
     @staticmethod
     def reconnect_db():
@@ -655,6 +748,9 @@ class Server:
             try:
                 self._start_polling()
             except Exception as ex:
+                self.close_rabbit_connection()
+                self.reconnect_vk()
+                self.reconnect_db()
                 logger.error(ex)
 
     def run_in_loop(self):
@@ -663,11 +759,35 @@ class Server:
             sleep(10)
 
 
-def _get_post_by_id(post_id, send_warning=True) -> Union[Post, None]:
+def _get_posts_message_id(post_id, message_id: int = None, show_warning=True):
+    if not message_id:
+        message_of_post = _get_posts_message_record(post_id)
+        if message_of_post:
+            message_id = message_of_post.message_id
+        if message_id is None and show_warning:
+            logger.warning(f'Post message information not found! Post ID={post_id}')
+    return message_id
+
+
+def _get_posts_message_record(post_id, message_id: Optional[int] = None, need_null_id=False) -> Union[
+    MessageOfSuggestedPost, None]:
+    messages_of_post = MessageOfSuggestedPost.select().where(
+        (MessageOfSuggestedPost.post_id == post_id) &
+        ((MessageOfSuggestedPost.message_id == message_id) if message_id is not None or need_null_id else True)
+    ).order_by(
+        MessageOfSuggestedPost.message_date.desc(nulls='last')).limit(1).execute()
+    if len(messages_of_post) > 0:
+        message_of_post = messages_of_post[0]
+    else:
+        message_of_post = None
+    return message_of_post
+
+
+def _get_post_by_id(post_id, show_warning=True) -> Union[Post, None]:
     try:
         return Post.get(id=post_id)
     except Post.DoesNotExist:
-        if send_warning:
+        if show_warning:
             logger.warning(f'Post not found ID={post_id}')
 
 
