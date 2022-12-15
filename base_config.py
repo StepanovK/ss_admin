@@ -50,3 +50,6 @@ healthcheck_interval = env.int("healthcheck_interval")
 healthcheck_timeout = env.int("healthcheck_timeout")
 healthcheck_chat_id = env.int("healthcheck_chat_id")
 healthcheck_queue_name_prefix = 'healthcheck'
+
+days_for_checking_messages_of_suggested_posts = 30
+time_to_update_messages_of_suggested_posts = 1 * (24 * 60 * 60) - 60
