@@ -234,7 +234,6 @@ class Server:
                 self._process_new_post_event(new_post=post)
                 text_status = 'загружен'
             elif updated:
-                send_message('updated_posts', post.id)
                 text_status = 'обновлен'
             else:
                 text_status = 'не изменен'
@@ -243,6 +242,9 @@ class Server:
                 peer_id=event.object.message.get('peer_id'),
                 message=f'Пост {post} от {post.user} {text_status}',
                 random_id=random.randint(10 ** 5, 10 ** 6))
+
+            if not created:
+                send_message('updated_posts', post.id)
 
     @staticmethod
     def _process_new_post_event(new_post):
