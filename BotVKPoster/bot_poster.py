@@ -468,6 +468,7 @@ class Server:
             post.save()
 
             self._delete_sorted_hashtags(post_id=post.id)
+            self._delete_post_hashtags(post_id=post.id)
 
     def _add_new_message_post(self, post_id):
 
@@ -698,6 +699,10 @@ class Server:
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
+
+    @staticmethod
+    def _delete_post_hashtags(post_id: str):
+        PostsHashtag.delete().where(PostsHashtag.post_id == post_id).execute()
 
     def _get_date_of_post_message(self, peer_id, message_id) -> Union[datetime.datetime, None]:
         mess_info = self._get_post_message_info(peer_id, message_id)
