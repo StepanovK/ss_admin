@@ -386,7 +386,8 @@ class Server:
         elif payload['command'] == 'ban_user_from_suggest_post':
             self._ban_from_suggest_post(post_id=payload['post_id'], reason=payload['reason'],
                                         admin_id=admin_id, report_type=payload.get('report_type', ''))
-            self._show_ban_menu(post_id=payload['post_id'], message_id=message_id)
+            self._reject_post(post_id=payload['post_id'], admin_id=admin_id)
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'remove_hashtag':
             self._remove_hashtag(post_id=payload['post_id'], hashtag=payload['hashtag'])
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -467,6 +468,7 @@ class Server:
             post.save()
 
             self._delete_sorted_hashtags(post_id=post.id)
+            self._delete_post_hashtags(post_id=post.id)
 
     def _add_new_message_post(self, post_id):
 
@@ -605,6 +607,8 @@ class Server:
         if not post:
             return
         mes_text = f'Выберите причину блокировки пользователя {post.user}, предложившего пост {post}'
+        if post.suggest_status == PostStatus.SUGGESTED.value:
+            mes_text += f'\n(пост будет отклонён)'
 
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
@@ -695,6 +699,10 @@ class Server:
     @staticmethod
     def _delete_sorted_hashtags(post_id: str):
         SortedHashtag.delete().where(SortedHashtag.post_id == post_id).execute()
+
+    @staticmethod
+    def _delete_post_hashtags(post_id: str):
+        PostsHashtag.delete().where(PostsHashtag.post_id == post_id).execute()
 
     def _get_date_of_post_message(self, peer_id, message_id) -> Union[datetime.datetime, None]:
         mess_info = self._get_post_message_info(peer_id, message_id)
