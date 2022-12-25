@@ -501,6 +501,8 @@ class Server:
         post = _get_post_by_id(post_id=post_id)
         if not post:
             return
+        if post.suggest_status is None or post.suggest_status == '':
+            return
         message_id = _get_posts_message_id(post_id, message_id)
         if not message_id:
             post_record = _get_posts_message_record(post_id)
