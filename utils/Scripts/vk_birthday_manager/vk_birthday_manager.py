@@ -129,12 +129,17 @@ class VKBirthdayManager:
         time_post = datetime(y, m, d, random.choice(self._hour_interval_posting), random.choice(m_list)).timestamp()
         group_members = self.get_group_members()
         d_now = '{dt.day}.{dt.month}'.format(dt=datetime.now())
+
+        hbday_users = self.get_hbday_users(group_members, d_now)
+        if len(hbday_users) == 0:
+            return
+
         memcounter = PhotoCreator(os.path.join(self.DIR_titles, random.choice(os.listdir(self.DIR_titles))), 200,
                                   os.path.join(self.DIR_fonts, random.choice(os.listdir(self.DIR_fonts))), 48)
         message = 'Поздравляем с днем рождения подписчиков нашей группы!!!' \
                   '\nСегодня, {}, свой день рождения празднуют: '.format(
             datetime.today().strftime('%d.%m.%Y'))
-        for user in self.get_hbday_users(group_members, d_now):
+        for user in hbday_users:
             user_info = self.getuseravatar(user['id'])
             if user_info['last_name'] is not None:
                 message += '[id{}|{} {}], '.format(user['id'], user_info['first_name'], user_info['last_name'])
