@@ -5,9 +5,7 @@ import time
 from config import logger, debug
 import threading
 
-from utils.Scripts.ConversationsCleaning.cleaner import start_cleaning as conversation_cleaning
-from utils.Scripts.ADS_Manager.ads_manager import check_ads_posts
-from utils.Scripts.Dynamic_title_vk.dynamic_title_manager import update_title_vk
+from utils.Scripts import *
 from utils.healthcheck import start_status_check
 
 healthcheck = None
@@ -38,7 +36,7 @@ else:
 schedule.every(time_conversation_cleaning).minutes.do(conversation_cleaning)
 schedule.every(time_check_ads_posts).minutes.do(check_ads_posts)
 schedule.every(time_update_title_vk).minutes.do(update_title_vk)
-# schedule.every().day.at(time_send_happy_birthday).do(send_happy_birthday)
+schedule.every().day.at(time_send_happy_birthday).do(send_happy_birthday)
 
 logger.info(f'Starting...')
 while True:

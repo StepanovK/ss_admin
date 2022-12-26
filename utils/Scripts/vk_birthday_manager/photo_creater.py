@@ -49,7 +49,6 @@ class PhotoCreator:
         self._last_title_text = os.path.join(self._dirname, 'last_title_text.png')
         self._title_output = os.path.join(self._dirname, 'title_out_new.png')
 
-
     def add_users(self, user_pic, user_first_name, user_last_name):
         self.list_users.append({'user_pic': user_pic,
                                 'user_first_name': user_first_name,
