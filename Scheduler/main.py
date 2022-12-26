@@ -30,8 +30,6 @@ else:
     time_check_ads_posts = 10
     time_update_title_vk = 10
     time_send_happy_birthday = "09:00"
-    # time_to_send = datetime.datetime.now() + datetime.timedelta(minutes=1)
-    # time_send_happy_birthday = f'{time_to_send:%H:%M}'
 
 schedule.every(time_conversation_cleaning).minutes.do(conversation_cleaning)
 schedule.every(time_check_ads_posts).minutes.do(check_ads_posts)
