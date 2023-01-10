@@ -25,6 +25,8 @@ from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Admins import Admin, get_admin_by_vk_id
 from Models.PrivateMessages import PrivateMessage
+from Models.Relations import PostsAttachment
+from Models.UploadedFiles import UploadedFile
 from utils.db_helper import queri_to_list
 import utils.get_hasgtags as get_hasgtags
 from utils.tg_auto_poster import MyAutoPoster
@@ -415,7 +417,7 @@ class Server:
         if len(hashtags) > 0:
             message = message + '\n' + '\n'.join(hashtags)
 
-        attachment = [str(att.attachment) for att in post.attachments]
+        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
 
         try:
             post_params = {
@@ -484,7 +486,7 @@ class Server:
                                            message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            random_id=random.randint(10 ** 5, 10 ** 6),
-                                           attachment=[str(att.attachment) for att in post.attachments])
+                                           attachment=[str(att) for att in _get_post_attachments(post)])
         now = datetime.datetime.now()
         now = now + datetime.timedelta(microseconds=-now.microsecond)
         MessageOfSuggestedPost.create(post_id=post_id, message_date=now)
@@ -515,7 +517,7 @@ class Server:
                                            conversation_message_id=message_id,
                                            message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
-                                           attachment=[str(att.attachment) for att in post.attachments])
+                                           attachment=[str(att) for att in _get_post_attachments(post)])
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
@@ -625,7 +627,7 @@ class Server:
         if not post:
             return
 
-        attachment = [str(att.attachment) for att in post.attachments]
+        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
 
         text_message = f'{post.user} писал(а):\n{post.text}'
 
@@ -872,6 +874,16 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
         )
 
     return represent
+
+
+def _get_post_attachments(post: Post) -> list[UploadedFile]:
+    query = PostsAttachment.select().where((PostsAttachment.is_deleted == False)
+                                           & (PostsAttachment.post == post)).execute()
+    attachments = []
+    for post_attachment in query:
+        attachments.append(post_attachment.attachment)
+
+    return attachments
 
 
 if __name__ == '__main__':
