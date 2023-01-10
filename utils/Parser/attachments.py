@@ -56,23 +56,19 @@ def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, Privat
 def parse_vk_attachment(vk_attachment):
     attachment_type = vk_attachment.get('type')
     if attachment_type == 'audio' and 'audio' in vk_attachment:
-        vk_attachment_info = vk_attachment.get('audio')
         parse_method = parse_vk_audio_attachment
     elif attachment_type == 'doc' and 'doc' in vk_attachment:
-        vk_attachment_info = vk_attachment.get('doc')
         parse_method = parse_vk_doc_attachment
     elif attachment_type == 'photo' and 'photo' in vk_attachment:
-        vk_attachment_info = vk_attachment.get('photo')
         parse_method = parse_vk_photo_attachment
     elif attachment_type == 'video' and 'video' in vk_attachment:
-        vk_attachment_info = vk_attachment.get('video')
         parse_method = parse_vk_video_attachment
     elif attachment_type == 'poll' and 'poll' in vk_attachment:
-        vk_attachment_info = vk_attachment.get('poll')
         parse_method = parse_vk_poll_attachment
     else:
         logger.warning(f'Attachment processing failed: {attachment_type}')
         return
+    vk_attachment_info = get_vk_attachment_info(vk_attachment)
     main_attributes = get_main_attachment_attributes(vk_attachment_info)
 
     uploaded_file, created = UploadedFile.get_or_create(type=attachment_type,
@@ -84,6 +80,24 @@ def parse_vk_attachment(vk_attachment):
     uploaded_file.is_deleted = False
     uploaded_file.save()
     return uploaded_file
+
+
+def get_vk_attachment_info(vk_attachment: dict):
+    attachment_type = vk_attachment.get('type')
+    if attachment_type == 'audio' and 'audio' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('audio')
+    elif attachment_type == 'doc' and 'doc' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('doc')
+    elif attachment_type == 'photo' and 'photo' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('photo')
+    elif attachment_type == 'video' and 'video' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('video')
+    elif attachment_type == 'poll' and 'poll' in vk_attachment:
+        vk_attachment_info = vk_attachment.get('poll')
+    else:
+        logger.warning(f'Attachment processing failed: {attachment_type}')
+        vk_attachment_info = {}
+    return vk_attachment_info
 
 
 def get_main_attachment_attributes(vk_attachment_info: dict):

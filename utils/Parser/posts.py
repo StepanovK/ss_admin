@@ -1,6 +1,7 @@
 from Models.Admins import Admin
 from Models.Posts import Post, PostStatus, PostsHashtag
 from Models.Relations import PostsAttachment
+from Models.UploadedFiles import UploadedFile
 from config import logger
 from utils import get_hasgtags
 from . import attachments
@@ -50,13 +51,18 @@ def update_wall_post(wall_post: dict, vk_connection=None):
             need_update = True
     if not need_update and not is_deleted:
         vk_attachments = wall_post.get('attachments', [])
-        post_attachments = PostsAttachment.select().where((PostsAttachment.is_deleted == False)
-                                                          & (PostsAttachment.post == post))
-        vk_attachments_without_links = []
+        vk_attachments_id = set()
         for attachment in vk_attachments:
             if attachment.get('type') != 'link':
-                vk_attachments_without_links.append(attachment)
-        if len(vk_attachments_without_links) != len(post_attachments):
+                attachment_info = attachments.get_vk_attachment_info(attachment)
+                vk_attachments_id.add(attachment_info.get('id'))
+
+        post_attachments = UploadedFile.select(UploadedFile.vk_id).join(PostsAttachment).where(
+            (PostsAttachment.is_deleted == False) & (PostsAttachment.post == post)).execute()
+        post_attachments_id = [post_attachment.vk_id for post_attachment in post_attachments]
+        post_attachments_id = set(post_attachments_id)
+
+        if len(vk_attachments_id.symmetric_difference(post_attachments_id)) != 0:
             need_update = True
 
     if need_update:

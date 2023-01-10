@@ -28,7 +28,8 @@ class UploadedFile(BaseModel):
         self.file_name = self.get_enum_format_name()
 
     def get_enum_format_name(self):
-        return f'{self.type}{self.owner_id}_{self.vk_id}'
+        access_key = '' if self.access_key is None or self.access_key == '' else f'_{self.access_key}'
+        return f'{self.type}{self.owner_id}_{self.vk_id}{access_key}'
 
     @staticmethod
     def available_types():
