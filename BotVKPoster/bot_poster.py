@@ -302,7 +302,7 @@ class Server:
         user = chat_message.user
         if user not in self._checked_users:
             user_danger_degree = user_chek.get_degree_of_user_danger(user)
-            if user_danger_degree >= 15:
+            if user_danger_degree >= 13:
                 chat = chat_message.chat
                 mark_as_spam = user_danger_degree > 15
                 message_is_deleted = False
