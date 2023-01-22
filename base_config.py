@@ -45,6 +45,9 @@ channel = env.int("channel")
 # for dynamic title
 token_weather = env.str("token_weather")
 
+openai_token = env.str("openai_token")
+enable_openai = openai_token.strip() != ''
+
 # healthcheck
 healthcheck_interval = env.int("healthcheck_interval")
 healthcheck_timeout = env.int("healthcheck_timeout")

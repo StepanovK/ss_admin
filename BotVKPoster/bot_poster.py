@@ -28,7 +28,7 @@ from Models.PrivateMessages import PrivateMessage
 from Models.Relations import PostsAttachment
 from Models.UploadedFiles import UploadedFile
 from utils.db_helper import queri_to_list
-import utils.get_hasgtags as get_hasgtags
+import utils.get_hasgtags as get_hashtags
 from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
@@ -494,9 +494,21 @@ class Server:
     @staticmethod
     def _add_most_common_hashtag(post: Post):
         if len(PostsHashtag.select().where(PostsHashtag.post == post)) == 0:
-            for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
-                if hashtag.rating is not None and hashtag.rating > 1:
-                    PostsHashtag.get_or_create(post=post, hashtag=hashtag.hashtag)
+            hashtags = []
+
+            minimum_number_of_characters = 15
+            if config.enable_openai and len(post.text) >= minimum_number_of_characters:
+                ai_hashtags = get_hashtags.choice_hashtags_ai(post.text, get_hashtags.get_hashtags())
+                for hashtag in ai_hashtags:
+                    hashtags.append(hashtag)
+
+            if len(hashtags) == 0:
+                for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
+                    if hashtag.rating is not None and hashtag.rating > 1:
+                        hashtags.append(hashtag)
+
+            for hashtag in hashtags:
+                PostsHashtag.get_or_create(post=post, hashtag=hashtag)
 
     def _update_message_post(self, post_id, message_id: int = None):
 
@@ -666,7 +678,7 @@ class Server:
     def _update_sorted_hashtags(post):
         Server._delete_sorted_hashtags(post_id=post.id)
 
-        ht_and_post = [(ht, rating, post.id) for ht, rating in get_hasgtags.get_sorted_hashtags(post)]
+        ht_and_post = [(ht, rating, post.id) for ht, rating in get_hashtags.get_sorted_hashtags(post)]
         SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag,
                                                        SortedHashtag.rating,
                                                        SortedHashtag.post_id]).execute()
