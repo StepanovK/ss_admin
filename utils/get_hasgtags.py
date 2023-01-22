@@ -6,6 +6,7 @@ from Models.Posts import Post, PostsHashtag
 from config import spreadsheetId
 from utils.googleSheetsManager import GoogleSheetsManager
 from rapidfuzz import process, fuzz
+from utils.openai_bot import ChatGPT
 
 
 @functools.lru_cache()
@@ -39,3 +40,34 @@ def get_sorted_hashtags(new_post: Post, count_res: Union[int, None] = None) -> L
         result_hashtag[hashtag] = res
     c = Counter(result_hashtag)
     return c.most_common(count_res)
+
+
+def choice_hashtags_ai(mes_text: str, hashtags: list[str]) -> list[str]:
+    th_text_list = [f' - {ht}' for ht in hashtags]
+    ht_text = '\n'.join(th_text_list)
+
+    question = f'Отвечай коротко. Какой хэштег из списка:\n{ht_text}\n подходит к тексту: "{mes_text}"?'
+    chat = ChatGPT()
+    answer = chat.get_answer(question)
+    # print(answer)
+    relevant_hashtags = []
+    answer_low = answer.lower()
+    for ht in hashtags:
+        if ht.lower() in answer_low:
+            relevant_hashtags.append(ht)
+
+    return relevant_hashtags
+
+
+if __name__ == '__main__':
+    mes = 'Посоветуйте хорошего парикмахера на Сортировке'
+    htags = choice_hashtags_ai(mes, get_hashtags())
+    print(f'Для текста "{mes}" выбраны хэштеги: {htags}')
+
+    mes = 'Чья кошка сидит в подъезде уже вторую неделю? Хозяин, отзовись!'
+    htags = choice_hashtags_ai(mes, get_hashtags())
+    print(f'Для текста "{mes}" выбраны хэштеги: {htags}')
+
+    mes = 'В ООО "Рога и копыта" требуется повар и разводчик мышей. Зарплата маленькая, зато бесплатное питание.'
+    htags = choice_hashtags_ai(mes, get_hashtags())
+    print(f'Для текста "{mes}" выбраны хэштеги: {htags}')
