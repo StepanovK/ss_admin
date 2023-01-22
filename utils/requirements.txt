@@ -9,3 +9,4 @@ Pillow==9.3.0
 peewee
 psycopg2
 psycopg2-binary
+openai
