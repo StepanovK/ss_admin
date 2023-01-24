@@ -133,7 +133,7 @@ class Server:
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
                 if config.debug:
                     logger.info('Обновление опубликованных постов')
-                self._update_published_posts()
+                self._update_published_posts_in_thread()
                 last_published_posts_update = datetime.datetime.now()
 
             now = datetime.datetime.now()
@@ -141,7 +141,7 @@ class Server:
                     now - last_check_old_messages).total_seconds() >= time_to_check_old_messages:
                 if config.debug:
                     logger.info('Обновление старых сообщений в чате предложки')
-                self._update_old_messages_of_suggested_posts()
+                self._update_old_messages_of_suggested_posts_in_thread()
                 last_check_old_messages = datetime.datetime.now()
 
     def _start_consuming(self):
@@ -201,6 +201,10 @@ class Server:
         for message_text in get_messages_from_chanel(message_type='updated_posts', channel=channel):
             logger.info(f'updated_posts {message_text}')
             self._update_message_post_in_thread(message_text)
+
+    def _update_published_posts_in_thread(self):
+        thread = threading.Thread(target=self._update_published_posts)
+        thread.start()
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -692,6 +696,10 @@ class Server:
         SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag,
                                                        SortedHashtag.rating,
                                                        SortedHashtag.post_id]).execute()
+
+    def _update_old_messages_of_suggested_posts_in_thread(self):
+        thread = threading.Thread(target=self._update_old_messages_of_suggested_posts)
+        thread.start()
 
     def _update_old_messages_of_suggested_posts(self):
         min_date = datetime.datetime.now() + datetime.timedelta(
