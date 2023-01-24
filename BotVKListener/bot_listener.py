@@ -20,6 +20,7 @@ from ChatBot.chat_bot import ChatBot
 from utils.Parser import _initial_downloading, subscriptions, private_messages
 from utils.Parser import chats, conversations, comments, likes, posts, bans
 import random
+import threading
 
 
 class Server:
@@ -143,7 +144,8 @@ class Server:
             if not last_published_posts_update \
                     or (now - last_published_posts_update).total_seconds() >= time_to_update_last_posts:
                 try:
-                    self._update_last_posts()
+                    self._run_in_thread(target=self._update_last_posts)
+                    # self._update_last_posts()
                 except Exception as ex:
                     logger.error(f'Failed to update last posts: {ex}')
                 last_published_posts_update = datetime.datetime.now()
@@ -152,20 +154,28 @@ class Server:
             if not last_chat_messages_update \
                     or (now - last_chat_messages_update).total_seconds() >= time_to_update_last_chat_messages:
                 try:
-                    self._update_last_chat_messages()
+                    self._run_in_thread(target=self._update_last_chat_messages)
+                    # self._update_last_chat_messages()
                 except Exception as ex:
                     logger.error(f'Failed to update last chat messages: {ex}')
                 last_chat_messages_update = datetime.datetime.now()
 
-            self._answer_healthcheck_messages()
+            self._run_in_thread(target=self._answer_healthcheck_messages)
+            # self._answer_healthcheck_messages()
+
+    @staticmethod
+    def _run_in_thread(target, *args, **kwargs):
+        thread = threading.Thread(target=target, *args, **kwargs)
+        thread.start()
 
     @staticmethod
     def _answer_healthcheck_messages():
         rabbit_connection = ConnectionsHolder().rabbit_connection
         if rabbit_connection:
             channel = rabbit_connection.channel()
-            messages = get_messages_from_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
-                                                channel=channel)
+            messages = get_messages_from_chanel(
+                message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
+                channel=channel)
             for message_text in messages:
                 send_message_by_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_answers',
                                        message=message_text, channel=channel)
