@@ -13,6 +13,7 @@ from utils.GettingUserInfo.getter import get_short_user_info
 import keyboards
 import pika
 import datetime
+import threading
 import random
 from Models.base import db as main_db
 from Models.Posts import Post, PostsHashtag, PostStatus
@@ -132,7 +133,7 @@ class Server:
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
                 if config.debug:
                     logger.info('Обновление опубликованных постов')
-                self._update_published_posts()
+                self._update_published_posts_in_thread()
                 last_published_posts_update = datetime.datetime.now()
 
             now = datetime.datetime.now()
@@ -140,7 +141,7 @@ class Server:
                     now - last_check_old_messages).total_seconds() >= time_to_check_old_messages:
                 if config.debug:
                     logger.info('Обновление старых сообщений в чате предложки')
-                self._update_old_messages_of_suggested_posts()
+                self._update_old_messages_of_suggested_posts_in_thread()
                 last_check_old_messages = datetime.datetime.now()
 
     def _start_consuming(self):
@@ -162,7 +163,8 @@ class Server:
     def _rabbit_get_new_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_suggested_post', channel=channel):
             logger.info(f'new_suggested_post {message_text}')
-            self._add_new_message_post(message_text)
+            thread = threading.Thread(target=self._add_new_message_post, args=[message_text])
+            thread.start()
 
     def _rabbit_get_new_private_messages(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_private_message', channel=channel):
@@ -182,7 +184,7 @@ class Server:
                 for users_post in users_suggested_posts:
                     if current_number > max_count_to_update:
                         break
-                    self._update_message_post(users_post.id)
+                    self._update_message_post_in_thread(users_post.id)
                     current_number += 1
 
     def _rabbit_get_new_posted_posts(self, channel):
@@ -198,7 +200,11 @@ class Server:
     def _rabbit_get_updated_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='updated_posts', channel=channel):
             logger.info(f'updated_posts {message_text}')
-            self._update_message_post(post_id=message_text)
+            self._update_message_post_in_thread(message_text)
+
+    def _update_published_posts_in_thread(self):
+        thread = threading.Thread(target=self._update_published_posts)
+        thread.start()
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -498,17 +504,25 @@ class Server:
 
             minimum_number_of_characters = 15
             if config.enable_openai and len(post.text) >= minimum_number_of_characters:
-                ai_hashtags = get_hashtags.choice_hashtags_ai(post.text, get_hashtags.get_hashtags())
+                try:
+                    ai_hashtags = get_hashtags.choice_hashtags_ai(post.text, get_hashtags.get_hashtags())
+                except Exception as ex:
+                    logger.error(f'Ошибка получения хэштегов от openai: {ex}')
+                    ai_hashtags = []
                 for hashtag in ai_hashtags:
                     hashtags.append(hashtag)
 
             if len(hashtags) == 0:
                 for hashtag in SortedHashtag.select().where(SortedHashtag.post_id == post.id).limit(1):
                     if hashtag.rating is not None and hashtag.rating > 1:
-                        hashtags.append(hashtag)
+                        hashtags.append(hashtag.hashtag)
 
             for hashtag in hashtags:
                 PostsHashtag.get_or_create(post=post, hashtag=hashtag)
+
+    def _update_message_post_in_thread(self, post_id, message_id: int = None):
+        thread = threading.Thread(target=self._update_message_post, args=[post_id, message_id])
+        thread.start()
 
     def _update_message_post(self, post_id, message_id: int = None):
 
@@ -682,6 +696,10 @@ class Server:
         SortedHashtag.insert_many(ht_and_post, fields=[SortedHashtag.hashtag,
                                                        SortedHashtag.rating,
                                                        SortedHashtag.post_id]).execute()
+
+    def _update_old_messages_of_suggested_posts_in_thread(self):
+        thread = threading.Thread(target=self._update_old_messages_of_suggested_posts)
+        thread.start()
 
     def _update_old_messages_of_suggested_posts(self):
         min_date = datetime.datetime.now() + datetime.timedelta(
