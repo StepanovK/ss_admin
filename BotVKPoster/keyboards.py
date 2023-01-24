@@ -163,8 +163,11 @@ def conversation_menu(post: Post, page: int = 1):
     conversations_of_post_tmp = queri_to_list(reposted_posts, 'conversation_id')
 
     pages = _conversations_by_pages(post)
-    page = min(max(pages.keys()), page)
-    current_page = pages[page]
+    if len(pages) == 0:
+        current_page = []
+    else:
+        page = min(max(pages.keys()), page)
+        current_page = pages[page]
 
     for conversation in current_page:
         keyboard.add_line()

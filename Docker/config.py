@@ -8,4 +8,4 @@ db_port = 5432
 
 rabbitmq_host = 'rabbitmq'
 
-debug = False
+debug = bool(env.int("debug"))
