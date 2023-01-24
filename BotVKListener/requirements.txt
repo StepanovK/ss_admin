@@ -1,7 +1,7 @@
 loguru
 environs
 vk_api
-pika
+pika==1.2.1
 pymorphy2
 
 rapidfuzz
