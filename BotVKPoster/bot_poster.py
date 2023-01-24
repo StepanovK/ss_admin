@@ -164,7 +164,7 @@ class Server:
         for message_text in get_messages_from_chanel(message_type='new_suggested_post', channel=channel):
             logger.info(f'new_suggested_post {message_text}')
             thread = threading.Thread(target=self._add_new_message_post, args=[message_text])
-            thread.run()
+            thread.start()
 
     def _rabbit_get_new_private_messages(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_private_message', channel=channel):
@@ -518,7 +518,7 @@ class Server:
 
     def _update_message_post_in_thread(self, post_id, message_id: int = None):
         thread = threading.Thread(target=self._update_message_post, args=[post_id, message_id])
-        thread.run()
+        thread.start()
 
     def _update_message_post(self, post_id, message_id: int = None):
 
