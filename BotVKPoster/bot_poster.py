@@ -81,10 +81,7 @@ class Server:
         С периодичностью time_to_update_published_posts в предложенных постах записывается ID опубликованных 
         """
         while True:
-            # https://habr.com/ru/post/512412/
             for event in self._longpoll.check():
-                # logger.info(f'обработка события ВК {event.type}')
-
                 if event.type == VkBotEventType.MESSAGE_EVENT:
                     payload = event.object.get('payload', {})
                     if 'post_id' in payload:
@@ -133,7 +130,7 @@ class Server:
                     now - last_published_posts_update).total_seconds() >= time_to_update_published_posts:
                 if config.debug:
                     logger.info('Обновление опубликованных постов')
-                self._update_published_posts_in_thread()
+                self._run_in_thread(target=self._update_published_posts)
                 last_published_posts_update = datetime.datetime.now()
 
             now = datetime.datetime.now()
@@ -141,7 +138,7 @@ class Server:
                     now - last_check_old_messages).total_seconds() >= time_to_check_old_messages:
                 if config.debug:
                     logger.info('Обновление старых сообщений в чате предложки')
-                self._update_old_messages_of_suggested_posts_in_thread()
+                self._run_in_thread(target=self._update_old_messages_of_suggested_posts)
                 last_check_old_messages = datetime.datetime.now()
 
     def _start_consuming(self):
@@ -184,7 +181,7 @@ class Server:
                 for users_post in users_suggested_posts:
                     if current_number > max_count_to_update:
                         break
-                    self._update_message_post_in_thread(users_post.id)
+                    self._run_in_thread(target=self._update_message_post, args=[users_post.id])
                     current_number += 1
 
     def _rabbit_get_new_posted_posts(self, channel):
@@ -200,11 +197,7 @@ class Server:
     def _rabbit_get_updated_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='updated_posts', channel=channel):
             logger.info(f'updated_posts {message_text}')
-            self._update_message_post_in_thread(message_text)
-
-    def _update_published_posts_in_thread(self):
-        thread = threading.Thread(target=self._update_published_posts)
-        thread.start()
+            self._run_in_thread(target=self._update_message_post, args=[message_text])
 
     def _update_published_posts(self):
         for post_inf in PublishedPost.select():
@@ -520,10 +513,6 @@ class Server:
             for hashtag in hashtags:
                 PostsHashtag.get_or_create(post=post, hashtag=hashtag)
 
-    def _update_message_post_in_thread(self, post_id, message_id: int = None):
-        thread = threading.Thread(target=self._update_message_post, args=[post_id, message_id])
-        thread.start()
-
     def _update_message_post(self, post_id, message_id: int = None):
 
         post = _get_post_by_id(post_id=post_id)
@@ -697,10 +686,6 @@ class Server:
                                                        SortedHashtag.rating,
                                                        SortedHashtag.post_id]).execute()
 
-    def _update_old_messages_of_suggested_posts_in_thread(self):
-        thread = threading.Thread(target=self._update_old_messages_of_suggested_posts)
-        thread.start()
-
     def _update_old_messages_of_suggested_posts(self):
         min_date = datetime.datetime.now() + datetime.timedelta(
             days=-config.days_for_checking_messages_of_suggested_posts)
@@ -782,6 +767,11 @@ class Server:
             logger.info('Connected to DB')
         except Exception as ex:
             logger.warning(f'Can`t reconnect to DB! {ex}')
+
+    @staticmethod
+    def _run_in_thread(target, *args, **kwargs):
+        thread = threading.Thread(target=target, *args, **kwargs)
+        thread.start()
 
     def run(self):
         if config.debug:
