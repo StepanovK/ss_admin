@@ -46,6 +46,8 @@ class Server:
         last_published_posts_update = None
         time_to_update_last_chat_messages = 20
         last_chat_messages_update = None
+        time_to_healthcheck = config.healthcheck_interval / 4
+        last_healthcheck = None
 
         while True:
             for event in self._longpoll.check():
@@ -160,8 +162,10 @@ class Server:
                     logger.error(f'Failed to update last chat messages: {ex}')
                 last_chat_messages_update = datetime.datetime.now()
 
-            self._run_in_thread(target=self._answer_healthcheck_messages)
-            # self._answer_healthcheck_messages()
+            now = datetime.datetime.now()
+            if not last_healthcheck or (now - last_healthcheck).total_seconds() >= time_to_healthcheck:
+                self._run_in_thread(target=self._answer_healthcheck_messages)
+                last_healthcheck = datetime.datetime.now()
 
     @staticmethod
     def _run_in_thread(target, *args, **kwargs):
