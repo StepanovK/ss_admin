@@ -66,26 +66,23 @@ def update_subscribers(vk_connection, group_id):
 
     subscribed = Subscription.get_slise_of_last(is_subscribed=True)
 
+    now = datetime.datetime.now()
     for user in all_subscribers:
         if user not in subscribed:
             subscriptions.add_subscription(group_id=group_id,
                                            user_id=user,
                                            vk_connection=vk_connection,
                                            is_subscribed=True,
-                                           subs_date=datetime.date(2000, 1, 1),
+                                           subs_date=now,
                                            rewrite=True)
 
     for user in subscribed.keys():
         if user not in all_subscribers:
-            now = datetime.datetime.now()
             subscriptions.add_subscription(group_id=group_id,
                                            user_id=user,
                                            vk_connection=vk_connection,
                                            is_subscribed=False,
-                                           subs_date=now - datetime.timedelta(microseconds=now.microsecond,
-                                                                              seconds=now.second,
-                                                                              minutes=now.minute,
-                                                                              hours=now.hour),
+                                           subs_date=now,
                                            rewrite=True)
 
 
