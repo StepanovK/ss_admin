@@ -236,6 +236,13 @@ class Server:
                 random_id=random.randint(10 ** 5, 10 ** 6))
             self._run_in_thread(target=_initial_downloading.update_subscribers,
                                 args=[self.vk_connection_admin, config.group_id])
+        elif message_text == 'update_conversations_messages':
+            self.vk_connection_group.messages.send(
+                peer_id=event.object.message.get('peer_id'),
+                message=f'Начато обновление сообщений в обсуждениях',
+                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._run_in_thread(target=_initial_downloading.update_conversations_messages,
+                                args=[self.vk_connection_admin, config.group_id])
 
         user = get_user_from_message(message_text)
         if user is not None:

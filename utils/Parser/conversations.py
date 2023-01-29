@@ -48,9 +48,9 @@ def parse_conversation_message(vk_object: dict, vk_connection=None, is_edited=Fa
                                                           message_id=mes_id,
                                                           conversation=conversation)
     conv_mes.text = vk_object.get('text', '')
-    user_id = vk_object.get('from_id', 0)
-    is_edited = is_edited
+    conv_mes.is_edited = vk_object.get('is_edited', False)
     conv_mes.date = datetime.datetime.fromtimestamp(vk_object.get('date'))
+    user_id = vk_object.get('from_id', 0)
     if user_id > 0:
         conv_mes.user = users.get_or_create_user(user_id, vk_connection)
     elif user_id < 0:

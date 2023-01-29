@@ -13,6 +13,7 @@ from Models.Users import User
 from Models.Subscriptions import Subscription
 from Models.Posts import Post
 from Models.Conversations import Conversation
+from Models.ConversationMessages import ConversationMessage
 from Models.base import db
 from typing import Union
 
@@ -207,11 +208,26 @@ def load_conversations(vk_connection, group_id):
         update_current_offset_in_file(offset, _CONVERSATIONS_OFFSET_FILENAME)
 
 
+def update_conversations_messages(vk_connection, group_id):
+    delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+    messages = load_conversations_messages(vk_connection, group_id)
+    delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+
+    deleted_messages = ConversationMessage.select().where(
+        (ConversationMessage.id.not_in(messages)) &
+        (ConversationMessage.is_deleted == False)
+    ).execute()
+
+    for message in deleted_messages:
+        message.is_deleted = True
+        message.save()
+
+
 def load_conversations_messages(vk_connection, group_id):
     conv_offset = get_current_offset_in_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
     if conv_offset != 0:
         logger.info(f'Loading of conversations comments started from conv id={conv_offset}')
-
+    messages = []
     count_for_get = 100  # min = 10, max = 100
     for conv in Conversation.select().where(
             Conversation.is_deleted == False,
@@ -236,6 +252,7 @@ def load_conversations_messages(vk_connection, group_id):
                     comment = conversations.parse_conversation_message(vk_comment,
                                                                        vk_connection,
                                                                        conversation=conv)
+                    messages.append(comment)
                     count += 1
             offset += count_for_get
             if len(vk_comments['items']) < count_for_get:
@@ -244,6 +261,7 @@ def load_conversations_messages(vk_connection, group_id):
         if count > 0:
             print(f'Loaded {count} comments for conversation {conv.get_url()}')
             update_current_offset_in_file(conv.conversation_id, _CONVERSATIONS_MESS_OFFSET_FILENAME)
+    return messages
 
 
 def update_current_offset_in_file(offset, temp_file_name):
