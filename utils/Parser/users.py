@@ -3,9 +3,9 @@ from Models.Users import User
 from config import logger
 
 
-def add_user_by_info(vk_connection, user_info):
+def add_user_by_info(vk_connection, user_info, update_info=False):
     user, created = User.get_or_create(id=user_info['id'])
-    if created:
+    if update_info or created:
         update_user_info_from_vk(user, user_info['id'], vk_connection, user_info)
         user.save()
     return user

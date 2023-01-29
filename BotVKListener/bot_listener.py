@@ -197,14 +197,12 @@ class Server:
                                          ).order_by(Post.date.desc()).limit(count_of_posts)
         last_posts_list = queri_to_list(last_posts, 'id')
         if len(last_posts_list) > 0:
-            # print(f'updating posts: {last_posts_list}')
             posts_info = self.vk_connection_admin.wall.getById(posts=', '.join(last_posts_list))
             for post_info in posts_info:
                 post, was_updated = posts.update_wall_post(post_info, self.vk_connection_admin)
                 if was_updated:
                     send_message('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
-                # print(f'post {post} was_updated={was_updated}')
 
     def _update_last_chat_messages(self):
         for chat in Chat.select():
@@ -231,6 +229,13 @@ class Server:
             if len(words) == 2:
                 peer_id = words[1]
                 self._disable_keyboard(peer_id)
+        elif message_text == 'update_subscribers':
+            self.vk_connection_group.messages.send(
+                peer_id=event.object.message.get('peer_id'),
+                message=f'Начато обновление состава подписчиков',
+                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._run_in_thread(target=_initial_downloading.update_subscribers,
+                                args=[self.vk_connection_admin, config.group_id])
 
         user = get_user_from_message(message_text)
         if user is not None:

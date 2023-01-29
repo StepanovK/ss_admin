@@ -97,8 +97,7 @@ def parse_comment(comment_obj: dict, vk_connection):
     comment.save()
 
     if 'likes' in comment_obj and comment_obj['likes'].get('count', 0) > 0:
-        now_likes = CommentsLike.select(CommentsLike.id).where(CommentsLike.liked_object == comment).execute()
-        now_likes_count = len(now_likes)
+        now_likes_count = CommentsLike.select(CommentsLike.id).where(CommentsLike.liked_object == comment).count()
         count = comment_obj['likes'].get('count', 0)
         if now_likes_count < count:
             def_user = users.get_or_create_user(vk_id=1, vk_connection=vk_connection)

@@ -1,6 +1,3 @@
-# from BotVKListener.server import Server
-# import config as config
-
 import datetime
 import os
 
@@ -13,6 +10,7 @@ from . import comments
 from . import conversations
 from config import logger
 from Models.Users import User
+from Models.Subscriptions import Subscription
 from Models.Posts import Post
 from Models.Conversations import Conversation
 from Models.base import db
@@ -58,8 +56,54 @@ def load_all(vk_connection, group_id=None):
     logger.info('Loading completed!')
 
 
+def update_subscribers(vk_connection, group_id):
+    delete_offset_file(_SUBS_OFFSET_FILENAME)
+    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+    delete_offset_file(_SUBS_OFFSET_FILENAME)
+
+    if len(all_subscribers) == 0:
+        return
+
+    subscribed = Subscription.get_slise_of_last(is_subscribed=True)
+
+    for user in all_subscribers:
+        if user not in subscribed:
+            subscriptions.add_subscription(group_id=group_id,
+                                           user_id=user,
+                                           vk_connection=vk_connection,
+                                           is_subscribed=True,
+                                           subs_date=datetime.date(2000, 1, 1),
+                                           rewrite=True)
+
+    for user in subscribed.keys():
+        if user not in all_subscribers:
+            now = datetime.datetime.now()
+            subscriptions.add_subscription(group_id=group_id,
+                                           user_id=user,
+                                           vk_connection=vk_connection,
+                                           is_subscribed=False,
+                                           subs_date=now - datetime.timedelta(microseconds=now.microsecond,
+                                                                              seconds=now.second,
+                                                                              minutes=now.minute,
+                                                                              hours=now.hour),
+                                           rewrite=True)
+
+
 def load_subscribers(vk_connection, group_id):
+    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+
+    for user in all_subscribers:
+        subscriptions.add_subscription(group_id=group_id,
+                                       user_id=user,
+                                       vk_connection=vk_connection,
+                                       is_subscribed=True,
+                                       subs_date=datetime.date(2000, 1, 1),
+                                       rewrite=True)
+
+
+def _get_subscribed_users(vk_connection, group_id):
     offset = get_current_offset_in_file(_SUBS_OFFSET_FILENAME)
+    all_subscribers = []
     while True:
         if offset != 0:
             logger.info(f'Current subscribers offset = {offset}')
@@ -74,16 +118,11 @@ def load_subscribers(vk_connection, group_id):
         with db.atomic():
             for user_info in subs:
                 user = users.add_user_by_info(vk_connection, user_info)
-
-                subscriptions.add_subscription(group_id=group_id,
-                                               user_id=user_info['id'],
-                                               vk_connection=vk_connection,
-                                               is_subscribed=True,
-                                               subs_date=datetime.date(2000, 1, 1),
-                                               rewrite=True)
-
+                all_subscribers.append(user)
         offset += 100
         update_current_offset_in_file(offset, _SUBS_OFFSET_FILENAME)
+
+    return all_subscribers
 
 
 def load_posts(vk_connection, group_id):
