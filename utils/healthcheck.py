@@ -30,7 +30,7 @@ def start_status_check():
             elif datetime.datetime.now() < stop_time:
                 time.sleep(1)
             else:
-                text_message = f'ВНИМАНИЕ! Бот не работает!!!'
+                text_message = f'ВНИМАНИЕ! Бот не работает!!! ({datetime.datetime.now().strftime("%H:%M:%S")})'
                 logger.warning(text_message)
                 try:
                     vk_connection_group.messages.send(peer_id=config.healthcheck_chat_id,
