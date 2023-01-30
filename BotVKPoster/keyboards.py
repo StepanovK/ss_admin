@@ -1,6 +1,6 @@
 import functools
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from Models.Posts import Post, PostStatus
+from Models.Posts import Post, PostStatus, PostsHashtag
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
 from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS, BanedUser
@@ -42,6 +42,10 @@ def main_menu_keyboard(post: Post):
         keyboard.add_callback_button(label='# Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': 1})
+        if PostsHashtag.select().where(PostsHashtag.post==post).limit(1).count() > 0:
+            keyboard.add_callback_button(label='&#10060; Очистить',
+                                         color=VkKeyboardColor.SECONDARY,
+                                         payload={"command": "clear_hashtags", "post_id": post.id, 'page': 1})
         keyboard.add_line()
 
     keyboard.add_callback_button(label='&#128214; Информация о пользователе',
