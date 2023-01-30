@@ -1,6 +1,3 @@
-# from BotVKListener.server import Server
-# import config as config
-
 import datetime
 import os
 
@@ -13,8 +10,10 @@ from . import comments
 from . import conversations
 from config import logger
 from Models.Users import User
+from Models.Subscriptions import Subscription
 from Models.Posts import Post
 from Models.Conversations import Conversation
+from Models.ConversationMessages import ConversationMessage
 from Models.base import db
 from typing import Union
 
@@ -58,14 +57,57 @@ def load_all(vk_connection, group_id=None):
     logger.info('Loading completed!')
 
 
+def update_subscribers(vk_connection, group_id):
+    delete_offset_file(_SUBS_OFFSET_FILENAME)
+    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+    delete_offset_file(_SUBS_OFFSET_FILENAME)
+
+    if len(all_subscribers) == 0:
+        return
+
+    subscribed = Subscription.get_slise_of_last(is_subscribed=True)
+
+    now = datetime.datetime.now()
+    for user in all_subscribers:
+        if user not in subscribed:
+            subscriptions.add_subscription(group_id=group_id,
+                                           user_id=user,
+                                           vk_connection=vk_connection,
+                                           is_subscribed=True,
+                                           subs_date=now,
+                                           rewrite=True)
+
+    for user in subscribed.keys():
+        if user not in all_subscribers:
+            subscriptions.add_subscription(group_id=group_id,
+                                           user_id=user,
+                                           vk_connection=vk_connection,
+                                           is_subscribed=False,
+                                           subs_date=now,
+                                           rewrite=True)
+
+
 def load_subscribers(vk_connection, group_id):
+    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+
+    for user in all_subscribers:
+        subscriptions.add_subscription(group_id=group_id,
+                                       user_id=user,
+                                       vk_connection=vk_connection,
+                                       is_subscribed=True,
+                                       subs_date=datetime.date(2000, 1, 1),
+                                       rewrite=True)
+
+
+def _get_subscribed_users(vk_connection, group_id):
     offset = get_current_offset_in_file(_SUBS_OFFSET_FILENAME)
+    all_subscribers = []
     while True:
         if offset != 0:
             logger.info(f'Current subscribers offset = {offset}')
         subs = vk_connection.groups.getMembers(group_id=group_id,
                                                sort='time_asc',
-                                               fields=users_fields(),
+                                               fields=users.users_fields(),
                                                offset=offset,
                                                count=100)['items']
         if len(subs) == 0:
@@ -73,25 +115,12 @@ def load_subscribers(vk_connection, group_id):
 
         with db.atomic():
             for user_info in subs:
-                user = add_user_by_info(vk_connection, user_info)
-
-                subscriptions.add_subscription(group_id=group_id,
-                                               user_id=user_info['id'],
-                                               vk_connection=vk_connection,
-                                               is_subscribed=True,
-                                               subs_date=datetime.date(2000, 1, 1),
-                                               rewrite=True)
-
+                user = users.add_user_by_info(vk_connection, user_info)
+                all_subscribers.append(user)
         offset += 100
         update_current_offset_in_file(offset, _SUBS_OFFSET_FILENAME)
 
-
-def users_fields():
-    return 'bdate, can_post, can_see_all_posts, can_see_audio, can_write_private_message, ' \
-           'city, common_count, connections, contacts, country, domain, education, has_mobile, ' \
-           'last_seen, lists, online, online_mobile, photo_100, photo_200, photo_200_orig, ' \
-           'photo_400_orig, photo_50, photo_max, photo_max_orig, relation, relatives, schools, ' \
-           'sex, site, status, universities'
+    return all_subscribers
 
 
 def load_posts(vk_connection, group_id):
@@ -143,47 +172,13 @@ def load_comments(vk_connection, group_id):
     if post_offset != 0:
         logger.info(f'Loading of comments started from post id={post_offset}')
 
-    count_for_get = 100  # min = 10, max = 100
     for post in Post.select().where(Post.is_deleted == False,
                                     Post.owner_id == -group_id,
                                     Post.vk_id > post_offset).order_by(Post.vk_id):
-        offset = 0
-        count = 0
-        params = {'owner_id': -group_id,
-                  'post_id': post.vk_id,
-                  'need_likes': 1,
-                  'count': count_for_get,
-                  'sort': 'asc',
-                  'extended': 1,
-                  'fields': users_fields(),
-                  'thread_items_count': 10}
-        while True:
-            with db.atomic():
-                vk_comments = vk_connection.wall.getComments(offset=offset, **params)
-                for user_info in vk_comments['profiles']:
-                    user = add_user_by_info(vk_connection, user_info)
-                for vk_comment in vk_comments['items']:
-                    comment = comments.parse_comment(vk_comment, vk_connection)
-                    count += 1
+        post_comments = comments.load_post_comments(post, vk_connection, group_id)
 
-                    thread = vk_comment.get('thread', {})
-                    comments_in_thread = []
-                    if 1 < thread.get('count', 0) < 10:
-                        comments_in_thread = thread.get('items', [])
-                    elif thread.get('count', 0) > 10:
-                        vk_comment_with_thread = vk_connection.wall.getComments(comment_id=vk_comment['id'], **params)
-                        comments_in_thread = vk_comment_with_thread.get('items', [])
-
-                    for vk_comment_in_thread in comments_in_thread:
-                        comment_in_thread = comments.parse_comment(vk_comment_in_thread, vk_connection)
-                        count += 1
-
-            offset += count_for_get
-            if len(vk_comments['items']) < count_for_get:
-                break
-
-        if count > 0:
-            print(f'Loaded {count} comments for {post}')
+        if len(post_comments) > 0:
+            print(f'Loaded {len(post_comments)} comments for {post}')
             update_current_offset_in_file(post.vk_id, _COMMENTS_OFFSET_FILENAME)
 
 
@@ -213,16 +208,31 @@ def load_conversations(vk_connection, group_id):
         update_current_offset_in_file(offset, _CONVERSATIONS_OFFSET_FILENAME)
 
 
+def update_conversations_messages(vk_connection, group_id):
+    delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+    messages = load_conversations_messages(vk_connection, group_id)
+    delete_offset_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
+
+    deleted_messages = ConversationMessage.select().where(
+        (ConversationMessage.id.not_in(messages)) &
+        (ConversationMessage.is_deleted == False)
+    ).execute()
+
+    for message in deleted_messages:
+        message.is_deleted = True
+        message.save()
+
+
 def load_conversations_messages(vk_connection, group_id):
     conv_offset = get_current_offset_in_file(_CONVERSATIONS_MESS_OFFSET_FILENAME)
     if conv_offset != 0:
         logger.info(f'Loading of conversations comments started from conv id={conv_offset}')
-
+    messages = []
     count_for_get = 100  # min = 10, max = 100
-    for conv in Conversation.select().where(Conversation.is_deleted == False,
-                                            Conversation.owner_id == group_id_with_minus(group_id),
-                                            Conversation.conversation_id > conv_offset).order_by(
-        Conversation.conversation_id):
+    for conv in Conversation.select().where(
+            Conversation.is_deleted == False,
+            Conversation.owner_id == group_id_with_minus(group_id),
+            Conversation.conversation_id > conv_offset).order_by(Conversation.conversation_id):
         offset = 0
         count = 0
         params = {
@@ -237,11 +247,12 @@ def load_conversations_messages(vk_connection, group_id):
             with db.atomic():
                 vk_comments = vk_connection.board.getComments(offset=offset, **params)
                 for user_info in vk_comments['profiles']:
-                    user = add_user_by_info(vk_connection, user_info)
+                    user = users.add_user_by_info(vk_connection, user_info)
                 for vk_comment in vk_comments['items']:
                     comment = conversations.parse_conversation_message(vk_comment,
                                                                        vk_connection,
                                                                        conversation=conv)
+                    messages.append(comment)
                     count += 1
             offset += count_for_get
             if len(vk_comments['items']) < count_for_get:
@@ -250,14 +261,7 @@ def load_conversations_messages(vk_connection, group_id):
         if count > 0:
             print(f'Loaded {count} comments for conversation {conv.get_url()}')
             update_current_offset_in_file(conv.conversation_id, _CONVERSATIONS_MESS_OFFSET_FILENAME)
-
-
-def add_user_by_info(vk_connection, user_info):
-    user, created = User.get_or_create(id=user_info['id'])
-    if created:
-        users.update_user_info_from_vk(user, user_info['id'], vk_connection, user_info)
-        user.save()
-    return user
+    return messages
 
 
 def update_current_offset_in_file(offset, temp_file_name):

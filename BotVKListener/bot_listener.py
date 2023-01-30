@@ -197,14 +197,12 @@ class Server:
                                          ).order_by(Post.date.desc()).limit(count_of_posts)
         last_posts_list = queri_to_list(last_posts, 'id')
         if len(last_posts_list) > 0:
-            # print(f'updating posts: {last_posts_list}')
             posts_info = self.vk_connection_admin.wall.getById(posts=', '.join(last_posts_list))
             for post_info in posts_info:
                 post, was_updated = posts.update_wall_post(post_info, self.vk_connection_admin)
                 if was_updated:
                     send_message('updated_posts', post.id)
                     comments.mark_posts_comments_as_deleted(post=post, is_deleted=post.is_deleted)
-                # print(f'post {post} was_updated={was_updated}')
 
     def _update_last_chat_messages(self):
         for chat in Chat.select():
@@ -230,13 +228,21 @@ class Server:
             words = message_text.split()
             if len(words) == 2:
                 peer_id = words[1]
-                try:
-                    self.vk_connection_group.messages.send(peer_id=int(peer_id),
-                                                           message='Клавиатура отключена',
-                                                           keyboard='{"one_time":true,"inline":false,"buttons":[]}',
-                                                           random_id=random.randint(10 ** 5, 10 ** 6))
-                except Exception as ex:
-                    logger.info(f'Failed disable keyboard in chat peer_id={peer_id}:\n{ex}')
+                self._disable_keyboard(peer_id)
+        elif message_text == 'update_subscribers':
+            self.vk_connection_group.messages.send(
+                peer_id=event.object.message.get('peer_id'),
+                message=f'Начато обновление состава подписчиков',
+                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._run_in_thread(target=_initial_downloading.update_subscribers,
+                                args=[self.vk_connection_admin, config.group_id])
+        elif message_text == 'update_conversations_messages':
+            self.vk_connection_group.messages.send(
+                peer_id=event.object.message.get('peer_id'),
+                message=f'Начато обновление сообщений в обсуждениях',
+                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._run_in_thread(target=_initial_downloading.update_conversations_messages,
+                                args=[self.vk_connection_admin, config.group_id])
 
         user = get_user_from_message(message_text)
         if user is not None:
@@ -244,25 +250,47 @@ class Server:
                            vk_connection=self.vk_connection_group,
                            peer_id=event.object.message.get('peer_id'))
         if posts.it_is_post_url(message_text):
-            post, created, updated = posts.parse_post_by_url(
-                url=message_text,
-                vk_connection=self.vk_connection_admin
+            self._run_in_thread(
+                target=self._update_post_info,
+                args=[message_text, event.object.message.get('peer_id')]
             )
-            if created:
-                self._process_new_post_event(new_post=post)
-                text_status = 'загружен'
-            elif updated:
-                text_status = 'обновлен'
-            else:
-                text_status = 'не изменен'
 
+    def _disable_keyboard(self, peer_id):
+        try:
+            self.vk_connection_group.messages.send(peer_id=int(peer_id),
+                                                   message='Клавиатура отключена',
+                                                   keyboard='{"one_time":true,"inline":false,"buttons":[]}',
+                                                   random_id=random.randint(10 ** 5, 10 ** 6))
+        except Exception as ex:
+            logger.info(f'Failed disable keyboard in chat peer_id={peer_id}:\n{ex}')
+
+    def _update_post_info(self, url, report_peer_id=None):
+        post, created, updated = posts.parse_post_by_url(
+            url=url,
+            vk_connection=self.vk_connection_admin
+        )
+        if created:
+            self._process_new_post_event(new_post=post)
+            text_status = 'загружен'
+        elif updated:
+            text_status = 'обновлен'
+        else:
+            text_status = 'не изменен'
+
+        if post.suggest_status is None:
+            loaded_comments = comments.load_post_comments(post, self.vk_connection_admin)
+            comments_status = f' Найдено комментариев: {len(loaded_comments)}.'
+        else:
+            comments_status = ''
+
+        if report_peer_id:
             self.vk_connection_group.messages.send(
-                peer_id=event.object.message.get('peer_id'),
-                message=f'Пост {post} от {post.user} {text_status}',
+                peer_id=report_peer_id,
+                message=f'Пост {post} от {post.user} {text_status}.{comments_status}',
                 random_id=random.randint(10 ** 5, 10 ** 6))
 
-            if not created:
-                send_message('updated_posts', post.id)
+        if not created:
+            send_message('updated_posts', post.id)
 
     @staticmethod
     def _process_new_post_event(new_post):
