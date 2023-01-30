@@ -76,6 +76,7 @@ def update_subscribers(vk_connection, group_id):
                                            is_subscribed=True,
                                            subs_date=now,
                                            rewrite=True)
+            logger.info(f'Добавлена подписка пользователя {user}')
 
     for user in subscribed.keys():
         if user not in all_subscribers:
@@ -85,6 +86,7 @@ def update_subscribers(vk_connection, group_id):
                                            is_subscribed=False,
                                            subs_date=now,
                                            rewrite=True)
+            logger.info(f'Отписан пользователь {user}')
 
 
 def load_subscribers(vk_connection, group_id):
@@ -221,6 +223,7 @@ def update_conversations_messages(vk_connection, group_id):
     for message in deleted_messages:
         message.is_deleted = True
         message.save()
+        logger.info(f'Сообщение {message} помечено как удаленное')
 
 
 def load_conversations_messages(vk_connection, group_id):
