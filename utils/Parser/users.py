@@ -3,6 +3,14 @@ from Models.Users import User
 from config import logger
 
 
+def add_user_by_info(vk_connection, user_info, update_info=False):
+    user, created = User.get_or_create(id=user_info['id'])
+    if update_info or created:
+        update_user_info_from_vk(user, user_info['id'], vk_connection, user_info)
+        user.save()
+    return user
+
+
 def get_or_create_user(vk_id: int, vk_connection=None):
     try:
         user = User.get_by_id(vk_id)
@@ -68,3 +76,11 @@ def update_user_info_from_vk(user: User, vk_id: int, vk_connection, loaded_info:
         user.sex = user_info.get('sex', '')
         user.is_active = user_info.get('deactivated') is None
         user.domain = user_info.get('domain', '')[:100]
+
+
+def users_fields():
+    return 'bdate, can_post, can_see_all_posts, can_see_audio, can_write_private_message, ' \
+           'city, common_count, connections, contacts, country, domain, education, has_mobile, ' \
+           'last_seen, lists, online, online_mobile, photo_100, photo_200, photo_200_orig, ' \
+           'photo_400_orig, photo_50, photo_max, photo_max_orig, relation, relatives, schools, ' \
+           'sex, site, status, universities'
