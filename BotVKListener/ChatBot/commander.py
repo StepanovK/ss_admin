@@ -143,6 +143,8 @@ class Commander:
             if msg in Command.advertisingRules.value:
                 return rules.get('terms')
             elif msg in Command.advertisingPrice.value:
+                if len(rules['attachments']) == 1:
+                    self.change_attachment(rules['attachments'][0])
                 return rules.get('price')
             elif msg in Command.advertisingProcedure.value:
                 return rules.get('procedure')
@@ -151,15 +153,23 @@ class Commander:
 
     @lru_cache()
     def get_ads_rules(self) -> dict:
-        rules = {}
+        rules = {'attachments': []}
 
         try:
-            rules_text = self._vk_admin.board.getComments(group_id=config.group_id,
-                                                          topic_id=config.advertising_conversation_id,
-                                                          count=1)["items"][0]["text"]
+            rules_comment = self._vk_admin.board.getComments(group_id=config.group_id,
+                                                             topic_id=config.advertising_conversation_id,
+                                                             count=1)["items"][0]
         except Exception as ex:
             config.logger.error(f'Can`t get advertising post: {ex}')
             return rules
+
+        rules_text = rules_comment["text"]
+        attachments = rules_comment.get('attachments', [])
+        for attachment in attachments:
+            if attachment['type'] == 'photo':
+                photo = attachment['photo']
+                photo_attachment = f"photo{photo['owner_id']}_{photo['id']}"
+                rules['attachments'].append(photo_attachment)
 
         blocs = rules_text.split('\n\n')
         for block in blocs:
