@@ -380,7 +380,7 @@ class Server:
         elif payload['command'] == 'edit_hashtags':
             self._show_hashtags_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
         elif payload['command'] == 'clear_hashtags':
-            self._clear_hashtags(payload['post_id'])
+            self._delete_post_hashtags(payload['post_id'])
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'show_conversation_menu':
             self._show_conversation_menu(post_id=payload['post_id'], message_id=message_id, page=payload.get('page', 1))
@@ -555,13 +555,6 @@ class Server:
                                            )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
-
-    @staticmethod
-    def _clear_hashtags(post_id):
-        post = _get_post_by_id(post_id=post_id)
-        if not post:
-            return
-        PostsHashtag.delete().where(PostsHashtag.post == post).execute()
 
     def _show_conversation_menu(self, post_id, message_id: int = None, page: int = 1):
         post = _get_post_by_id(post_id=post_id)
