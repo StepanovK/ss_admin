@@ -90,7 +90,7 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
         post.date = post_attributes['date']
         post.marked_as_ads = post_attributes['marked_as_ads']
         post.geo = post_attributes['geo']
-        if post_created:
+        if post_created or not is_deleted and post.suggest_status == PostStatus.REJECTED.value:
             post.suggest_status = post_attributes['suggest_status']
             post.posted_by = post_attributes['admin']
 
