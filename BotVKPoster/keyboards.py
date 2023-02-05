@@ -1,6 +1,8 @@
 import functools
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from Models.Posts import Post, PostStatus, PostsHashtag
+from Models.Relations import PostsAttachment
+from Models.UploadedFiles import UploadedFile
 from Models.Conversations import Conversation
 from Models.ConversationMessages import ConversationMessage
 from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS, BanedUser
@@ -42,7 +44,7 @@ def main_menu_keyboard(post: Post):
         keyboard.add_callback_button(label='# Редактировать хэштеги',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "edit_hashtags", "post_id": post.id, 'page': 1})
-        if PostsHashtag.select().where(PostsHashtag.post==post).limit(1).count() > 0:
+        if PostsHashtag.select().where(PostsHashtag.post == post).limit(1).count() > 0:
             keyboard.add_callback_button(label='&#10060; Очистить',
                                          color=VkKeyboardColor.SECONDARY,
                                          payload={"command": "clear_hashtags", "post_id": post.id, 'page': 1})
@@ -56,6 +58,11 @@ def main_menu_keyboard(post: Post):
     keyboard.add_callback_button(label='&#128172; Переслать в обсуждение',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
+
+    if _post_has_unmarked_attachments(post):
+        keyboard.add_callback_button(label='🔅 Доб. водный знак',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "add_watermark", "post_id": post.id})
 
     if can_edit:
         keyboard.add_line()
@@ -273,6 +280,17 @@ def _paginate(objects: list, paginate_by: int = 4) -> dict[int, list]:
         current_count += 1
 
     return pages
+
+
+def _post_has_unmarked_attachments(post: Post):
+    PostsAttachment.select().where(
+        (PostsAttachment.post == post) &
+        (PostsAttachment.is_deleted == False)
+    ).join(UploadedFile, on=(
+            (UploadedFile.is_deleted == False) &
+            (UploadedFile.is_watermarked == False) &
+            (UploadedFile.type.in_('photo', 'video'))
+    )).limt(1)
 
 
 if __name__ == '__main__':
