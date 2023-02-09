@@ -3,6 +3,8 @@ from config import logger, debug
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from typing import Union, Optional
+import os.path
+import requests
 from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.PublishedPosts import PublishedPost
@@ -34,6 +36,8 @@ from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
 from utils.rabbit_connector import get_messages_from_chanel
+from utils.watermark_creater import WatermarkCreator
+from utils.Parser import attachments as attachment_parser
 
 MAX_MESSAGE_SIZE = 4048
 
@@ -407,6 +411,8 @@ class Server:
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'add_watermark':
+            self._add_watermark(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
@@ -670,6 +676,13 @@ class Server:
             conversation_message_id=f'{conversation_id}_{new_conv_message_id}',
         )
 
+    def _add_watermark(self, post_id, message_id: int):
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        add_watermark(post, self.vk_admin)
+        self._update_message_post(post_id, message_id)
+
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
         l_text = post.text.lower()
@@ -904,9 +917,96 @@ def _get_post_attachments(post: Post) -> list[UploadedFile]:
                                            & (PostsAttachment.post == post)).execute()
     attachments = []
     for post_attachment in query:
-        attachments.append(post_attachment.attachment)
+        if (post_attachment.watermarked_attachment is not None
+                and not post_attachment.watermarked_attachment.is_deleted):
+            attachments.append(post_attachment.watermarked_attachment)
+        else:
+            attachments.append(post_attachment.attachment)
 
     return attachments
+
+
+def add_watermark(post: Post, vk_admin):
+    logo_path = os.path.join(_current_dir(), 'logo.png')
+    if not os.path.isfile(logo_path):
+        logger.error(f'Не найден логотип для добавления водного знака! Путь: {logo_path}')
+        return
+
+    post_attachments = UploadedFile.select().join(
+        PostsAttachment, on=(PostsAttachment.attachment == UploadedFile.id)).where(
+        (UploadedFile.is_deleted == False) &
+        (UploadedFile.type.in_(['photo', 'video'])) &
+        (PostsAttachment.watermarked_attachment.is_null()) &
+        (PostsAttachment.post == post) &
+        (PostsAttachment.is_deleted == False)
+    ).execute()
+
+    for attachment in post_attachments:
+        new_attachment = None
+        if attachment.type == 'photo':
+            new_attachment = _add_watermark_photo(attachment, logo_path, vk_admin)
+        elif attachment.type == 'video':
+            continue
+        else:
+            logger.warning(
+                f'Неправильный формат типа вложения для добавления логотипа {attachment} ({attachment.type})!')
+            continue
+
+        if new_attachment is not None:
+            query = PostsAttachment.select().where(
+                (PostsAttachment.post == post) & (PostsAttachment.attachment == attachment)
+            ).execute()
+            for post_attachment in query:
+                post_attachment.watermarked_attachment = new_attachment
+                post_attachment.save()
+
+
+def _add_watermark_photo(attachment: UploadedFile, logo_path: str, vk_admin):
+    try:
+        img_data = requests.get(attachment.url, stream=True)
+    except Exception as ex:
+        logger.error(f'Ошибка при загрузке изображения {attachment} {attachment.url}\n{ex}')
+        img_data = None
+
+    if img_data is not None:
+        watermark = WatermarkCreator(logo_path)
+        watermarked_img = watermark.add_photo_watermark(img_data)
+        result_file_name = os.path.join(_current_dir(), f'{attachment}.png')
+        watermarked_img.save(result_file_name)
+        upload_url = vk_admin.photos.getWallUploadServer(group_id=config.group_id)['upload_url']
+        result = requests.post(upload_url, files={'photo': open(result_file_name, "rb")})
+        if os.path.isfile(result_file_name):
+            os.remove(result_file_name)
+        result_js = result.json()
+        params = {'server': result_js['server'],
+                  'photo': result_js['photo'],
+                  'hash': result_js['hash'],
+                  'group_id': config.group_id}
+        # Сохраняем картинку на сервере и получаем её идентификатор
+        vk_photo = vk_admin.photos.saveWallPhoto(**params)[0]
+        vk_attachment = {
+            'type': 'photo',
+            'photo': vk_photo,
+        }
+        new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
+        if new_attachment:
+            new_attachment.is_watermarked = True
+            new_attachment.save()
+        return new_attachment
+
+    else:
+
+        return None
+
+    #     photo_attach = 'photo' + str(photo_id['owner_id']) + '_' + str(photo_id['id'])
+    # else:
+    #     photo_attach = 'photo' + str(attach["photo"]['owner_id']) + '_' + str(
+    #         attach["photo"]['id'])
+    # attachments.append(photo_attach)
+
+
+def _current_dir():
+    return os.path.abspath(os.path.dirname(__file__))
 
 
 if __name__ == '__main__':
