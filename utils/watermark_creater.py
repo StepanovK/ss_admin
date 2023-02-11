@@ -29,7 +29,7 @@ class WatermarkCreator:
 
     def add_video_watermark(self, video: str) -> str:
         # title = video.split('.')[0] + '.webm'
-        title = video.split('.')[0] + '_new.mp4'
+        title = video.split('.')[0] + '_marked.mp4'
         watermark = Image.open(self.watermark)
         assert 0 <= self.opacity <= 1
         if self.opacity < 1:
@@ -58,7 +58,7 @@ class WatermarkCreator:
         return title
 
     @staticmethod
-    def video_downloader(video_url: str):
+    def download_video(video_url: str):
         ydl_opts = {'outtmpl': 'video%(id)s.%(ext)s'}
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             meta = ydl.extract_info(

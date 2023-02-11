@@ -16,6 +16,7 @@ class UploadedFile(BaseModel):
     access_key = CharField(null=True)
     owner_id = CharField(50, null=True)
     platform = CharField(150, null=True)
+    is_watermarked = BooleanField(default=False)
     is_deleted = BooleanField(default=False)
 
     class Meta:
