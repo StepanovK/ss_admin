@@ -191,10 +191,6 @@ class Server:
     def _rabbit_get_new_posted_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_posted_post', channel=channel):
             logger.info(f'new_posted_post {message_text}')
-            try:
-                self._run_in_thread(target=self._update_message_post, args=[message_text])
-            except Exception as ex:
-                logger.warning(f'Не удалось обновить сообщение поста {message_text}: {ex}')
             if self.tg_poster is not None:
                 self.tg_poster.send_new_post(message_text)
 
@@ -452,7 +448,7 @@ class Server:
         return new_post_id
 
     def _update_published_post(self, post):
-        post_params = self._get_post_params_for_publishing(post)
+        post_params = self._get_post_params_for_publishing(post, with_hashtags=False)
         post_params['post_id'] = post.vk_id
 
         try:
@@ -462,12 +458,13 @@ class Server:
             logger.warning(f'Failed to edit published post ID={post.vk_id}\n{ex}')
             return False
 
-    def _get_post_params_for_publishing(self, post: Post) -> dict:
+    def _get_post_params_for_publishing(self, post: Post, with_hashtags=True) -> dict:
         message = post.text
 
-        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-        if len(hashtags) > 0:
-            message = message + '\n' + '\n'.join(hashtags)
+        if with_hashtags:
+            hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+            if len(hashtags) > 0:
+                message = message + '\n' + '\n'.join(hashtags)
 
         attachment = [str(attachment) for attachment in _get_post_attachments(post)]
 
@@ -551,12 +548,16 @@ class Server:
         if not post:
             return
         if post.suggest_status is None or post.suggest_status == '':
-            return
-        message_id = _get_posts_message_id(post_id, message_id)
+            suggested_posts = Post.select().where(Post.posted_in==post).limit(1).execute()
+            if len(suggested_posts) == 1:
+                post = suggested_posts[0]
+            else:
+                return
+        message_id = _get_posts_message_id(post.id, message_id)
         if not message_id:
-            post_record = _get_posts_message_record(post_id)
+            post_record = _get_posts_message_record(post.id)
             if not post_record:
-                self._add_new_message_post(post_id)
+                self._add_new_message_post(post.id)
             return
 
         try:
@@ -566,7 +567,7 @@ class Server:
                                            keyboard=keyboards.main_menu_keyboard(post),
                                            attachment=[str(att) for att in _get_post_attachments(post)])
         except Exception as ex:
-            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
         post = _get_post_by_id(post_id=post_id)
