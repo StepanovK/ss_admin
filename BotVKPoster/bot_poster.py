@@ -191,6 +191,10 @@ class Server:
     def _rabbit_get_new_posted_posts(self, channel):
         for message_text in get_messages_from_chanel(message_type='new_posted_post', channel=channel):
             logger.info(f'new_posted_post {message_text}')
+            try:
+                self._run_in_thread(target=self._update_message_post, args=[message_text])
+            except Exception as ex:
+                logger.warning(f'Не удалось обновить сообщение поста {message_text}: {ex}')
             if self.tg_poster is not None:
                 self.tg_poster.send_new_post(message_text)
 
@@ -226,6 +230,8 @@ class Server:
                         PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
+
+                self._update_message_post(suggested_post.id)
 
     @staticmethod
     def _update_reposted_conversation_message(conversation_message_id):
@@ -419,22 +425,9 @@ class Server:
         if not post:
             return
 
-        message = post.text
-
-        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-        if len(hashtags) > 0:
-            message = message + '\n' + '\n'.join(hashtags)
-
-        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
+        post_params = self._get_post_params_for_publishing(post)
 
         try:
-            post_params = {
-                'owner_id': -self.group_id,
-                'signed': 0 if post.anonymously else 1,
-                'post_id': post.vk_id,
-                'message': message,
-                'attachments': attachment,
-            }
             if time_to_post is not None:
                 post_params['publish_date'] = time_to_post.timestamp()
             new_post = self.vk_admin.wall.post(**post_params)
@@ -457,6 +450,36 @@ class Server:
         )
 
         return new_post_id
+
+    def _update_published_post(self, post):
+        post_params = self._get_post_params_for_publishing(post)
+        post_params['post_id'] = post.vk_id
+
+        try:
+            result = self.vk_admin.wall.edit(**post_params)
+            return isinstance(result, dict) and result.get('post_id') == post.vk_id
+        except Exception as ex:
+            logger.warning(f'Failed to edit published post ID={post.vk_id}\n{ex}')
+            return False
+
+    def _get_post_params_for_publishing(self, post: Post) -> dict:
+        message = post.text
+
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            message = message + '\n' + '\n'.join(hashtags)
+
+        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
+
+        post_params = {
+            'owner_id': -self.group_id,
+            'signed': 0 if post.anonymously else 1,
+            'post_id': post.vk_id,
+            'message': message,
+            'attachments': attachment,
+        }
+
+        return post_params
 
     def _reject_post(self, post_id: str, admin_id: int = None):
         post = _get_post_by_id(post_id=post_id)
@@ -680,8 +703,13 @@ class Server:
         post = _get_post_by_id(post_id=post_id)
         if not post:
             return
-        add_watermark(post, self.vk_admin)
-        self._update_message_post(post_id, message_id)
+        elif not post.posted_in:
+            logger.warning(f'Не пост публикации для поста из предложки {post}')
+            return
+
+        add_watermarks(post.posted_in, self.vk_admin)
+        self._update_published_post(post.posted_in)
+        self._update_message_post(post.id)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
@@ -917,16 +945,12 @@ def _get_post_attachments(post: Post) -> list[UploadedFile]:
                                            & (PostsAttachment.post == post)).execute()
     attachments = []
     for post_attachment in query:
-        if (post_attachment.watermarked_attachment is not None
-                and not post_attachment.watermarked_attachment.is_deleted):
-            attachments.append(post_attachment.watermarked_attachment)
-        else:
-            attachments.append(post_attachment.attachment)
+        attachments.append(post_attachment.attachment)
 
     return attachments
 
 
-def add_watermark(post: Post, vk_admin):
+def add_watermarks(post: Post, vk_admin):
     logo_path = os.path.join(_current_dir(), 'logo.png')
     if not os.path.isfile(logo_path):
         logger.error(f'Не найден логотип для добавления водного знака! Путь: {logo_path}')
@@ -936,10 +960,13 @@ def add_watermark(post: Post, vk_admin):
         PostsAttachment, on=(PostsAttachment.attachment == UploadedFile.id)).where(
         (UploadedFile.is_deleted == False) &
         (UploadedFile.type.in_(['photo', 'video'])) &
-        (PostsAttachment.watermarked_attachment.is_null()) &
+        (UploadedFile.is_watermarked == False) &
         (PostsAttachment.post == post) &
         (PostsAttachment.is_deleted == False)
     ).execute()
+
+    old_attachments = []
+    new_attachments = []
 
     for attachment in post_attachments:
         new_attachment = None
@@ -953,12 +980,27 @@ def add_watermark(post: Post, vk_admin):
             continue
 
         if new_attachment is not None:
-            query = PostsAttachment.select().where(
-                (PostsAttachment.post == post) & (PostsAttachment.attachment == attachment)
-            ).execute()
-            for post_attachment in query:
-                post_attachment.watermarked_attachment = new_attachment
-                post_attachment.save()
+            new_attachments.append(new_attachment)
+            old_attachments.append(attachment)
+            # query = PostsAttachment.select().where(
+            #     (PostsAttachment.post == post) & (PostsAttachment.attachment == attachment)
+            # ).execute()
+            # for post_attachment in query:
+            #     post_attachment.watermarked_attachment = new_attachment
+            #     post_attachment.save()
+
+    for attachment in new_attachments:
+        PostsAttachment.create(post=post, attachment=attachment)
+
+    old_attachments_query = PostsAttachment.select().where(
+        (PostsAttachment.post == post) &
+        (PostsAttachment.attachment.in_(old_attachments)) &
+        (PostsAttachment.is_deleted == False)).execute()
+    for post_attachment in old_attachments_query:
+        post_attachment.is_deleted = True
+        post_attachment.save()
+        post_attachment.attachment.is_deleted = True
+        post_attachment.attachment.save()
 
 
 def _add_watermark_photo(attachment: UploadedFile, logo_path: str, vk_admin):

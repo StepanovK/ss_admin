@@ -45,7 +45,6 @@ class PostsAttachment(BaseModel):
                            backref='attachments',
                            on_delete='CASCADE')
     attachment = ForeignKeyField(UploadedFile, index=True)
-    watermarked_attachment = ForeignKeyField(UploadedFile, null=True)
     is_deleted = BooleanField(default=False)
 
     class Meta:

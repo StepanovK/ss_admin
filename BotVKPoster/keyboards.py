@@ -59,8 +59,9 @@ def main_menu_keyboard(post: Post):
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
 
-    if _post_has_unmarked_attachments(post):
-        keyboard.add_callback_button(label='🔅 водный знак',
+    if not can_edit and _post_has_unmarked_attachments(post.posted_in):
+        keyboard.add_line()
+        keyboard.add_callback_button(label='🔅 Добавить водный знак',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "add_watermark", "post_id": post.id})
 
@@ -284,10 +285,10 @@ def _paginate(objects: list, paginate_by: int = 4) -> dict[int, list]:
 
 def _post_has_unmarked_attachments(post: Post):
     query = UploadedFile.select(UploadedFile.id).join(
-        PostsAttachment, on=(PostsAttachment.attachment == UploadedFile.id)).where(
+        PostsAttachment).where(
+        (UploadedFile.is_watermarked == False) &
         (UploadedFile.is_deleted == False) &
         (UploadedFile.type.in_(['photo', 'video'])) &
-        (PostsAttachment.watermarked_attachment.is_null()) &
         (PostsAttachment.post == post) &
         (PostsAttachment.is_deleted == False)
     ).limit(1).execute()
