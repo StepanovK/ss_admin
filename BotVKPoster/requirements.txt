@@ -9,3 +9,5 @@ pika==1.2.1
 TG-AutoPoster
 
 openai
+youtube_dl
+moviepy

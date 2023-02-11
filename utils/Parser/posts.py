@@ -67,6 +67,7 @@ def update_wall_post(wall_post: dict, vk_connection=None):
 
     if need_update:
         post = parse_wall_post(wall_post, vk_connection)
+        _update_watermarked_attachments(post)
 
     return post, need_update
 
@@ -192,6 +193,33 @@ def get_post_id_from_url(url: str) -> str:
     pref = _post_link_prefix()
     post_id = url.replace(pref, '')
     return post_id
+
+
+def _update_watermarked_attachments(post: Post):
+    watermarked_attachments_query = UploadedFile.select().join(
+        PostsAttachment).where(
+        (UploadedFile.is_watermarked == True) &
+        (UploadedFile.type.in_(['photo', 'video'])) &
+        (PostsAttachment.post == post)).execute()
+    if len(watermarked_attachments_query) == 0:
+        return
+    watermarked_attachments = [attachment for attachment in watermarked_attachments_query]
+    post_attachments = PostsAttachment.select().where(PostsAttachment.post == post).execute()
+    for post_attachment in post_attachments:
+        attachment = post_attachment.attachment
+        if not attachment.is_watermarked:
+            source_attachments = UploadedFile.select().where(
+                (UploadedFile.id.in_(watermarked_attachments)) &
+                (UploadedFile.url == attachment.url) &
+                (UploadedFile.is_deleted == True)
+            ).limit(1).execute()
+            if len(source_attachments) > 0:
+                attachment.is_watermarked = True
+                attachment.save()
+                PostsAttachment.delete().where(
+                    (PostsAttachment.post == post) &
+                    (PostsAttachment.attachment == source_attachments[0])).execute()
+                source_attachments[0].delete_instance()
 
 
 def _post_link_prefix() -> str:

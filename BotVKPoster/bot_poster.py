@@ -3,6 +3,8 @@ from config import logger, debug
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from time import sleep
 from typing import Union, Optional
+import os.path
+import requests
 from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.PublishedPosts import PublishedPost
@@ -34,12 +36,14 @@ from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
 from utils.rabbit_connector import get_messages_from_chanel
+from utils.watermark_creater import WatermarkCreator
+from utils.Parser import attachments as attachment_parser
 
 MAX_MESSAGE_SIZE = 4048
+vk_link = 'https://vk.com/'
 
 
 class Server:
-    vk_link = 'https://vk.com/'
 
     def __init__(self):
         self.group_id = config.group_id
@@ -222,6 +226,8 @@ class Server:
                         PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
 
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
+
+                self._update_message_post(suggested_post.id)
 
     @staticmethod
     def _update_reposted_conversation_message(conversation_message_id):
@@ -407,28 +413,17 @@ class Server:
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'add_watermark':
+            self._run_in_thread(target=self._add_watermark, args=[payload['post_id'], message_id])
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
         if not post:
             return
 
-        message = post.text
-
-        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
-        if len(hashtags) > 0:
-            message = message + '\n' + '\n'.join(hashtags)
-
-        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
+        post_params = self._get_post_params_for_publishing(post)
 
         try:
-            post_params = {
-                'owner_id': -self.group_id,
-                'signed': 0 if post.anonymously else 1,
-                'post_id': post.vk_id,
-                'message': message,
-                'attachments': attachment,
-            }
             if time_to_post is not None:
                 post_params['publish_date'] = time_to_post.timestamp()
             new_post = self.vk_admin.wall.post(**post_params)
@@ -451,6 +446,37 @@ class Server:
         )
 
         return new_post_id
+
+    def _update_published_post(self, post):
+        post_params = self._get_post_params_for_publishing(post, with_hashtags=False)
+        post_params['post_id'] = post.vk_id
+
+        try:
+            result = self.vk_admin.wall.edit(**post_params)
+            return isinstance(result, dict) and result.get('post_id') == post.vk_id
+        except Exception as ex:
+            logger.warning(f'Failed to edit published post ID={post.vk_id}\n{ex}')
+            return False
+
+    def _get_post_params_for_publishing(self, post: Post, with_hashtags=True) -> dict:
+        message = post.text
+
+        if with_hashtags:
+            hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+            if len(hashtags) > 0:
+                message = message + '\n' + '\n'.join(hashtags)
+
+        attachment = [str(attachment) for attachment in _get_post_attachments(post)]
+
+        post_params = {
+            'owner_id': -self.group_id,
+            'signed': 0 if post.anonymously else 1,
+            'post_id': post.vk_id,
+            'message': message,
+            'attachments': attachment,
+        }
+
+        return post_params
 
     def _reject_post(self, post_id: str, admin_id: int = None):
         post = _get_post_by_id(post_id=post_id)
@@ -522,22 +548,28 @@ class Server:
         if not post:
             return
         if post.suggest_status is None or post.suggest_status == '':
-            return
-        message_id = _get_posts_message_id(post_id, message_id)
+            suggested_posts = Post.select().where(Post.posted_in == post).limit(1).execute()
+            if len(suggested_posts) == 1:
+                post = suggested_posts[0]
+            else:
+                return
+        message_id = _get_posts_message_id(post.id, message_id)
         if not message_id:
-            post_record = _get_posts_message_record(post_id)
+            post_record = _get_posts_message_record(post.id)
             if not post_record:
-                self._add_new_message_post(post_id)
+                self._add_new_message_post(post.id)
             return
 
+        disable_mentions = 0 if post.suggest_status == PostStatus.SUGGESTED.value else 1
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
                                            conversation_message_id=message_id,
                                            message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
+                                           disable_mentions=disable_mentions,
                                            attachment=[str(att) for att in _get_post_attachments(post)])
         except Exception as ex:
-            logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
 
     def _show_hashtags_menu(self, post_id, message_id: int = None, page: int = 1):
         post = _get_post_by_id(post_id=post_id)
@@ -669,6 +701,18 @@ class Server:
             conversation_id=f'{conversation_id}',
             conversation_message_id=f'{conversation_id}_{new_conv_message_id}',
         )
+
+    def _add_watermark(self, post_id, message_id: int):
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        elif not post.posted_in:
+            logger.warning(f'Не пост публикации для поста из предложки {post}')
+            return
+
+        add_watermarks(post.posted_in, self.vk_admin)
+        self._update_published_post(post.posted_in)
+        self._update_message_post(post.id)
 
     @staticmethod
     def _set_anonymously_by_post_text(post: Post, save_post: bool = True):
@@ -907,6 +951,134 @@ def _get_post_attachments(post: Post) -> list[UploadedFile]:
         attachments.append(post_attachment.attachment)
 
     return attachments
+
+
+def add_watermarks(post: Post, vk_admin):
+    logo_path = os.path.join(_current_dir(), 'logo.png')
+    if not os.path.isfile(logo_path):
+        logger.error(f'Не найден логотип для добавления водного знака! Путь: {logo_path}')
+        return
+
+    post_attachments = UploadedFile.select().join(
+        PostsAttachment, on=(PostsAttachment.attachment == UploadedFile.id)).where(
+        (UploadedFile.is_deleted == False) &
+        (UploadedFile.type.in_(['photo', 'video'])) &
+        (UploadedFile.is_watermarked == False) &
+        (PostsAttachment.post == post) &
+        (PostsAttachment.is_deleted == False)
+    ).execute()
+
+    old_attachments = []
+    new_attachments = []
+
+    for attachment in post_attachments:
+        new_attachment = None
+        if attachment.type == 'photo':
+            new_attachment = _add_watermark_photo(attachment, logo_path, vk_admin)
+        elif attachment.type == 'video':
+            new_attachment = _add_watermark_video(attachment, logo_path, vk_admin)
+        else:
+            logger.warning(
+                f'Неправильный формат типа вложения для добавления логотипа {attachment} ({attachment.type})!')
+            continue
+
+        if new_attachment is not None:
+            new_attachments.append(new_attachment)
+            old_attachments.append(attachment)
+
+    for attachment in new_attachments:
+        PostsAttachment.create(post=post, attachment=attachment)
+
+    old_attachments_query = PostsAttachment.select().where(
+        (PostsAttachment.post == post) &
+        (PostsAttachment.attachment.in_(old_attachments)) &
+        (PostsAttachment.is_deleted == False)).execute()
+    for post_attachment in old_attachments_query:
+        post_attachment.is_deleted = True
+        post_attachment.save()
+        post_attachment.attachment.is_deleted = True
+        post_attachment.attachment.save()
+
+
+def _add_watermark_photo(attachment: UploadedFile, logo_path: str, vk_admin):
+    try:
+        img_data = requests.get(attachment.url, stream=True)
+    except Exception as ex:
+        logger.error(f'Ошибка при загрузке изображения {attachment} {attachment.url}\n{ex}')
+        img_data = None
+
+    if img_data is not None:
+        watermark = WatermarkCreator(logo_path)
+        watermarked_img = watermark.add_photo_watermark(img_data)
+        result_file_name = os.path.join(_current_dir(), f'{attachment}.png')
+        watermarked_img.save(result_file_name)
+        upload_url = vk_admin.photos.getWallUploadServer(group_id=config.group_id)['upload_url']
+        result = requests.post(upload_url, files={'photo': open(result_file_name, "rb")})
+        if os.path.isfile(result_file_name):
+            os.remove(result_file_name)
+        result_js = result.json()
+        params = {'server': result_js['server'],
+                  'photo': result_js['photo'],
+                  'hash': result_js['hash'],
+                  'group_id': config.group_id}
+        # Сохраняем картинку на сервере и получаем её идентификатор
+        vk_photo = vk_admin.photos.saveWallPhoto(**params)[0]
+        vk_attachment = {
+            'type': 'photo',
+            'photo': vk_photo,
+        }
+        new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
+        if new_attachment:
+            new_attachment.is_watermarked = True
+            new_attachment.save()
+        return new_attachment
+
+    else:
+        return None
+
+
+def _add_watermark_video(attachment: UploadedFile, logo_path: str, vk_admin):
+    watermark = WatermarkCreator(logo_path)
+    video_url = f'{vk_link}video{attachment.owner_id}_{attachment.vk_id}'
+    try:
+        video_file_name = watermark.download_video(video_url)
+    except Exception as ex:
+        mess_text = f'Не удалось скачать видео по ссылке {video_url} {ex}'
+        logger.error(mess_text)
+        try:
+            vk_admin.messages.send(peer_id=config.chat_for_suggest,
+                                   message=mess_text,
+                                   random_id=random.randint(10 ** 5, 10 ** 6),
+                                   dont_parse_links=1,
+                                   )
+        except Exception as ex:
+            logger.error(f'Не удалось отправить сообщение об ошибке! {ex}')
+        return
+    new_video_file_name = watermark.add_video_watermark(video_file_name)
+    if os.path.isfile(video_file_name):
+        os.remove(video_file_name)
+    upload_url = vk_admin.photos.getWallUploadServer(group_id=config.group_id, name=attachment.file_name)['upload_url']
+    result = requests.post(upload_url, files={'video_file': open(new_video_file_name, "rb")})
+    if os.path.isfile(new_video_file_name):
+        os.remove(new_video_file_name)
+    result_js = result.json()
+    # video_id = request.json()["video_id"]
+    # video_attach = 'video' + str(group_id) + '_' + str(video_id)
+    # attachments.append(video_attach)
+
+    vk_attachment = {
+        'type': 'video',
+        'video': result_js,
+    }
+    new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
+    if new_attachment:
+        new_attachment.is_watermarked = True
+        new_attachment.save()
+    return new_attachment
+
+
+def _current_dir():
+    return os.path.abspath(os.path.dirname(__file__))
 
 
 if __name__ == '__main__':
