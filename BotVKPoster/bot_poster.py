@@ -40,10 +40,10 @@ from utils.watermark_creater import WatermarkCreator
 from utils.Parser import attachments as attachment_parser
 
 MAX_MESSAGE_SIZE = 4048
+vk_link = 'https://vk.com/'
 
 
 class Server:
-    vk_link = 'https://vk.com/'
 
     def __init__(self):
         self.group_id = config.group_id
@@ -548,7 +548,7 @@ class Server:
         if not post:
             return
         if post.suggest_status is None or post.suggest_status == '':
-            suggested_posts = Post.select().where(Post.posted_in==post).limit(1).execute()
+            suggested_posts = Post.select().where(Post.posted_in == post).limit(1).execute()
             if len(suggested_posts) == 1:
                 post = suggested_posts[0]
             else:
@@ -560,11 +560,13 @@ class Server:
                 self._add_new_message_post(post.id)
             return
 
+        disable_mentions = 0 if post.suggest_status == PostStatus.SUGGESTED.value else 1
         try:
             result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
                                            conversation_message_id=message_id,
                                            message=_get_post_description(post),
                                            keyboard=keyboards.main_menu_keyboard(post),
+                                           disable_mentions=disable_mentions,
                                            attachment=[str(att) for att in _get_post_attachments(post)])
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
@@ -974,7 +976,7 @@ def add_watermarks(post: Post, vk_admin):
         if attachment.type == 'photo':
             new_attachment = _add_watermark_photo(attachment, logo_path, vk_admin)
         elif attachment.type == 'video':
-            continue
+            new_attachment = _add_watermark_video(attachment, logo_path, vk_admin)
         else:
             logger.warning(
                 f'Неправильный формат типа вложения для добавления логотипа {attachment} ({attachment.type})!')
@@ -1032,14 +1034,47 @@ def _add_watermark_photo(attachment: UploadedFile, logo_path: str, vk_admin):
         return new_attachment
 
     else:
-
         return None
 
-    #     photo_attach = 'photo' + str(photo_id['owner_id']) + '_' + str(photo_id['id'])
-    # else:
-    #     photo_attach = 'photo' + str(attach["photo"]['owner_id']) + '_' + str(
-    #         attach["photo"]['id'])
-    # attachments.append(photo_attach)
+
+def _add_watermark_video(attachment: UploadedFile, logo_path: str, vk_admin):
+    watermark = WatermarkCreator(logo_path)
+    video_url = f'{vk_link}video{attachment.owner_id}_{attachment.vk_id}'
+    try:
+        video_file_name = watermark.download_video(video_url)
+    except Exception as ex:
+        mess_text = f'Не удалось скачать видео по ссылке {video_url} {ex}'
+        logger.error(mess_text)
+        try:
+            vk_admin.messages.send(peer_id=config.chat_for_suggest,
+                                   message=mess_text,
+                                   random_id=random.randint(10 ** 5, 10 ** 6),
+                                   dont_parse_links=1,
+                                   )
+        except Exception as ex:
+            logger.error(f'Не удалось отправить сообщение об ошибке! {ex}')
+        return
+    new_video_file_name = watermark.add_video_watermark(video_file_name)
+    if os.path.isfile(video_file_name):
+        os.remove(video_file_name)
+    upload_url = vk_admin.photos.getWallUploadServer(group_id=config.group_id, name=attachment.file_name)['upload_url']
+    result = requests.post(upload_url, files={'video_file': open(new_video_file_name, "rb")})
+    if os.path.isfile(new_video_file_name):
+        os.remove(new_video_file_name)
+    result_js = result.json()
+    # video_id = request.json()["video_id"]
+    # video_attach = 'video' + str(group_id) + '_' + str(video_id)
+    # attachments.append(video_attach)
+
+    vk_attachment = {
+        'type': 'video',
+        'video': result_js,
+    }
+    new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
+    if new_attachment:
+        new_attachment.is_watermarked = True
+        new_attachment.save()
+    return new_attachment
 
 
 def _current_dir():
