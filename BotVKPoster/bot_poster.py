@@ -983,12 +983,6 @@ def add_watermarks(post: Post, vk_admin):
         if new_attachment is not None:
             new_attachments.append(new_attachment)
             old_attachments.append(attachment)
-            # query = PostsAttachment.select().where(
-            #     (PostsAttachment.post == post) & (PostsAttachment.attachment == attachment)
-            # ).execute()
-            # for post_attachment in query:
-            #     post_attachment.watermarked_attachment = new_attachment
-            #     post_attachment.save()
 
     for attachment in new_attachments:
         PostsAttachment.create(post=post, attachment=attachment)
