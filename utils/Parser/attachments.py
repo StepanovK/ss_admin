@@ -7,7 +7,7 @@ from Models.ChatMessages import ChatMessage
 from Models.Users import User
 import Models.Relations as Relations
 from config import logger
-from typing import Union
+from typing import Union, Optional
 import datetime
 import json
 
@@ -53,7 +53,7 @@ def mark_attachments_as_undeleted(attachment_object: Union[Post, Comment, Privat
         uploaded_file.save()
 
 
-def parse_vk_attachment(vk_attachment):
+def parse_vk_attachment(vk_attachment) -> Optional[UploadedFile]:
     attachment_type = vk_attachment.get('type')
     if attachment_type == 'audio' and 'audio' in vk_attachment:
         parse_method = parse_vk_audio_attachment

@@ -11,6 +11,7 @@ pgadmin/
 *.env
 lock_db
 *.log.zip
+logo.png
 
 myautoposter.session
 myautoposter.session-journal
