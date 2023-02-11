@@ -414,7 +414,7 @@ class Server:
         elif payload['command'] == 'update_post':
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'add_watermark':
-            self._add_watermark(post_id=payload['post_id'], message_id=message_id)
+            self._run_in_thread(target=self._add_watermark, args=[payload['post_id'], message_id])
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
