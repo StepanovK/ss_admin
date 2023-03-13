@@ -3,6 +3,7 @@ from Models.base import BaseModel
 from Models.Users import User
 from Models.Conversations import Conversation
 from Models.Posts import Post
+import functools
 
 
 class ConversationMessage(BaseModel):
@@ -37,3 +38,14 @@ class ConversationMessage(BaseModel):
         conversation_url = conversation.get_url()
         url = f'{conversation_url}?post={message_id}'
         return url
+
+    @classmethod
+    @functools.lru_cache()
+    def first_conversation_message(cls, conversation: Conversation):
+        query = ConversationMessage.select().where(
+            (ConversationMessage.conversation == conversation)
+        ).order_by(ConversationMessage.date).limit(1).execute()
+        if len(query) == 1:
+            return query[0]
+        else:
+            return None
