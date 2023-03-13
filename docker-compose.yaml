@@ -97,6 +97,7 @@ services:
     volumes:
       - logs_volume:/Logs
     depends_on:
+      - rabbitmq
       - postgres_ru
     networks:
       - vk_admin

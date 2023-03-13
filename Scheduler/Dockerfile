@@ -1,4 +1,4 @@
-FROM python:latest
+FROM python:3.9
 RUN apt-get update && apt-get install -y locales
 RUN sed -i -e \
   's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen \
