@@ -27,7 +27,6 @@ def start_cleaning():
                 (ConversationMessage.conversation == conversation)
                 & (ConversationMessage.is_deleted == False)
                 & (ConversationMessage.id != first_message)
-                # & (ConversationMessage.user.is_null(False))
         ).order_by(ConversationMessage.date):
 
             comment_days = settings['comments_settings'].get(conv_message.message_id)
@@ -49,8 +48,7 @@ def start_cleaning():
             date_for_cleaning = now_time - datetime.timedelta(days=days_for_cleaning)
 
             if conv_message.date <= date_for_cleaning:
-                print(f'{conv_message.date} {conv_message} ({conv_message.text})')
-                # remove_conversation_message(conversation, conv_message)
+                remove_conversation_message(conversation, conv_message)
 
     logger.info('Conversation cleaning finished')
 
