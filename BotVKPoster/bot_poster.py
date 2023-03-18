@@ -524,11 +524,13 @@ class Server:
         self._add_most_common_hashtag(post)
         self._set_anonymously_by_post_text(post)
 
-        message_id = self.vk.messages.send(peer_id=self.chat_for_suggest,
-                                           message=_get_post_description(post),
-                                           keyboard=keyboards.main_menu_keyboard(post),
-                                           random_id=random.randint(10 ** 5, 10 ** 6),
-                                           attachment=[str(att) for att in _get_post_attachments(post)])
+        self.vk.messages.send(
+            peer_id=self.chat_for_suggest,
+            message=_get_post_description(post),
+            keyboard=keyboards.main_menu_keyboard(post),
+            random_id=random.randint(10 ** 5, 10 ** 6),
+            attachment=[str(att) for att in _get_post_attachments(post, post.is_deleted)],
+        )
         now = datetime.datetime.now()
         now = now + datetime.timedelta(microseconds=-now.microsecond)
         MessageOfSuggestedPost.create(post_id=post_id, message_date=now)
@@ -576,12 +578,14 @@ class Server:
 
         disable_mentions = 0 if post.suggest_status == PostStatus.SUGGESTED.value else 1
         try:
-            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
-                                           conversation_message_id=message_id,
-                                           message=_get_post_description(post),
-                                           keyboard=keyboards.main_menu_keyboard(post),
-                                           disable_mentions=disable_mentions,
-                                           attachment=[str(att) for att in _get_post_attachments(post)])
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=_get_post_description(post),
+                keyboard=keyboards.main_menu_keyboard(post),
+                disable_mentions=disable_mentions,
+                attachment=[str(att) for att in _get_post_attachments(post, post.is_deleted)]
+            )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
 
@@ -594,11 +598,12 @@ class Server:
         text_message = _get_post_description(post=post, with_hashtags=False)
         text_message += '\nВыберите хэштеги:'
         try:
-            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
-                                           conversation_message_id=message_id,
-                                           message=text_message,
-                                           keyboard=keyboards.hashtag_menu(post, page),
-                                           )
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=text_message,
+                keyboard=keyboards.hashtag_menu(post, page),
+            )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
@@ -611,11 +616,12 @@ class Server:
         text_message = _get_post_description(post=post, with_hashtags=False)
         text_message += '\nВыберите обсуждение:'
         try:
-            result = self.vk.messages.edit(peer_id=self.chat_for_suggest,
-                                           conversation_message_id=message_id,
-                                           message=text_message,
-                                           keyboard=keyboards.conversation_menu(post, page),
-                                           )
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=text_message,
+                keyboard=keyboards.conversation_menu(post, page),
+            )
         except Exception as ex:
             logger.warning(f'Failed to edit message ID={message_id} for post ID={post_id}\n{ex}')
 
@@ -957,9 +963,11 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
     return represent
 
 
-def _get_post_attachments(post: Post) -> list[UploadedFile]:
-    query = PostsAttachment.select().where((PostsAttachment.is_deleted == False)
-                                           & (PostsAttachment.post == post)).execute()
+def _get_post_attachments(post: Post, show_deleted: bool = False) -> list[UploadedFile]:
+    query = PostsAttachment.select().where(
+        (show_deleted | (PostsAttachment.is_deleted == False))
+        & (PostsAttachment.post == post)
+    ).execute()
     attachments = []
     for post_attachment in query:
         attachments.append(post_attachment.attachment)
