@@ -14,7 +14,7 @@ from Models.Users import User
 from Models import create_db
 from utils.db_helper import queri_to_list
 from utils.connection_holder import ConnectionsHolder
-from utils.rabbit_connector import send_message, send_message_by_chanel, get_messages_from_chanel
+from utils.rabbit_connector import send_message, get_messages
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from ChatBot.chat_bot import ChatBot
 from utils.Parser import _initial_downloading, subscriptions, private_messages
@@ -96,8 +96,9 @@ class Server:
                             sleep(1)
                             create_db.create_all_tables()
                         elif event.object.message['text'] == 'recreate_db':
+                            sleep(5)
                             db.close()
-                            sleep(1)
+                            sleep(5)
                             create_db.recreate_database()
                         elif event.object.message['text'] == 'lock_db':
                             create_db.lock_db()
@@ -174,18 +175,11 @@ class Server:
 
     @staticmethod
     def _answer_healthcheck_messages():
-        rabbit_connection = ConnectionsHolder().rabbit_connection
-        if rabbit_connection:
-            channel = rabbit_connection.channel()
-            messages = get_messages_from_chanel(
-                message_type=f'{config.healthcheck_queue_name_prefix}_listener_requests',
-                channel=channel)
-            for message_text in messages:
-                send_message_by_chanel(message_type=f'{config.healthcheck_queue_name_prefix}_listener_answers',
-                                       message=message_text, channel=channel)
-            ConnectionsHolder().close_rabbit_connection()
-        else:
-            logger.warning(f'Failed connect to rabbit!')
+        message_type = f'{config.healthcheck_queue_name_prefix}_listener_requests'
+        messages = get_messages(message_type=message_type)
+        answer_message_type = f'{config.healthcheck_queue_name_prefix}_listener_answers'
+        for message_text in messages:
+            send_message(message_type=answer_message_type, message=message_text)
 
     def _update_last_posts(self, count_of_posts: int = 60):
         days_for_update = 14

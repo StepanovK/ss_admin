@@ -8,13 +8,25 @@ import threading
 from utils.Scripts import *
 from utils.healthcheck import start_status_check
 
-healthcheck = None
+healthcheck_listener = None
+healthcheck_poster = None
 
 
 def start_healthcheck():
-    global healthcheck
-    healthcheck = threading.Thread(target=start_status_check)
-    healthcheck.start()
+    start_healthcheck_listener()
+    start_healthcheck_poster()
+
+
+def start_healthcheck_listener():
+    global healthcheck_listener
+    healthcheck_listener = threading.Thread(target=start_status_check, args=('listener',))
+    healthcheck_listener.start()
+
+
+def start_healthcheck_poster():
+    global healthcheck_poster
+    healthcheck_poster = threading.Thread(target=start_status_check, args=('poster',))
+    healthcheck_poster.start()
 
 
 start_healthcheck()
@@ -45,6 +57,12 @@ while True:
 
     time.sleep(1)
 
-    if healthcheck is None or (isinstance(healthcheck, threading.Thread) and not healthcheck.is_alive()):
-        logger.warning(f'healthcheck упал! Перезапускаем!')
-        start_healthcheck()
+    if healthcheck_listener is None or (
+            isinstance(healthcheck_listener, threading.Thread) and not healthcheck_listener.is_alive()):
+        logger.warning(f'healthcheck_listener упал! Перезапускаем!')
+        start_healthcheck_listener()
+
+    if healthcheck_poster is None or (
+            isinstance(healthcheck_poster, threading.Thread) and not healthcheck_poster.is_alive()):
+        logger.warning(f'healthcheck_poster упал! Перезапускаем!')
+        start_healthcheck_poster()
