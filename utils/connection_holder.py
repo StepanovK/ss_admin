@@ -96,7 +96,10 @@ class ConnectionsHolder(metaclass=Singleton):
 
     @property
     def rabbit_connection(self):
-        if not self._rabbit_connection:
+        if self._rabbit_connection is not None and self._rabbit_connection.is_closed:
+            self._rabbit_connection = None
+
+        if self._rabbit_connection is None:
             try:
                 credentials = pika.PlainCredentials('guest', 'guest')
                 conn_params = pika.ConnectionParameters(host=config.rabbitmq_host,
