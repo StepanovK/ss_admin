@@ -13,7 +13,6 @@ from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
 from utils.GettingUserInfo.getter import get_short_user_info
 import keyboards
-import pika
 import datetime
 import threading
 import random
@@ -30,12 +29,11 @@ from Models.Admins import Admin, get_admin_by_vk_id
 from Models.PrivateMessages import PrivateMessage
 from Models.Relations import PostsAttachment
 from Models.UploadedFiles import UploadedFile
-from utils.db_helper import queri_to_list
 import utils.get_hasgtags as get_hashtags
 from utils.tg_auto_poster import MyAutoPoster
 from utils import user_chek
 from utils.GettingUserInfo import getter
-from utils.rabbit_connector import get_messages_from_chanel
+from utils.rabbit_connector import get_messages_from_chanel, send_message, get_messages
 from utils.watermark_creater import WatermarkCreator
 from utils.Parser import attachments as attachment_parser
 
@@ -78,6 +76,9 @@ class Server:
 
         time_to_check_old_messages = 20
         last_check_old_messages = None
+
+        time_to_healthcheck = config.healthcheck_interval / 4
+        last_healthcheck = None
 
         """
         События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
@@ -144,6 +145,11 @@ class Server:
                     logger.info('Обновление старых сообщений в чате предложки')
                 self._run_in_thread(target=self._update_old_messages_of_suggested_posts)
                 last_check_old_messages = datetime.datetime.now()
+
+            now = datetime.datetime.now()
+            if not last_healthcheck or (now - last_healthcheck).total_seconds() >= time_to_healthcheck:
+                self._run_in_thread(target=self._answer_healthcheck_messages)
+                last_healthcheck = datetime.datetime.now()
 
     def _start_consuming(self):
         rabbit_connection = ConnectionsHolder().rabbit_connection
@@ -228,6 +234,14 @@ class Server:
                 self._delete_sorted_hashtags(post_id=post_inf.suggested_post_id)
 
                 self._update_message_post(suggested_post.id)
+
+    @staticmethod
+    def _answer_healthcheck_messages():
+        message_type = f'{config.healthcheck_queue_name_prefix}_poster_requests'
+        messages = get_messages(message_type=message_type)
+        answer_message_type = f'{config.healthcheck_queue_name_prefix}_poster_answers'
+        for message_text in messages:
+            send_message(message_type=answer_message_type, message=message_text)
 
     @staticmethod
     def _update_reposted_conversation_message(conversation_message_id):
