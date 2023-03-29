@@ -100,18 +100,39 @@ class ConnectionsHolder(metaclass=Singleton):
             self._rabbit_connection = None
 
         if self._rabbit_connection is None:
-            try:
-                credentials = pika.PlainCredentials('guest', 'guest')
-                conn_params = pika.ConnectionParameters(host=config.rabbitmq_host,
-                                                        port=config.rabbitmq_port,
-                                                        credentials=credentials)
-                try:
-                    self._rabbit_connection = pika.BlockingConnection(conn_params)
-                    if config.debug:
-                        config.logger.info("Init RabbitMQ connection")
-                except pika.exceptions.AMQPConnectionError:
-                    config.logger.warning(
-                        f'failed to connect to rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
-            except Exception as ex:
-                config.logger.error(f"Failed to init rabbitmq client: {ex}")
+            self._rabbit_connection = RabbitConnector.get_new_rabbit_connection()
+
         return self._rabbit_connection
+
+
+class RabbitConnector:
+
+    @classmethod
+    def get_or_reconnect_rabbit(cls, rabbit_connection=None):
+        if rabbit_connection is not None and rabbit_connection.is_closed:
+            rabbit_connection = None
+
+        if rabbit_connection is None:
+            rabbit_connection = cls.get_new_rabbit_connection()
+
+        return rabbit_connection
+
+    @classmethod
+    def get_new_rabbit_connection(cls):
+        rabbit_connection = None
+        try:
+            credentials = pika.PlainCredentials('guest', 'guest')
+            conn_params = pika.ConnectionParameters(host=config.rabbitmq_host,
+                                                    port=config.rabbitmq_port,
+                                                    credentials=credentials)
+            try:
+                rabbit_connection = pika.BlockingConnection(conn_params)
+                if config.debug:
+                    config.logger.info("Init RabbitMQ connection")
+            except pika.exceptions.AMQPConnectionError:
+                config.logger.warning(
+                    f'failed to connect to rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
+        except Exception as ex:
+            config.logger.error(f"Failed to init rabbitmq client: {ex}")
+
+        return rabbit_connection
