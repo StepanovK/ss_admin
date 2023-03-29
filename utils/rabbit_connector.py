@@ -3,12 +3,13 @@ import config
 from utils.connection_holder import ConnectionsHolder
 
 
-def send_message(message_type: str, message: str):
-    rabbit_connection = ConnectionsHolder().rabbit_connection
-    if rabbit_connection:
-        channel = rabbit_connection.channel()
+def send_message(message_type: str, message: str, rabbit_connection=None):
+    connection = ConnectionsHolder().rabbit_connection if rabbit_connection is None else rabbit_connection
+    if connection:
+        channel = connection.channel()
         send_message_by_chanel(message_type, message, channel)
-        ConnectionsHolder().close_rabbit_connection()
+        if rabbit_connection is None:
+            ConnectionsHolder().close_rabbit_connection()
         return True
     else:
         config.logger.warning(f'Failed connect to rabbit!')
@@ -25,12 +26,13 @@ def send_message_by_chanel(message_type: str, message: str, channel):
                           properties=pika.BasicProperties(delivery_mode=2))
 
 
-def get_messages(message_type: str):
-    rabbit_connection = ConnectionsHolder().rabbit_connection
-    if rabbit_connection:
-        channel = rabbit_connection.channel()
+def get_messages(message_type: str, rabbit_connection=None):
+    connection = ConnectionsHolder().rabbit_connection if rabbit_connection is None else rabbit_connection
+    if connection:
+        channel = connection.channel()
         messages = get_messages_from_chanel(message_type, channel)
-        ConnectionsHolder().close_rabbit_connection()
+        if rabbit_connection is None:
+            ConnectionsHolder().close_rabbit_connection()
         return messages
     else:
         config.logger.warning(f'Failed connect to rabbit!')
