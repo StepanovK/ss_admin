@@ -48,7 +48,6 @@ def replace_double_spaces(source_text: str) -> str:
 
 
 def test():
-    assert format_text('Ляляля!\n ') == 'Ляляля!'
     assert format_text('Ляляля , ляляля') == 'Ляляля, ляляля'
     assert format_text('Ляляля  ,   ляляля') == 'Ляляля, ляляля'
     assert format_text('Ляляля  !   ') == 'Ляляля!'
@@ -65,6 +64,7 @@ def test():
     assert format_text('ляляля\n.ляляля') == 'Ляляля.\nЛяляля'
     assert format_text('ляляля  \nляляля') == 'Ляляля\nЛяляля'
     assert format_text('Ляляля! ') == 'Ляляля!'
+    assert format_text('Ляляля!\n ') == 'Ляляля!'
     assert format_text('ляляля -ляляля') == 'Ляляля - ляляля'
 
 
