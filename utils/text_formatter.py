@@ -1,17 +1,20 @@
 def format_text(source_text: str) -> str:
-    new_text = replace_double_spaces(source_text)
+    new_text = replace_double_symbols(source_text, ' ')
+
+    symbols = [',', '.', '!', '?', ';', ':', '-']
+    for symbol in symbols:
+        new_text = replace_double_symbols(new_text, symbol)
 
     spaces = [' ', '\n']
-    symbols = [',', '.', '!', '?', ';', ':', '-']
     for space in spaces:
         for symbol in symbols:
             new_text = new_text.replace(space + symbol, symbol + space)
-    new_text = replace_double_spaces(new_text)
+    new_text = replace_double_symbols(new_text, ' ')
     new_text = new_text.replace('-', ' -')
 
     for symbol in symbols:
         new_text = new_text.replace(symbol, symbol + ' ')
-    new_text = replace_double_spaces(new_text)
+    new_text = replace_double_symbols(new_text, ' ')
 
     new_text = new_text.replace(' \n', '\n')
 
@@ -40,14 +43,16 @@ def format_text(source_text: str) -> str:
     return new_text
 
 
-def replace_double_spaces(source_text: str) -> str:
+def replace_double_symbols(source_text: str, symbol: str) -> str:
     new_text = source_text
-    while '  ' in new_text:
-        new_text = new_text.replace('  ', ' ')
+    double_symbol = symbol + symbol
+    while double_symbol in new_text:
+        new_text = new_text.replace(double_symbol, symbol)
     return new_text
 
 
 def test():
+    assert format_text('Ляляля !!!') == 'Ляляля!'
     assert format_text('Ляляля , ляляля') == 'Ляляля, ляляля'
     assert format_text('Ляляля  ,   ляляля') == 'Ляляля, ляляля'
     assert format_text('Ляляля  !   ') == 'Ляляля!'
