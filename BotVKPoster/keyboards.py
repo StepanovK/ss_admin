@@ -14,6 +14,7 @@ from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
 from utils.GettingUserInfo.keyboards import add_ban_buttons
 from peewee import fn, JOIN
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
+from PosterModels.PostSettings import PostSettings
 from utils.text_cutter import cut
 
 MAX_BUTTON_LENGTH = 40
@@ -58,6 +59,12 @@ def main_menu_keyboard(post: Post):
     keyboard.add_callback_button(label='&#128172; Переслать в обсуждение',
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
+
+    settings = PostSettings.get_post_settings(post.id)
+    color = VkKeyboardColor.PRIMARY if settings['reformat_text'] else VkKeyboardColor.SECONDARY
+    keyboard.add_callback_button(label='&#128394;',
+                                 color=color,
+                                 payload={"command": "reformat_text", "post_id": post.id})
 
     if not can_edit and _post_has_unmarked_attachments(post.posted_in):
         keyboard.add_line()
