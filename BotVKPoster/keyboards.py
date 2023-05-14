@@ -61,10 +61,11 @@ def main_menu_keyboard(post: Post):
                                  payload={"command": "show_conversation_menu", "post_id": post.id, 'page': 1})
 
     settings = PostSettings.get_post_settings(post.id)
-    color = VkKeyboardColor.PRIMARY if settings['reformat_text'] else VkKeyboardColor.SECONDARY
-    keyboard.add_callback_button(label='&#128394;',
-                                 color=color,
-                                 payload={"command": "reformat_text", "post_id": post.id})
+    if can_edit:
+        color = VkKeyboardColor.PRIMARY if settings['reformat_text'] else VkKeyboardColor.SECONDARY
+        keyboard.add_callback_button(label='&#128394;',
+                                     color=color,
+                                     payload={"command": "reformat_text", "post_id": post.id})
 
     if not can_edit and _post_has_unmarked_attachments(post.posted_in):
         keyboard.add_line()
