@@ -9,6 +9,7 @@ from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.PublishedPosts import PublishedPost
 from PosterModels.SortedHashtags import SortedHashtag
+from PosterModels.PostSettings import PostSettings
 from PosterModels import create_db
 from utils.connection_holder import ConnectionsHolder
 from utils.GettingUserInfo.getter import get_short_user_info
@@ -36,6 +37,7 @@ from utils.GettingUserInfo import getter
 from utils.rabbit_connector import get_messages_from_chanel, send_message, get_messages
 from utils.watermark_creater import WatermarkCreator
 from utils.Parser import attachments as attachment_parser
+from utils import text_formatter
 
 MAX_MESSAGE_SIZE = 4048
 vk_link = 'https://vk.com/'
@@ -429,6 +431,9 @@ class Server:
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
         elif payload['command'] == 'add_watermark':
             self._run_in_thread(target=self._add_watermark, args=[payload['post_id'], message_id])
+        elif payload['command'] == 'reformat_text':
+            _set_reformat_text(post_id=payload['post_id'])
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
@@ -474,6 +479,10 @@ class Server:
 
     def _get_post_params_for_publishing(self, post: Post, with_hashtags=True) -> dict:
         message = post.text
+
+        settings = PostSettings.get_post_settings(post.id)
+        if settings['reformat_text']:
+            message = text_formatter.format_text(message)
 
         if with_hashtags:
             hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
@@ -941,7 +950,13 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
 
         message_text = message_text + '\n'
 
-    post_text = '[Текст отсутствует]' if post.text == '' else f'Текст поста:\n{post.text}'
+    post_text = post.text
+
+    settings = PostSettings.get_post_settings(post.id)
+    if settings['reformat_text']:
+        post_text = text_formatter.format_text(post_text)
+
+    post_text = '[Текст отсутствует]' if post_text == '' else f'Текст поста:\n{post_text}'
 
     represent = f'{text_status}\n' \
                 f'Автор: {post.user}\n' \
@@ -973,6 +988,15 @@ def _get_post_attachments(post: Post, show_deleted: bool = False) -> list[Upload
         attachments.append(post_attachment.attachment)
 
     return attachments
+
+
+def _set_reformat_text(post_id: str, value: Optional[bool] = None):
+    ps, _ = PostSettings.get_or_create(post_id=post_id)
+    if value is None:
+        ps.reformat_text = not ps.reformat_text
+    else:
+        ps.reformat_text = value
+    ps.save()
 
 
 def add_watermarks(post: Post, vk_admin):
