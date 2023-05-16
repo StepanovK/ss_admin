@@ -10,6 +10,7 @@ env.read_env()
 
 group_id = env.int("group_id")
 group_token = env.str("group_token")
+group_token_poster = env.str("group_token_poster")
 admin_token = env.str("admin_token")
 admin_phone = env.str("admin_phone")
 admin_pass = env.str("admin_pass")

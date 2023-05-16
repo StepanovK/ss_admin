@@ -827,6 +827,7 @@ class Server:
         ConnectionsHolder.close_rabbit_connection()
 
     def reconnect_vk(self):
+        ConnectionsHolder().vk_group_token = config.group_token_poster
         ConnectionsHolder.close_vk_connections()
         self.vk_api_admin = ConnectionsHolder().vk_api_admin
         self.vk_admin = ConnectionsHolder().vk_connection_admin
