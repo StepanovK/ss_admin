@@ -19,7 +19,7 @@ class Admin(BaseModel):
         elif self.name != '':
             st = self.name
         else:
-            st = f'id{self.id}'
+            st = f'@id{self.id}'
 
         return st
 
