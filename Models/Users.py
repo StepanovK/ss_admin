@@ -22,9 +22,9 @@ class User(BaseModel):
     def chat_name(self):
         f_name = self.full_name()
         if f_name == '':
-            return f'[id{self.id}]'
+            return f'@id{self.id}'
         else:
-            return f'[id{self.id}|{f_name}]'
+            return f'@id{self.id}({f_name})'
 
     def full_name(self):
         f_name = f'{self.first_name} {self.last_name}'

@@ -5,6 +5,14 @@ from utils.connection_holder import ConnectionsHolder
 
 def send_message(message_type: str, message: str, rabbit_connection=None):
     connection = ConnectionsHolder().rabbit_connection if rabbit_connection is None else rabbit_connection
+    try:
+        channel = connection.channel()
+    except pika.exceptions.ConnectionClosedByBroker:
+        connection = None
+        if rabbit_connection is None:
+            ConnectionsHolder().close_rabbit_connection()
+            connection = ConnectionsHolder().rabbit_connection
+
     if connection:
         channel = connection.channel()
         send_message_by_chanel(message_type, message, channel)

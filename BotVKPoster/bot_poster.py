@@ -708,7 +708,14 @@ class Server:
 
         attachment = [str(attachment) for attachment in _get_post_attachments(post)]
 
-        text_message = f'{post.user} писал(а):\n{post.text}'
+        user_repr = 'Аноним' if post.anonymously else f'{post.user}'
+        if post.user is not None and post.user.sex == 'female':
+            sex_repr = 'писала'
+        elif post.user is not None and post.user.sex == 'male':
+            sex_repr = 'писал'
+        else:
+            sex_repr = 'писал(а)'
+        text_message = f'{user_repr} {sex_repr}:\n{post.text}'
 
         conversation = Conversation.get(id=conversation_id)
 
