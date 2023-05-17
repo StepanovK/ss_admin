@@ -9,9 +9,7 @@ class ConnectionsHolder(metaclass=Singleton):
     def __init__(self):
         self.vk_group_token = config.group_token
         self._vk_api_group = None
-        # self._vk_api_group_poster = None
         self._vk_connection_group = None
-        # self._vk_connection_group_poster = None
         self._vk_api_admin = None
         self._vk_connection_admin = None
         self._rabbit_connection = None
@@ -55,17 +53,6 @@ class ConnectionsHolder(metaclass=Singleton):
                 config.logger.error(f"Failed to init VK api for group: {ex}")
         return self._vk_api_group
 
-    # @property
-    # def vk_api_group_poster(self):
-    #     if not self._vk_api_group_poster:
-    #         try:
-    #             self._vk_api_group_poster = vk_api.VkApi(token=config.group_token_2)
-    #             if config.debug:
-    #                 config.logger.info("Init VK api for group")
-    #         except Exception as ex:
-    #             config.logger.error(f"Failed to init VK api for group: {ex}")
-    #     return self._vk_api_group_poster
-
     @property
     def vk_connection_group(self):
         if not self._vk_connection_group and self.vk_api_group:
@@ -76,17 +63,6 @@ class ConnectionsHolder(metaclass=Singleton):
             except Exception as ex:
                 config.logger.error(f"Failed to init VK group client: {ex}")
         return self._vk_connection_group
-
-    # @property
-    # def vk_connection_group_poster(self):
-    #     if not self._vk_connection_group_poster and self.vk_api_group:
-    #         try:
-    #             self._vk_connection_group_poster = self.vk_api_group.get_api()
-    #             if config.debug:
-    #                 config.logger.info("Init VK group client")
-    #         except Exception as ex:
-    #             config.logger.error(f"Failed to init VK group client: {ex}")
-    #     return self._vk_connection_group_poster
 
     @property
     def vk_api_admin(self):
