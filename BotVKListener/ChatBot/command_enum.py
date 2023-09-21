@@ -24,7 +24,7 @@ class Command(Enum):
     advertisingProcedure = ["advertising procedure", "Порядок размещения рекламы"]
 
     """ offerNews """
-    offerNews = ["offer news", "Предложить новость"]
+    offerNews = ["offer news", "Как предложить новость?"]
 
     """ calculationAdvertising """
     calculationAdvertising = ["calculation advertising", "Рассчитать стоимость"]
