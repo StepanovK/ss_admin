@@ -1020,7 +1020,7 @@ def add_watermarks(post: Post, vk_admin):
         (UploadedFile.is_watermarked == False) &
         (PostsAttachment.post == post) &
         (PostsAttachment.is_deleted == False)
-    ).execute()
+    ).order_by(UploadedFile.id).execute()
 
     old_attachments = []
     new_attachments = []
@@ -1111,24 +1111,22 @@ def _add_watermark_video(attachment: UploadedFile, logo_path: str, vk_admin):
     new_video_file_name = watermark.add_video_watermark(video_file_name)
     if os.path.isfile(video_file_name):
         os.remove(video_file_name)
-    upload_url = vk_admin.photos.getWallUploadServer(group_id=config.group_id, name=attachment.file_name)['upload_url']
-    result = requests.post(upload_url, files={'video_file': open(new_video_file_name, "rb")})
+    video_params = vk_admin.video.save(group_id=-int(attachment.owner_id), name=attachment.file_name)
+    result = requests.post(video_params['upload_url'], files={'video_file': open(new_video_file_name, "rb")})
     if os.path.isfile(new_video_file_name):
         os.remove(new_video_file_name)
-    result_js = result.json()
-    # video_id = request.json()["video_id"]
-    # video_attach = 'video' + str(group_id) + '_' + str(video_id)
-    # attachments.append(video_attach)
-
-    vk_attachment = {
-        'type': 'video',
-        'video': result_js,
-    }
-    new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
-    if new_attachment:
-        new_attachment.is_watermarked = True
-        new_attachment.save()
-    return new_attachment
+    video_name = f"{video_params['owner_id']}_{video_params['video_id']}"
+    attachments_info = vk_admin.video.get(videos=video_name)
+    if len(attachments_info['items']) == 1:
+        vk_attachment = {
+            'type': 'video',
+            'video': attachments_info['items'][0],
+        }
+        new_attachment = attachment_parser.parse_vk_attachment(vk_attachment)
+        if new_attachment:
+            new_attachment.is_watermarked = True
+            new_attachment.save()
+            return new_attachment
 
 
 def _current_dir():

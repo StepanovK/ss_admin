@@ -159,10 +159,20 @@ def parse_vk_video_attachment(uploaded_file: UploadedFile, vk_video_info: dict):
     uploaded_file.url = vk_video_info.get('track_code', '')
     if uploaded_file.file_name == '':
         uploaded_file.generate_file_name()
-    sizes = vk_video_info.get('image', [])
-    if len(sizes) > 0:
-        max_size = sizes[-1]
-        uploaded_file.preview_url = max_size.get('url', '')
+    if 'image' in vk_video_info:
+        sizes = vk_video_info.get('image', [])
+        if len(sizes) > 0:
+            max_size = sizes[-1]
+            uploaded_file.preview_url = max_size.get('url', '')
+    elif 'height' in vk_video_info:
+        height = vk_video_info.get('height', 0)
+        photo_name = f'photo_{height}'
+        first_frame_name = f'first_frame_{height}'
+        if photo_name in vk_video_info:
+            uploaded_file.preview_url = vk_video_info.get(photo_name, '')
+        elif first_frame_name in vk_video_info:
+            uploaded_file.preview_url = vk_video_info.get(first_frame_name, '')
+
 
 
 def get_file_name_for_poll_object(vk_poll_info):
