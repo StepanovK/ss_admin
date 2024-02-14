@@ -1,5 +1,5 @@
 import requests
-import youtube_dl
+import yt_dlp
 from moviepy.editor import *
 from PIL import Image, ImageEnhance
 
@@ -60,10 +60,10 @@ class WatermarkCreator:
     @staticmethod
     def download_video(video_url: str):
         ydl_opts = {'outtmpl': 'video%(id)s.%(ext)s'}
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            meta = ydl.extract_info(
-                video_url, download=True)
-            video = ydl.prepare_filename(meta)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+            info = ydl.extract_info(video_url, download=True)
+            video = ydl.prepare_filename(info)
         # video = passage(video.split('.')[0], 'video')
         print(video)
         return video
