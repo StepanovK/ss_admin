@@ -104,6 +104,9 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
         if extract_hashtags:
             hashtags, new_text = extract_hashtags_from_post_text(text=post.text, replace=False)
 
+        if post_attributes['check_sign']:
+            post.anonymously = True
+
     post.save()
 
     if extract_hashtags and len(hashtags) > 0 and not post.is_deleted:
@@ -129,6 +132,7 @@ def get_wall_post_attributes(wall_post: dict):
         'admin': None,
         'user_id': None,
         'geo': wall_post.get('geo', {}).get('coordinates'),
+        'check_sign': bool(wall_post.get('check_sign', False)),
     }
 
     suggest_status = PostStatus.SUGGESTED.value if wall_post.get('post_type', '') == 'suggest' else None
