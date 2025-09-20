@@ -1,5 +1,5 @@
 marshmallow==3.26.1
-loguru
+loguru==0.7.0
 environs
 vk_api
 pika==1.2.1
