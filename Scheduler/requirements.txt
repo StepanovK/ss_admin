@@ -1,1 +1,3 @@
 schedule
+marshmallow==3.26.1
+loguru

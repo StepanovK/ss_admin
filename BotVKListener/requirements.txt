@@ -1,3 +1,4 @@
+marshmallow==3.26.1
 loguru
 environs
 vk_api
