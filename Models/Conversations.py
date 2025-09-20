@@ -13,7 +13,7 @@ class Conversation(BaseModel):
     is_deleted = BooleanField(default=False)
     is_closed = BooleanField(default=False)
 
-    VK_LINK = 'https://vk.com/'
+    VK_LINK = 'https://vk.ru/'
 
     def __str__(self):
         name = ''

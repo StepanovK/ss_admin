@@ -15,7 +15,7 @@ class PrivateMessage(BaseModel):
     message_id = IntegerField(null=True)
     is_deleted = BooleanField(default=False)
 
-    VK_LINK = 'https://vk.com/'
+    VK_LINK = 'https://vk.ru/'
 
     class Meta:
         table_name = 'private_messages'

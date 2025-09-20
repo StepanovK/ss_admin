@@ -24,7 +24,7 @@ import threading
 
 
 class Server:
-    vk_link = 'https://vk.com/'
+    vk_link = 'https://vk.ru/'
 
     def __init__(self):
         self.group_id = config.group_id

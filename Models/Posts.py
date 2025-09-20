@@ -20,7 +20,7 @@ class Post(BaseModel):
     posted_in = ForeignKeyField('self', null=True, on_delete='SET NULL')
     geo = CharField(null=True)
 
-    VK_LINK = 'https://vk.com/'
+    VK_LINK = 'https://vk.ru/'
 
     def __str__(self):
         return '[DELETED] ' + self.get_url() if self.is_deleted else self.get_url()

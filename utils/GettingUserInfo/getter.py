@@ -300,6 +300,7 @@ def send_user_info(user, vk_connection, peer_id: int):
 def get_user_from_message(message_text: str):
     user_str = message_text
 
+    user_str = user_str.replace('https://vk.ru/', '')
     user_str = user_str.replace('https://vk.com/', '')
 
     if user_str.startswith('id'):
@@ -340,7 +341,7 @@ def get_short_user_info(user: User):
         bun_record = bun_records[0]
 
     mes_text = f'Информация о пользователе {user} (id {user.id}):\n'
-    mes_text += f'Упоминания в ВК: https://vk.com/feed?obj={user.id}&q=&section=mentions\n'
+    mes_text += f'Упоминания в ВК: https://vk.ru/feed?obj={user.id}&q=&section=mentions\n'
 
     if user.comment is not None and user.comment != '':
         mes_text += f'ВНИМАНИЕ: {user.comment}\n'

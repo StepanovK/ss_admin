@@ -40,7 +40,7 @@ from utils.Parser import attachments as attachment_parser
 from utils import text_formatter
 
 MAX_MESSAGE_SIZE = 4048
-vk_link = 'https://vk.com/'
+vk_link = 'https://vk.ru/'
 
 
 class Server:

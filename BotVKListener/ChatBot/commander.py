@@ -112,11 +112,11 @@ class Commander:
 
             # Поиск специалиста на сортировке
             elif msg in Command.findSpecialist.value:
-                return 'https://vk.com/@sun_sortirovka-kak-naiti-nuzhnogo-specialista-na-sortirovke'
+                return 'https://vk.ru/@sun_sortirovka-kak-naiti-nuzhnogo-specialista-na-sortirovke'
 
             # Справочник полезной информации
             elif msg in Command.informationGuide.value:
-                return 'https://vk.com/@sun_sortirovka-spravochnik-poleznoi-informacii'
+                return 'https://vk.ru/@sun_sortirovka-spravochnik-poleznoi-informacii'
 
             # Предложить новость
             elif msg in Command.offerNews.value:
