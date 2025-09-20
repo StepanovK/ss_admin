@@ -497,6 +497,7 @@ class Server:
             'post_id': post.vk_id,
             'message': message,
             'attachments': attachment,
+            'primary_attachments_mode': 'grid',
         }
 
         return post_params
