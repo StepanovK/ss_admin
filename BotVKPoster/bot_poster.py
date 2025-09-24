@@ -1,43 +1,42 @@
-import config as config
-from config import logger, debug
-from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+import datetime
+import os.path
+import random
+import threading
 from time import sleep
 from typing import Union, Optional
-import os.path
+
 import requests
-from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
-from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
-from PosterModels.PublishedPosts import PublishedPost
-from PosterModels.SortedHashtags import SortedHashtag
-from PosterModels.PostSettings import PostSettings
-from PosterModels import create_db
-from utils.connection_holder import ConnectionsHolder
-from utils.GettingUserInfo.getter import get_short_user_info
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+
+import config as config
 import keyboards
-import datetime
-import threading
-import random
-from Models.base import db as main_db
-from Models.Posts import Post, PostsHashtag, PostStatus
-from Models.Users import User
-from Models.Comments import Comment
-from Models.ChatMessages import ChatMessage
-from Models.Conversations import Conversation
-from Models.ConversationMessages import ConversationMessage
-from Models.Relations import PostsLike, CommentsLike
-from Models.Subscriptions import Subscription
+import utils.get_hasgtags as get_hashtags
 from Models.Admins import Admin, get_admin_by_vk_id
+from Models.ChatMessages import ChatMessage
+from Models.Comments import Comment
+from Models.ConversationMessages import ConversationMessage
+from Models.Conversations import Conversation
+from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.PrivateMessages import PrivateMessage
 from Models.Relations import PostsAttachment
 from Models.UploadedFiles import UploadedFile
-import utils.get_hasgtags as get_hashtags
-from utils.tg_auto_poster import MyAutoPoster
+from Models.Users import User
+from Models.base import db as main_db
+from PosterModels import create_db
+from PosterModels.MessagesOfSuggestedPosts import MessageOfSuggestedPost
+from PosterModels.PostSettings import PostSettings
+from PosterModels.PublishedPosts import PublishedPost
+from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
+from PosterModels.SortedHashtags import SortedHashtag
+from config import logger, debug
+from utils import text_formatter
 from utils import user_chek
 from utils.GettingUserInfo import getter
+from utils.GettingUserInfo.getter import get_short_user_info
+from utils.Parser import attachments as attachment_parser
+from utils.connection_holder import ConnectionsHolder
 from utils.rabbit_connector import get_messages_from_chanel, send_message, get_messages
 from utils.watermark_creater import WatermarkCreator
-from utils.Parser import attachments as attachment_parser
-from utils import text_formatter
 
 MAX_MESSAGE_SIZE = 4048
 vk_link = 'https://vk.ru/'
@@ -362,13 +361,11 @@ class Server:
                     except Exception as ex:
                         logger.error(f'Failed to send chat message in chat_for_comments_check\n{ex}')
 
-                if mark_as_spam:
-                    try:
-                        chat_id_short = chat.chat_id - 2000000000
-                        self.vk.messages.removeChatUser(chat_id=chat_id_short, user_id=user.id, member_id=user.id)
-                    except Exception as ex:
-                        logger.error(f'Failed delete user {user} from chat {chat}\n{ex}')
-
+                try:
+                    chat_id_short = chat.chat_id - 2000000000
+                    self.vk.messages.removeChatUser(chat_id=chat_id_short, user_id=user.id, member_id=user.id)
+                except Exception as ex:
+                    logger.error(f'Failed delete user {user} from chat {chat}\n{ex}')
 
             elif user_danger_degree >= 10:
                 try:
