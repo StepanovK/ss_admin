@@ -1,20 +1,20 @@
+import collections
 import functools
+
+from peewee import fn, JOIN
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+
+from Models.ConversationMessages import ConversationMessage
+from Models.Conversations import Conversation
 from Models.Posts import Post, PostStatus, PostsHashtag
 from Models.Relations import PostsAttachment
 from Models.UploadedFiles import UploadedFile
-from Models.Conversations import Conversation
-from Models.ConversationMessages import ConversationMessage
-from Models.BanedUsers import BAN_REASONS, REPORT_TYPES_BY_BAN_REASONS, BanedUser
-from PosterModels.SortedHashtags import SortedHashtag
-import config as config
-from utils.db_helper import queri_to_list
-import collections
-from utils.get_hasgtags import get_hashtags, get_sorted_hashtags
-from utils.GettingUserInfo.keyboards import add_ban_buttons
-from peewee import fn, JOIN
-from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.PostSettings import PostSettings
+from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
+from PosterModels.SortedHashtags import SortedHashtag
+from utils.GettingUserInfo.keyboards import add_ban_buttons
+from utils.db_helper import queri_to_list
+from utils.get_hasgtags import get_hashtags
 from utils.text_cutter import cut
 
 MAX_BUTTON_LENGTH = 40
@@ -182,7 +182,7 @@ def conversation_menu(post: Post, page: int = 1):
     ).distinct().execute()
     conversations_of_post_tmp = queri_to_list(reposted_posts, 'conversation_id')
 
-    pages = _conversations_by_pages(post)
+    pages = _conversations_by_pages()
     if len(pages) == 0:
         current_page = []
     else:
@@ -254,20 +254,25 @@ def _hashtags_by_pages(post: Post) -> dict[int, list]:
 
 
 @functools.lru_cache()
-def _conversations_by_pages(post: Post) -> dict[int, list]:
-    count_messages = ConversationMessage.select(
+def _conversations_by_pages() -> dict[int, list]:
+    max_date_subquery = (ConversationMessage.select(
         ConversationMessage.conversation,
-        fn.Count(ConversationMessage.id).alias('count_messages')
-    ).where(
-        (ConversationMessage.is_deleted == False)
-    ).join(Post).group_by(ConversationMessage.conversation)
+        fn.MAX(ConversationMessage.date).alias('max_date'))
+                         .where(ConversationMessage.is_deleted == False)
+                         .group_by(ConversationMessage.conversation).alias('max_date_subquery'))
 
     conversations_query = Conversation.select(
-        Conversation, count_messages.c.count_messages
-    ).join(count_messages,
-           JOIN.LEFT_OUTER,
-           on=(count_messages.c.conversation_id == Conversation.id)
-           ).order_by(count_messages.c.count_messages.desc(nulls='last'))
+        Conversation,
+        max_date_subquery.c.max_date
+    ).join(
+        max_date_subquery,
+        JOIN.LEFT_OUTER,
+        on=(Conversation.id == max_date_subquery.c.conversation_id)
+    ).where(
+        Conversation.is_deleted == False
+    ).order_by(
+        max_date_subquery.c.max_date.desc(nulls='last')
+    )
 
     conversations = []
     for conv in conversations_query.execute():
@@ -305,4 +310,4 @@ def _post_has_unmarked_attachments(post: Post):
 
 
 if __name__ == '__main__':
-    _conversations_by_pages(None)
+    _conversations_by_pages()
