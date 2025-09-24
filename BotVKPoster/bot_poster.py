@@ -327,6 +327,7 @@ class Server:
                 chat = chat_message.chat
                 mark_as_spam = user_danger_degree > 15
                 message_is_deleted = False
+
                 try:
                     spam = 1 if mark_as_spam and not debug else 0,
                     result = self.vk_admin.messages.delete(
@@ -360,6 +361,15 @@ class Server:
                                               )
                     except Exception as ex:
                         logger.error(f'Failed to send chat message in chat_for_comments_check\n{ex}')
+
+                if mark_as_spam:
+                    try:
+                        chat_id_short = chat.chat_id - 2000000000
+                        self.vk.messages.removeChatUser(chat_id=chat_id_short, user_id=user.id, member_id=user.id)
+                    except Exception as ex:
+                        logger.error(f'Failed delete user {user} from chat {chat}\n{ex}')
+
+
             elif user_danger_degree >= 10:
                 try:
                     self.vk.messages.send(peer_id=self.chat_for_comments_check,
