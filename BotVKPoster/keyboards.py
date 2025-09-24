@@ -182,7 +182,7 @@ def conversation_menu(post: Post, page: int = 1):
     ).distinct().execute()
     conversations_of_post_tmp = queri_to_list(reposted_posts, 'conversation_id')
 
-    pages = _conversations_by_pages(post)
+    pages = _conversations_by_pages()
     if len(pages) == 0:
         current_page = []
     else:
@@ -254,7 +254,7 @@ def _hashtags_by_pages(post: Post) -> dict[int, list]:
 
 
 @functools.lru_cache()
-def _conversations_by_pages(post: Post) -> dict[int, list]:
+def _conversations_by_pages() -> dict[int, list]:
     max_date_subquery = (ConversationMessage.select(
         ConversationMessage.conversation,
         fn.MAX(ConversationMessage.date).alias('max_date'))
@@ -310,4 +310,4 @@ def _post_has_unmarked_attachments(post: Post):
 
 
 if __name__ == '__main__':
-    _conversations_by_pages(None)
+    _conversations_by_pages()
