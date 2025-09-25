@@ -57,10 +57,10 @@ class Server:
         self.reconnect_vk()
 
         self.tg_poster = None
-        # try:
-        #     self.tg_poster = MyAutoPoster()
-        # except Exception as ex:
-        #     logger.warning(f'Can`t connect to tg_poster: {ex}')
+        try:
+            self.tg_poster = MyAutoPoster()
+        except Exception as ex:
+            logger.warning(f'Can`t connect to tg_poster: {ex}')
         self._checked_users = []
 
     def _start_polling(self):
