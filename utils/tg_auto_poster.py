@@ -57,4 +57,4 @@ class MyAutoPoster(AutoPoster):
 
 if __name__ == "__main__":
     auto_sender = MyAutoPoster()
-    auto_sender.send_new_post("-187393286_512")
+    auto_sender.send_new_post("-162869540_1952")

@@ -36,6 +36,7 @@ from utils.GettingUserInfo.getter import get_short_user_info
 from utils.Parser import attachments as attachment_parser
 from utils.connection_holder import ConnectionsHolder
 from utils.rabbit_connector import get_messages_from_chanel, send_message, get_messages
+from utils.tg_auto_poster import MyAutoPoster
 from utils.watermark_creater import WatermarkCreator
 
 MAX_MESSAGE_SIZE = 4048
