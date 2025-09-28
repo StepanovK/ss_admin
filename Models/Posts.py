@@ -14,6 +14,7 @@ class Post(BaseModel):
     text = TextField(default='')
     marked_as_ads = BooleanField(default=False)
     anonymously = BooleanField(default=False)
+    caption_disabled = BooleanField(default=False)
     is_deleted = BooleanField(default=False)
     suggest_status = CharField(30, null=True)
     posted_by = ForeignKeyField(Admin, null=True, on_delete='SET NULL')

@@ -216,6 +216,10 @@ class Server:
             suggested_post = _get_post_by_id(post_id=post_inf.suggested_post_id)
             if published_post and suggested_post:
                 published_post.user = suggested_post.user
+                if suggested_post.caption_disabled:
+                    # Если подпись отключена автором, то берём анонимность из поста предложки
+                    # т.к. такие посты теперь подписываются в тексте
+                    published_post.anonymously = suggested_post.anonymously
                 if post_inf.admin_id:
                     admin_user, _ = User.get_or_create(id=post_inf.admin_id)
                     published_post.posted_by, _ = Admin.get_or_create(user=admin_user)
@@ -224,7 +228,6 @@ class Server:
                 post_inf.delete_instance()
 
                 suggested_post.posted_in = published_post
-                suggested_post.anonymously = published_post.anonymously
                 suggested_post.marked_as_ads = published_post.marked_as_ads
                 suggested_post.is_deleted = False  # На случай если он уже успел отметиться как удаленный
                 suggested_post.save()
@@ -495,6 +498,9 @@ class Server:
         settings = PostSettings.get_post_settings(post.id)
         if settings['reformat_text']:
             message = text_formatter.format_text(message)
+
+        if (not post.anonymously) & post.caption_disabled:
+            message = message + '\n' + f'Автор: {post.user}'
 
         if with_hashtags:
             hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
