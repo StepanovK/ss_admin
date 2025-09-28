@@ -105,7 +105,6 @@ def parse_wall_post(wall_post: dict, vk_connection=None, extract_hashtags: bool 
             hashtags, new_text = extract_hashtags_from_post_text(text=post.text, replace=False)
 
         if post_attributes['check_sign']:
-            post.anonymously = True
             post.caption_disabled = True
 
     post.save()

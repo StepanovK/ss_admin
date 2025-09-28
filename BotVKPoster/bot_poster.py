@@ -985,8 +985,10 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
 
     post_text = '[Текст отсутствует]' if post_text == '' else f'Текст поста:\n{post_text}'
 
+    caption_pic = f'&#129296;' if post.caption_disabled else f'&#128226;'
+
     represent = f'{text_status}\n' \
-                f'Автор: {post.user}\n' \
+                f'Автор: {post.user} {caption_pic}\n' \
                 f'{message_text}' \
                 f'{post_text}\n'
 
