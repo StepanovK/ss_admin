@@ -4,6 +4,7 @@ environs
 vk_api
 pika==1.2.1
 pymorphy2
+requests~=2.32.3
 
 rapidfuzz
 oauth2client==4.1.3

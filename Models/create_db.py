@@ -23,6 +23,11 @@ LOCK_FILE_NAME = 'lock_db'
 
 
 def create_all_tables():
+    with db:
+        db.create_tables(all_models)
+
+
+def all_models():
     models = [
         Admin,
         User,
@@ -45,8 +50,7 @@ def create_all_tables():
         ChatMessage,
         ChatMessageAttachment,
     ]
-    with db:
-        db.create_tables(models)
+    return models
 
 
 def get_pg_connection():

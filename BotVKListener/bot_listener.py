@@ -1,26 +1,30 @@
-import config as config
-from config import logger
-from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-from time import sleep
 import datetime
-import pika
-from Models.base import db
-from Models.Chats import Chat
-from Models.ChatMessages import ChatMessage
-from Models.Posts import Post, PostStatus
-from Models.PrivateMessages import PrivateMessage
-from Models.Admins import Admin
-from Models.Users import User
-from Models import create_db
-from utils.db_helper import queri_to_list
-from utils.connection_holder import ConnectionsHolder
-from utils.rabbit_connector import send_message, get_messages
-from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
-from ChatBot.chat_bot import ChatBot
-from utils.Parser import _initial_downloading, subscriptions, private_messages
-from utils.Parser import chats, conversations, comments, likes, posts, bans
+import os
 import random
 import threading
+from time import sleep
+
+import requests
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+
+import config as config
+from ChatBot.chat_bot import ChatBot
+from Models import create_db
+from Models.Admins import Admin
+from Models.ChatMessages import ChatMessage
+from Models.Chats import Chat
+from Models.Posts import Post, PostStatus
+from Models.PrivateMessages import PrivateMessage
+from Models.Users import User
+from Models.base import db
+from Models.db_transfer import export_models
+from config import logger
+from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
+from utils.Parser import _initial_downloading, subscriptions, private_messages
+from utils.Parser import chats, conversations, comments, likes, posts, bans
+from utils.connection_holder import ConnectionsHolder
+from utils.db_helper import queri_to_list
+from utils.rabbit_connector import send_message, get_messages
 
 
 class Server:
@@ -224,19 +228,18 @@ class Server:
                 peer_id = words[1]
                 self._disable_keyboard(peer_id)
         elif message_text == 'update_subscribers':
-            self.vk_connection_group.messages.send(
-                peer_id=event.object.message.get('peer_id'),
-                message=f'Начато обновление состава подписчиков',
-                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._send_from_group(peer_id=event.object.message.get('peer_id'),
+                                  message=f'Начато обновление состава подписчиков')
             self._run_in_thread(target=_initial_downloading.update_subscribers,
                                 args=[self.vk_connection_admin, config.group_id])
         elif message_text == 'update_conversations_messages':
-            self.vk_connection_group.messages.send(
-                peer_id=event.object.message.get('peer_id'),
-                message=f'Начато обновление сообщений в обсуждениях',
-                random_id=random.randint(10 ** 5, 10 ** 6))
+            self._send_from_group(peer_id=event.object.message.get('peer_id'),
+                                  message=f'Начато обновление сообщений в обсуждениях')
             self._run_in_thread(target=_initial_downloading.update_conversations_messages,
                                 args=[self.vk_connection_admin, config.group_id])
+        elif message_text == 'backup_db':
+            self._send_from_group(event.object.message.get('peer_id'), f'Бэкап формируется, ждите...')
+            self._run_in_thread(target=self._send_backup, args=[event.object.message.get('peer_id')])
 
         user = get_user_from_message(message_text)
         if user is not None:
@@ -298,6 +301,65 @@ class Server:
             send_message(message_type='new_suggested_post', message=new_post.id)
         elif new_post.suggest_status is None:
             send_message(message_type='new_posted_post', message=new_post.id)
+
+    def _send_backup(self, peer_id):
+        zip_path = ''
+        try:
+            # 1. Создаём бэкап
+            zip_path = export_models(create_db.all_models())
+
+            # 2. Получаем URL для загрузки
+            upload_info = self.vk_connection_group.docs.getMessagesUploadServer(peer_id=peer_id)
+            upload_url = upload_info['upload_url']
+
+            # 3. Загружаем файл через POST-запрос
+            with open(zip_path, 'rb') as f:
+                response = requests.post(upload_url, files={'file': f})
+            response.raise_for_status()
+
+            upload_data = response.json()
+
+            # 4. Сохраняем документ на сервере VK
+            save_result = self.vk_connection_group.docs.save(
+                file=upload_data['file'],
+                title=os.path.basename(zip_path)
+            )
+
+            # 5. Получаем attachment
+            doc = save_result['doc'] if 'doc' in save_result else save_result[0]['doc']
+            attachment = f"doc{doc['owner_id']}_{doc['id']}"
+
+            # 6. Отправляем сообщение в чат
+            self._send_from_group(
+                peer_id=peer_id,
+                message="📦 Бэкап базы данных успешно создан и прикреплён ниже.",
+                attachment=attachment)
+            logger.info(f'The backup was sent successfully.')
+
+        except Exception as ex:
+            logger.error(f'Failed to send backup {zip_path}: {ex}')
+            self._send_from_group(peer_id, f"⚠️ Ошибка при создании бэкапа: {ex}")
+
+        finally:
+            # Чистим временный файл
+            try:
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+            except Exception as ex:
+                logger.error(f'Error deleting temporary file {zip_path}: {ex}')
+
+    def _send_from_group(self, peer_id, message, attachment=None, keyboard=None):
+        try:
+            return self.vk_connection_group.messages.send(
+                peer_id=peer_id,
+                random_id=random.randint(10 ** 5, 10 ** 6),
+                message=message,
+                attachment=attachment,
+                keyboard=keyboard,
+            )
+        except Exception as ex:
+            logger.error(f'Error sending message: {ex}')
+
 
     @staticmethod
     def _user_is_admin(user_id):
