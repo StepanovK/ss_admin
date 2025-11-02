@@ -1,21 +1,20 @@
 import datetime
 import os
+from typing import Union
 
 import config
-from . import subscriptions
-from . import posts
-from . import users
+from Models.ConversationMessages import ConversationMessage
+from Models.Conversations import Conversation
+from Models.Posts import Post
+from Models.Subscriptions import Subscription
+from Models.base import db
+from config import logger
 from . import bans
 from . import comments
 from . import conversations
-from config import logger
-from Models.Users import User
-from Models.Subscriptions import Subscription
-from Models.Posts import Post
-from Models.Conversations import Conversation
-from Models.ConversationMessages import ConversationMessage
-from Models.base import db
-from typing import Union
+from . import posts
+from . import subscriptions
+from . import users
 
 _SUBS_OFFSET_FILENAME = 'current_offset_of_subscribers.tmp'
 _POST_OFFSET_FILENAME = 'current_offset_of_posts.tmp'
@@ -25,11 +24,12 @@ _CONVERSATIONS_OFFSET_FILENAME = 'current_offset_of_conversations.tmp'
 _CONVERSATIONS_MESS_OFFSET_FILENAME = 'current_offset_of_conversations_mess.tmp'
 
 
-def load_all(vk_connection, group_id=None):
+def load_all(vk_connection, group_id=None, vk_connection_grope=None):
+    vk_connection_g = None if group_id else vk_connection_grope  # При загрузке из другой группы нужен апи админа
     group_id = config.group_id if group_id is None else group_id
 
     logger.info('Loading subscribers started')
-    load_subscribers(vk_connection, group_id)
+    load_subscribers(vk_connection, group_id, vk_connection_g)
     logger.info('Loading subscribers completed')
 
     logger.info('Loading bans started')
@@ -57,13 +57,18 @@ def load_all(vk_connection, group_id=None):
     logger.info('Loading completed!')
 
 
-def update_subscribers(vk_connection, group_id):
+def update_subscribers(vk_connection, group_id, vk_connection_grope=None):
     delete_offset_file(_SUBS_OFFSET_FILENAME)
-    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+    all_subscribers = _get_subscribed_users(vk_connection, group_id, vk_connection_grope)
     delete_offset_file(_SUBS_OFFSET_FILENAME)
 
+    result = {
+        'subscribed': 0,
+        'unsubscribed': 0,
+    }
+
     if len(all_subscribers) == 0:
-        return
+        return result
 
     subscribed = Subscription.get_slise_of_last(is_subscribed=True)
 
@@ -77,6 +82,7 @@ def update_subscribers(vk_connection, group_id):
                                            subs_date=now,
                                            rewrite=True)
             logger.info(f'Добавлена подписка пользователя {user}')
+            result['subscribed'] += 1
 
     for user in subscribed.keys():
         if user not in all_subscribers:
@@ -87,10 +93,13 @@ def update_subscribers(vk_connection, group_id):
                                            subs_date=now,
                                            rewrite=True)
             logger.info(f'Отписан пользователь {user}')
+            result['unsubscribed'] += 1
+
+    return result
 
 
-def load_subscribers(vk_connection, group_id):
-    all_subscribers = _get_subscribed_users(vk_connection, group_id)
+def load_subscribers(vk_connection, group_id, vk_connection_grope=None):
+    all_subscribers = _get_subscribed_users(vk_connection, group_id, vk_connection_grope)
 
     for user in all_subscribers:
         subscriptions.add_subscription(group_id=group_id,
@@ -101,17 +110,21 @@ def load_subscribers(vk_connection, group_id):
                                        rewrite=True)
 
 
-def _get_subscribed_users(vk_connection, group_id):
+def _get_subscribed_users(vk_connection, group_id, vk_connection_grope=None):
     offset = get_current_offset_in_file(_SUBS_OFFSET_FILENAME)
     all_subscribers = []
     while True:
         if offset != 0:
             logger.info(f'Current subscribers offset = {offset}')
-        subs = vk_connection.groups.getMembers(group_id=group_id,
-                                               sort='time_asc',
-                                               fields=users.users_fields(),
-                                               offset=offset,
-                                               count=100)['items']
+        if vk_connection_grope:
+            connection = vk_connection_grope
+        else:
+            connection = vk_connection
+        subs = connection.groups.getMembers(group_id=group_id,
+                                            sort='time_asc',
+                                            fields=users.users_fields(),
+                                            offset=offset,
+                                            count=100)['items']
         if len(subs) == 0:
             break
 

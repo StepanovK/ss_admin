@@ -29,11 +29,14 @@ def parse_like_add(action, vk_connection=None):
     else:
         liked_object = None
 
+    new_like = None
     if liked_object is not None:
         user = users.get_or_create_user(action['liker_id'], vk_connection)
-        Relations.add_like(liked_object, user)
+        new_like = Relations.add_like(liked_object, user)
         if liked_object.user == user:
             logger.info(f'Self-like detected! {user} liked {liked_object}')
+
+    return new_like
 
 
 def parse_like_remove(action, vk_connection=None):

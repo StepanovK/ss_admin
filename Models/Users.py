@@ -8,10 +8,11 @@ class User(BaseModel):
     last_name = CharField(100, default='', null=True)
     city = CharField(100, default='', null=True)
     sex = CharField(10, null=True)
-    birth_date = DateField(null=True)
+    birth_date = DateField(null=True, formats=['%Y-%m-%d'])
     domain = CharField(100, default='')
     is_active = BooleanField(default=True)
     comment = TextField(default='')
+    registration_date = DateField(formats=['%Y-%m-%d'], null=True)
 
     class Meta:
         table_name = 'users'

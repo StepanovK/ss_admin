@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import threading
+import time
 from time import sleep
 
 import requests
@@ -13,12 +14,18 @@ from Models import create_db
 from Models.Admins import Admin
 from Models.ChatMessages import ChatMessage
 from Models.Chats import Chat
+from Models.Comments import Comment
+from Models.ConversationMessages import ConversationMessage
 from Models.Posts import Post, PostStatus
 from Models.PrivateMessages import PrivateMessage
+from Models.Relations import PostsLike, CommentsLike
+from Models.Subscriptions import Subscription
 from Models.Users import User
 from Models.base import db
+from Models.create_db import check_and_create_db
 from Models.db_transfer import export_models
 from config import logger
+from utils import regvk
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from utils.Parser import _initial_downloading, subscriptions, private_messages
 from utils.Parser import chats, conversations, comments, likes, posts, bans
@@ -41,6 +48,8 @@ class Server:
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk_connection_group = ConnectionsHolder().vk_connection_group
 
+        self._updated_reg_dates = []
+
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
 
@@ -55,31 +64,32 @@ class Server:
 
         while True:
             for event in self._longpoll.check():
+                new_object = None
                 if config.debug:
                     logger.info(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
-                    new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
-                    self._process_new_post_event(new_post=new_post)
+                    new_object = posts.parse_wall_post(event.object, self.vk_connection_admin)
+                    self._process_new_post_event(new_post=new_object)
                 elif event.type == 'like_add':
-                    likes.parse_like_add(event.object, self.vk_connection_admin)
+                    new_object = likes.parse_like_add(event.object, self.vk_connection_admin)
                 elif event.type == 'like_remove':
                     likes.parse_like_remove(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_NEW:
-                    comment = comments.parse_comment(event.object, self.vk_connection_admin)
-                    if comment is not None:
-                        send_message('new_comments', str(comment.id))
+                    new_object = comments.parse_comment(event.object, self.vk_connection_admin)
+                    if new_object is not None:
+                        send_message('new_comments', str(new_object.id))
                 elif event.type == VkBotEventType.WALL_REPLY_DELETE:
                     comments.parse_delete_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
                     comments.parse_restore_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.GROUP_JOIN:
-                    subscriptions.parse_subscription(event, self.vk_connection_admin, True)
+                    new_object = subscriptions.parse_subscription(event, self.vk_connection_admin, True)
                 elif event.type == VkBotEventType.GROUP_LEAVE:
-                    subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+                    new_object = subscriptions.parse_subscription(event, self.vk_connection_admin, False)
                 elif event.type == VkBotEventType.BOARD_POST_NEW:
-                    conv_mes = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
-                    if conv_mes is not None:
-                        send_message('new_conversation_message', str(conv_mes.id))
+                    new_object = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
+                    if new_object is not None:
+                        send_message('new_conversation_message', str(new_object.id))
                 elif event.type == VkBotEventType.BOARD_POST_EDIT:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
                 elif event.type == VkBotEventType.BOARD_POST_DELETE:
@@ -91,10 +101,15 @@ class Server:
                         if 'load_data' in event.object.message['text']:
                             words = event.object.message['text'].split()
                             if len(words) == 1:
-                                _initial_downloading.load_all(self.vk_connection_admin)
+                                _initial_downloading.load_all(
+                                    vk_connection=self.vk_connection_admin,
+                                    vk_connection_grope=self.vk_connection_group)
                             elif len(words) == 2 and words[1].isdigit():
                                 group_id = int(event.object.message['text'].split()[1])
-                                _initial_downloading.load_all(self.vk_connection_admin, group_id)
+                                _initial_downloading.load_all(
+                                    vk_connection=self.vk_connection_admin,
+                                    group_id=group_id,
+                                    vk_connection_grope=self.vk_connection_group)
                         if event.object.message['text'] == 'create_db':
                             db.close()
                             sleep(1)
@@ -120,23 +135,23 @@ class Server:
                             if self._user_is_admin(event.object.message.get('peer_id')):
                                 self._process_admin_chat_event(event)
                             else:
-                                message = private_messages.parse_private_message(event.object.message,
-                                                                                 self.vk_connection_admin)
-                                send_message(message_type='new_private_message', message=message.id)
+                                new_object = private_messages.parse_private_message(event.object.message,
+                                                                                    self.vk_connection_admin)
+                                send_message(message_type='new_private_message', message=new_object.id)
                             self.chat_bot.chat(event)
                         else:
-                            message = chats.parse_chat_message(vk_object=event.object.message,
-                                                               vk_connection=self.vk_connection_admin,
-                                                               owner_id=-event.group_id)
-                            if message:
-                                send_message(message_type='new_chat_message', message=message.id)
+                            new_object = chats.parse_chat_message(vk_object=event.object.message,
+                                                                  vk_connection=self.vk_connection_admin,
+                                                                  owner_id=-event.group_id)
+                            if new_object:
+                                send_message(message_type='new_chat_message', message=new_object.id)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
                         if event.from_user:
-                            message = private_messages.parse_private_message(event.object,
-                                                                             self.vk_connection_admin)
-                            send_message(message_type='new_private_message', message=message.id)
+                            new_object = private_messages.parse_private_message(event.object,
+                                                                                self.vk_connection_admin)
+                            send_message(message_type='new_private_message', message=new_object.id)
                 elif event.type == VkBotEventType.MESSAGE_EVENT:
                     if ('payload' in event.object
                             and event.object.payload.get('command', '').startswith('show_ui')):
@@ -146,6 +161,10 @@ class Server:
                     bans.parse_user_block(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_UNBLOCK:
                     bans.parse_user_unblock(event.object, self.vk_connection_admin)
+
+                if new_object:
+                    self._run_in_thread(target=self._update_user_reg_dates_in_new_object,
+                                        args=[new_object])
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
@@ -228,10 +247,7 @@ class Server:
                 peer_id = words[1]
                 self._disable_keyboard(peer_id)
         elif message_text == 'update_subscribers':
-            self._send_from_group(peer_id=event.object.message.get('peer_id'),
-                                  message=f'Начато обновление состава подписчиков')
-            self._run_in_thread(target=_initial_downloading.update_subscribers,
-                                args=[self.vk_connection_admin, config.group_id])
+            self._run_in_thread(target=self._update_subscribers, args=[event.object.message['peer_id']])
         elif message_text == 'update_conversations_messages':
             self._send_from_group(peer_id=event.object.message.get('peer_id'),
                                   message=f'Начато обновление сообщений в обсуждениях')
@@ -348,6 +364,39 @@ class Server:
             except Exception as ex:
                 logger.error(f'Error deleting temporary file {zip_path}: {ex}')
 
+    def _update_subscribers(self, peer_id=None):
+        if peer_id:
+            self._send_from_group(peer_id, f'Начато обновление состава подписчиков...')
+        result = _initial_downloading.update_subscribers(self.vk_connection_admin,
+                                                         config.group_id,
+                                                         self.vk_connection_group)
+        if peer_id:
+            self._send_from_group(peer_id, f'Обновление состава подписчиков завершено.'
+                                           f'\nПодписано: {result["subscribed"]}'
+                                           f'\nОтписано: {result["unsubscribed"]}')
+
+        if peer_id:
+            self._send_from_group(peer_id, f'Начато обновление дат регистрации пользователей...')
+        result = _update_user_reg_dates()
+        if peer_id:
+            self._send_from_group(peer_id, f'Обновлено {result} дат регистрации пользователей.')
+
+    def _update_user_reg_dates_in_new_object(self, vk_object):
+        """
+        Обновляет дату регистрации пользователя из события, если она не заполнена
+        Проверенные пользователи складываются в _updated_reg_dates чтобы не получать их данные
+        """
+        # Проверяем, есть ли у этого события пользователь
+        if isinstance(vk_object,
+                      (Comment, ConversationMessage, Post, ChatMessage,
+                       Subscription, CommentsLike, PostsLike, PrivateMessage)):
+
+            user = vk_object.user
+
+            if user and user not in self._updated_reg_dates and user.registration_date is None:
+                _update_user_reg_date(user)
+                self._updated_reg_dates.append(user)
+
     def _send_from_group(self, peer_id, message, attachment=None, keyboard=None):
         try:
             return self.vk_connection_group.messages.send(
@@ -359,7 +408,6 @@ class Server:
             )
         except Exception as ex:
             logger.error(f'Error sending message: {ex}')
-
 
     @staticmethod
     def _user_is_admin(user_id):
@@ -381,6 +429,47 @@ class Server:
             sleep(10)
 
 
+def _update_user_reg_dates():
+    """
+    Обновляет даты регистрации всех пользователей, у кого они не заполнены
+    """
+    count = 0
+
+    users = User.select().where(User.registration_date.is_null())
+    for user in users:
+
+        if user.id <= 0:
+            continue
+
+        delay_before = random.randint(100, 500)  # 100-500 мс
+        time.sleep(delay_before / 1000)
+
+        if _update_user_reg_date(user):
+            count += 1
+
+        delay_after = random.randint(100, 500)  # 100-500 мс
+        time.sleep(delay_after / 1000)
+
+    return count
+
+
+def _update_user_reg_date(user: User):
+    """
+    Обновляет дату регистрации пользователя
+    """
+    if user.id > 0 and user.registration_date is None:
+        try:
+            registration_date = regvk.get_registration_date(user.id)
+            if registration_date:
+                user.registration_date = registration_date
+                user.save()
+                return True
+        except Exception as ex:
+            logger.error(ex)
+    return False
+
+
 if __name__ == '__main__':
+    check_and_create_db()
     server = Server()
     server.run_in_loop()

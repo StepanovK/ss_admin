@@ -147,7 +147,7 @@ def add_like(post_or_comment: Union[Post, Comment], user):
         new_like_cls = CommentsLike
     else:
         raise 'Wrong type of object to adding a likes!'
-    new_like = new_like_cls.get_or_create(liked_object=post_or_comment, user=user)
+    new_like, _ = new_like_cls.get_or_create(liked_object=post_or_comment, user=user)
     return new_like
 
 
