@@ -15,6 +15,7 @@ import datetime
 import random
 from typing import Union, Optional
 from . import keyboards, querys
+from .. import date_formatter
 
 MAX_MESSAGE_SIZE = 4048
 
@@ -298,6 +299,9 @@ def send_user_info(user, vk_connection, peer_id: int):
 
 
 def get_user_from_message(message_text: str):
+    if message_text == '':
+        return
+
     user_str = message_text
 
     user_str = user_str.replace('https://vk.ru/', '')
@@ -332,7 +336,7 @@ def get_short_user_info(user: User):
         elif subscribe.date == datetime.datetime(2000, 1, 1):
             date_sub = 'Давно'
         else:
-            date_sub = f'{subscribe.date:%Y-%m-%d}'
+            date_sub = f'{subscribe.date:%Y.%m.%d}'
         subscribe_history_list.append(f'{date_sub} {state}')
 
     bun_record = None
@@ -342,6 +346,14 @@ def get_short_user_info(user: User):
 
     mes_text = f'Информация о пользователе {user} (id {user.id}):\n'
     mes_text += f'Упоминания в ВК: https://vk.ru/feed?obj={user.id}&q=&section=mentions\n'
+
+    if user.registration_date is not None:
+        registration_date_text = f'Зарегистрирован в ВК: {user.registration_date:%Y.%m.%d}'
+        delta = (datetime.date.today() - user.registration_date)
+        delta_text = date_formatter.format_time_difference_pretty(delta.days * 60*60*24)
+        registration_date_text = registration_date_text + f' ({delta_text})'
+
+        mes_text += f'\n{registration_date_text}\n'
 
     if user.comment is not None and user.comment != '':
         mes_text += f'ВНИМАНИЕ: {user.comment}\n'
@@ -361,7 +373,7 @@ def get_short_user_info(user: User):
                                           & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(3)
     published_posts_list = []
     for users_post in published_posts:
-        published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
+        published_posts_list.append(f'{users_post} от {users_post.date:%Y.%m.%d}')
     if len(published_posts_list) > 0:
         mes_text += '\nПоследние опубликованные посты:\n' + '\n'.join(published_posts_list) + '\n'
 
@@ -371,7 +383,7 @@ def get_short_user_info(user: User):
                                               ).order_by(Post.date.desc()).limit(3)
     non_published_posts_list = []
     for users_post in non_published_posts:
-        non_published_posts_list.append(f'{users_post} от {users_post.date:%Y-%m-%d}')
+        non_published_posts_list.append(f'{users_post} от {users_post.date:%Y.%m.%d}')
     if len(non_published_posts_list) > 0:
         mes_text += '\nПоследние неопубликованные посты:\n' + '\n'.join(non_published_posts_list) + '\n'
 
