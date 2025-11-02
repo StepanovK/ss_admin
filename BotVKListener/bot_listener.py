@@ -64,31 +64,32 @@ class Server:
 
         while True:
             for event in self._longpoll.check():
+                new_object = None
                 if config.debug:
                     logger.info(f'New event: {event.type}')
                 if event.type == VkBotEventType.WALL_POST_NEW:
-                    new_post = posts.parse_wall_post(event.object, self.vk_connection_admin)
-                    self._process_new_post_event(new_post=new_post)
+                    new_object = posts.parse_wall_post(event.object, self.vk_connection_admin)
+                    self._process_new_post_event(new_post=new_object)
                 elif event.type == 'like_add':
-                    likes.parse_like_add(event.object, self.vk_connection_admin)
+                    new_object = likes.parse_like_add(event.object, self.vk_connection_admin)
                 elif event.type == 'like_remove':
                     likes.parse_like_remove(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_NEW:
-                    comment = comments.parse_comment(event.object, self.vk_connection_admin)
-                    if comment is not None:
-                        send_message('new_comments', str(comment.id))
+                    new_object = comments.parse_comment(event.object, self.vk_connection_admin)
+                    if new_object is not None:
+                        send_message('new_comments', str(new_object.id))
                 elif event.type == VkBotEventType.WALL_REPLY_DELETE:
                     comments.parse_delete_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.WALL_REPLY_RESTORE:
                     comments.parse_restore_comment(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.GROUP_JOIN:
-                    subscriptions.parse_subscription(event, self.vk_connection_admin, True)
+                    new_object = subscriptions.parse_subscription(event, self.vk_connection_admin, True)
                 elif event.type == VkBotEventType.GROUP_LEAVE:
-                    subscriptions.parse_subscription(event, self.vk_connection_admin, False)
+                    new_object = subscriptions.parse_subscription(event, self.vk_connection_admin, False)
                 elif event.type == VkBotEventType.BOARD_POST_NEW:
-                    conv_mes = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
-                    if conv_mes is not None:
-                        send_message('new_conversation_message', str(conv_mes.id))
+                    new_object = conversations.parse_conversation_message(event.object, self.vk_connection_admin)
+                    if new_object is not None:
+                        send_message('new_conversation_message', str(new_object.id))
                 elif event.type == VkBotEventType.BOARD_POST_EDIT:
                     conversations.parse_conversation_message(event.object, self.vk_connection_admin, is_edited=True)
                 elif event.type == VkBotEventType.BOARD_POST_DELETE:
@@ -134,23 +135,23 @@ class Server:
                             if self._user_is_admin(event.object.message.get('peer_id')):
                                 self._process_admin_chat_event(event)
                             else:
-                                message = private_messages.parse_private_message(event.object.message,
-                                                                                 self.vk_connection_admin)
-                                send_message(message_type='new_private_message', message=message.id)
+                                new_object = private_messages.parse_private_message(event.object.message,
+                                                                                    self.vk_connection_admin)
+                                send_message(message_type='new_private_message', message=new_object.id)
                             self.chat_bot.chat(event)
                         else:
-                            message = chats.parse_chat_message(vk_object=event.object.message,
-                                                               vk_connection=self.vk_connection_admin,
-                                                               owner_id=-event.group_id)
-                            if message:
-                                send_message(message_type='new_chat_message', message=message.id)
+                            new_object = chats.parse_chat_message(vk_object=event.object.message,
+                                                                  vk_connection=self.vk_connection_admin,
+                                                                  owner_id=-event.group_id)
+                            if new_object:
+                                send_message(message_type='new_chat_message', message=new_object.id)
 
                 elif event.type == VkBotEventType.MESSAGE_REPLY:
                     if PrivateMessage.it_is_private_chat(event.object.get('peer_id')):
                         if event.from_user:
-                            message = private_messages.parse_private_message(event.object,
-                                                                             self.vk_connection_admin)
-                            send_message(message_type='new_private_message', message=message.id)
+                            new_object = private_messages.parse_private_message(event.object,
+                                                                                self.vk_connection_admin)
+                            send_message(message_type='new_private_message', message=new_object.id)
                 elif event.type == VkBotEventType.MESSAGE_EVENT:
                     if ('payload' in event.object
                             and event.object.payload.get('command', '').startswith('show_ui')):
@@ -160,6 +161,10 @@ class Server:
                     bans.parse_user_block(event.object, self.vk_connection_admin)
                 elif event.type == VkBotEventType.USER_UNBLOCK:
                     bans.parse_user_unblock(event.object, self.vk_connection_admin)
+
+                if new_object:
+                    self._run_in_thread(target=self._update_user_reg_dates_in_new_object,
+                                        args=[new_object])
 
             now = datetime.datetime.now()
             if not last_published_posts_update \
