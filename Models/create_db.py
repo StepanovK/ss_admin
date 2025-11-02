@@ -1,3 +1,7 @@
+from time import sleep
+
+import peewee
+
 import config as config
 import psycopg2
 import psycopg2.extras
@@ -24,7 +28,7 @@ LOCK_FILE_NAME = 'lock_db'
 
 def create_all_tables():
     with db:
-        db.create_tables(all_models)
+        db.create_tables(all_models())
 
 
 def all_models():
@@ -102,6 +106,21 @@ def create_database():
         except Exception as ex:
             logger.error(f'Failed to create database.\n{ex}')
     conn.close()
+
+
+def check_and_create_db():
+    db_created = False
+    try:
+        User.select().limit(1).execute()
+    except (peewee.OperationalError, peewee.ProgrammingError):
+        logger.warning('Database not found and will be created...')
+        sleep(1)
+        create_database()
+        create_all_tables()
+        logger.info(f'Database created')
+        db_created = True
+
+    return db_created
 
 
 def recreate_database():

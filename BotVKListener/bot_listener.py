@@ -22,6 +22,7 @@ from Models.Relations import PostsLike, CommentsLike
 from Models.Subscriptions import Subscription
 from Models.Users import User
 from Models.base import db
+from Models.create_db import check_and_create_db
 from Models.db_transfer import export_models
 from config import logger
 from utils import regvk
@@ -464,5 +465,6 @@ def _update_user_reg_date(user: User):
 
 
 if __name__ == '__main__':
+    check_and_create_db()
     server = Server()
     server.run_in_loop()

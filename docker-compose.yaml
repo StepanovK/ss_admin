@@ -65,6 +65,7 @@ services:
     depends_on:
       - rabbitmq
       - postgres_ru
+      - bot_listener
     networks:
       - vk_admin
     env_file:
