@@ -99,10 +99,15 @@ class Server:
                         if 'load_data' in event.object.message['text']:
                             words = event.object.message['text'].split()
                             if len(words) == 1:
-                                _initial_downloading.load_all(self.vk_connection_admin)
+                                _initial_downloading.load_all(
+                                    vk_connection=self.vk_connection_admin,
+                                    vk_connection_grope=self.vk_connection_group)
                             elif len(words) == 2 and words[1].isdigit():
                                 group_id = int(event.object.message['text'].split()[1])
-                                _initial_downloading.load_all(self.vk_connection_admin, group_id)
+                                _initial_downloading.load_all(
+                                    vk_connection=self.vk_connection_admin,
+                                    group_id=group_id,
+                                    vk_connection_grope=self.vk_connection_group)
                         if event.object.message['text'] == 'create_db':
                             db.close()
                             sleep(1)
@@ -356,7 +361,9 @@ class Server:
     def _update_subscribers(self, peer_id=None):
         if peer_id:
             self._send_from_group(peer_id, f'Начато обновление состава подписчиков...')
-        result = _initial_downloading.update_subscribers(self.vk_connection_admin, config.group_id)
+        result = _initial_downloading.update_subscribers(self.vk_connection_admin,
+                                                         config.group_id,
+                                                         self.vk_connection_group)
         if peer_id:
             self._send_from_group(peer_id, f'Обновление состава подписчиков завершено.'
                                            f'\nПодписано: {result["subscribed"]}'
