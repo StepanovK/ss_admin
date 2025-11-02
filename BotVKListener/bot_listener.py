@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import threading
+import time
 from time import sleep
 
 import requests
@@ -13,12 +14,17 @@ from Models import create_db
 from Models.Admins import Admin
 from Models.ChatMessages import ChatMessage
 from Models.Chats import Chat
+from Models.Comments import Comment
+from Models.ConversationMessages import ConversationMessage
 from Models.Posts import Post, PostStatus
 from Models.PrivateMessages import PrivateMessage
+from Models.Relations import PostsLike, CommentsLike
+from Models.Subscriptions import Subscription
 from Models.Users import User
 from Models.base import db
 from Models.db_transfer import export_models
 from config import logger
+from utils import regvk
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
 from utils.Parser import _initial_downloading, subscriptions, private_messages
 from utils.Parser import chats, conversations, comments, likes, posts, bans
@@ -40,6 +46,8 @@ class Server:
         self.vk_connection_admin = ConnectionsHolder().vk_connection_admin
         self.vk_api_group = ConnectionsHolder().vk_api_group
         self.vk_connection_group = ConnectionsHolder().vk_connection_group
+
+        self._updated_reg_dates = []
 
     def _start_polling(self):
         self._longpoll = VkBotLongPoll(self.vk_api_group, self.group_id, wait=5)
@@ -228,10 +236,7 @@ class Server:
                 peer_id = words[1]
                 self._disable_keyboard(peer_id)
         elif message_text == 'update_subscribers':
-            self._send_from_group(peer_id=event.object.message.get('peer_id'),
-                                  message=f'Начато обновление состава подписчиков')
-            self._run_in_thread(target=_initial_downloading.update_subscribers,
-                                args=[self.vk_connection_admin, config.group_id])
+            self._run_in_thread(target=self._update_subscribers, args=[event.object.message['peer_id']])
         elif message_text == 'update_conversations_messages':
             self._send_from_group(peer_id=event.object.message.get('peer_id'),
                                   message=f'Начато обновление сообщений в обсуждениях')
@@ -348,6 +353,37 @@ class Server:
             except Exception as ex:
                 logger.error(f'Error deleting temporary file {zip_path}: {ex}')
 
+    def _update_subscribers(self, peer_id=None):
+        if peer_id:
+            self._send_from_group(peer_id, f'Начато обновление состава подписчиков...')
+        result = _initial_downloading.update_subscribers(self.vk_connection_admin, config.group_id)
+        if peer_id:
+            self._send_from_group(peer_id, f'Обновление состава подписчиков завершено.'
+                                           f'\nПодписано: {result["subscribed"]}'
+                                           f'\nОтписано: {result["unsubscribed"]}')
+
+        if peer_id:
+            self._send_from_group(peer_id, f'Начато обновление дат регистрации пользователей...')
+        result = _update_user_reg_dates()
+        if peer_id:
+            self._send_from_group(peer_id, f'Обновлено {result} дат регистрации пользователей.')
+
+    def _update_user_reg_dates_in_new_object(self, vk_object):
+        """
+        Обновляет дату регистрации пользователя из события, если она не заполнена
+        Проверенные пользователи складываются в _updated_reg_dates чтобы не получать их данные
+        """
+        # Проверяем, есть ли у этого события пользователь
+        if isinstance(vk_object,
+                      (Comment, ConversationMessage, Post, ChatMessage,
+                       Subscription, CommentsLike, PostsLike, PrivateMessage)):
+
+            user = vk_object.user
+
+            if user and user not in self._updated_reg_dates and user.registration_date is None:
+                _update_user_reg_date(user)
+                self._updated_reg_dates.append(user)
+
     def _send_from_group(self, peer_id, message, attachment=None, keyboard=None):
         try:
             return self.vk_connection_group.messages.send(
@@ -359,7 +395,6 @@ class Server:
             )
         except Exception as ex:
             logger.error(f'Error sending message: {ex}')
-
 
     @staticmethod
     def _user_is_admin(user_id):
@@ -379,6 +414,46 @@ class Server:
         while True:
             self.run()
             sleep(10)
+
+
+def _update_user_reg_dates():
+    """
+    Обновляет даты регистрации всех пользователей, у кого они не заполнены
+    """
+    count = 0
+
+    users = User.select().where(User.registration_date.is_null())
+    for user in users:
+
+        if user.id <= 0:
+            continue
+
+        delay_before = random.randint(100, 500)  # 100-500 мс
+        time.sleep(delay_before / 1000)
+
+        if _update_user_reg_date(user):
+            count += 1
+
+        delay_after = random.randint(100, 500)  # 100-500 мс
+        time.sleep(delay_after / 1000)
+
+    return count
+
+
+def _update_user_reg_date(user: User):
+    """
+    Обновляет дату регистрации пользователя
+    """
+    if user.id > 0 and user.registration_date is None:
+        try:
+            registration_date = regvk.get_registration_date(user.id)
+            if registration_date:
+                user.registration_date = registration_date
+                user.save()
+                return True
+        except Exception as ex:
+            logger.error(ex)
+    return False
 
 
 if __name__ == '__main__':
