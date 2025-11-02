@@ -62,8 +62,13 @@ def update_subscribers(vk_connection, group_id):
     all_subscribers = _get_subscribed_users(vk_connection, group_id)
     delete_offset_file(_SUBS_OFFSET_FILENAME)
 
+    result = {
+        'subscribed': 0,
+        'unsubscribed': 0,
+    }
+
     if len(all_subscribers) == 0:
-        return
+        return result
 
     subscribed = Subscription.get_slise_of_last(is_subscribed=True)
 
@@ -77,6 +82,7 @@ def update_subscribers(vk_connection, group_id):
                                            subs_date=now,
                                            rewrite=True)
             logger.info(f'Добавлена подписка пользователя {user}')
+            result['subscribed'] += 1
 
     for user in subscribed.keys():
         if user not in all_subscribers:
@@ -87,6 +93,9 @@ def update_subscribers(vk_connection, group_id):
                                            subs_date=now,
                                            rewrite=True)
             logger.info(f'Отписан пользователь {user}')
+            result['unsubscribed'] += 1
+
+    return result
 
 
 def load_subscribers(vk_connection, group_id):
