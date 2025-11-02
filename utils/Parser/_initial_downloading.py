@@ -25,10 +25,11 @@ _CONVERSATIONS_MESS_OFFSET_FILENAME = 'current_offset_of_conversations_mess.tmp'
 
 
 def load_all(vk_connection, group_id=None, vk_connection_grope=None):
+    vk_connection_g = None if group_id else vk_connection_grope  # При загрузке из другой группы нужен апи админа
     group_id = config.group_id if group_id is None else group_id
 
     logger.info('Loading subscribers started')
-    load_subscribers(vk_connection, group_id, vk_connection_grope)
+    load_subscribers(vk_connection, group_id, vk_connection_g)
     logger.info('Loading subscribers completed')
 
     logger.info('Loading bans started')
