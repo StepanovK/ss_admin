@@ -1,8 +1,10 @@
-from Models.base import BaseModel
-from Models.Users import User
-from Models.Admins import Admin
 from peewee import *
-from config import group_id
+
+from Models.Admins import Admin
+from Models.Users import User
+from Models.base import BaseModel
+
+VK_LINK = 'https://vk.ru/'
 
 
 class PrivateMessage(BaseModel):
@@ -15,8 +17,6 @@ class PrivateMessage(BaseModel):
     message_id = IntegerField(null=True)
     is_deleted = BooleanField(default=False)
 
-    VK_LINK = 'https://vk.ru/'
-
     class Meta:
         table_name = 'private_messages'
         indexes = ['user', 'admin']
@@ -28,13 +28,10 @@ class PrivateMessage(BaseModel):
         if self.text is None or self.text == '':
             name = f'id={self.id}'
         elif len(text) > 50:
-            name = text[1:max_length-3] + '...'
+            name = text[1:max_length - 3] + '...'
         else:
             name = text
         return '[DELETED] ' + name if self.is_deleted else name
-
-    def get_chat_url(self):
-        return f'{self.VK_LINK}gim{group_id}?sel={self.chat_id}'
 
     @classmethod
     def generate_id(cls, chat_id, message_id):
@@ -46,3 +43,6 @@ class PrivateMessage(BaseModel):
         is_private = isinstance(chat_id, int) and chat_id < public_chat_ids
         return is_private
 
+    @classmethod
+    def get_user_chat_url(cls, group_id, user_id):
+        return f'{VK_LINK}gim{group_id}?sel={user_id}'

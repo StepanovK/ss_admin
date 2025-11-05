@@ -958,14 +958,13 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
     message_text = ''
     p_messages = PrivateMessage.select(
     ).where((PrivateMessage.user == post.user)
-            & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc())
+            & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc()).limit(1)
     user_comment = post.user.comment
     if user_comment is not None and user_comment != '':
         message_text += f'({user_comment})' + '\n'
     if len(p_messages) > 0:
         last_message = p_messages[0]
-        message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}\n' \
-                        f'Чат: {last_message.get_chat_url()}'
+        message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}'
 
         admin_messages = PrivateMessage.select(
         ).join(Admin).where((PrivateMessage.user == post.user)
@@ -976,6 +975,8 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
             message_text += '\n' + f'Последним общался {last_admin}'
 
         message_text = message_text + '\n'
+
+    message_text = message_text + f'Чат: {PrivateMessage.get_user_chat_url(-post.owner_id, post.user.id)}\n'
 
     post_text = post.text
 
