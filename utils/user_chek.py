@@ -1,11 +1,10 @@
-from Models.Users import User
-from Models.Subscriptions import Subscription
-from Models.Comments import Comment
-from Models.Posts import Post, PostStatus
-from Models.ChatMessages import ChatMessage
-from Models.PrivateMessages import PrivateMessage
 import datetime
-import collections
+
+from Models.ChatMessages import ChatMessage
+from Models.Comments import Comment
+from Models.Posts import Post
+from Models.Subscriptions import Subscription
+from Models.Users import User
 
 _degree_no_subscription = 8
 _degree_subscription_today = 6
@@ -19,12 +18,17 @@ _degree_one_comment_with_link = 9
 
 _degree_have_some_posts = -10
 
+_degree_reg_date_last_week = 3
+_degree_reg_date_last_month = 2
+_degree_reg_date_last_year = 1
+
 
 def get_degree_of_user_danger(user: User):
     total_danger_degree = 0
     total_danger_degree += _get_degree_by_subscription(user)
     total_danger_degree += _get_degree_by_comments(user)
     total_danger_degree += _get_degree_by_posts(user)
+    total_danger_degree += get_degree_by_reg_date(user)
     return total_danger_degree
 
 
@@ -96,4 +100,24 @@ def _get_degree_by_posts(user: User):
                                             & (Post.suggest_status.is_null())).order_by(Post.date.desc()).limit(2)
     if len(last_posted_posts) > 0:
         degree += _degree_have_some_posts
+    return degree
+
+
+def get_degree_by_reg_date(user: User):
+    degree = 0
+    if user.registration_date is not None:
+        if isinstance(user.registration_date, datetime.datetime):
+            delta = (datetime.date.today() - user.registration_date.date())
+        else:
+            delta = (datetime.date.today() - user.registration_date)
+
+        if delta.days <= 7:  # Аккаунт создан меньше недели назад
+            degree = _degree_reg_date_last_week
+        if delta.days <= 31:  # Аккаунт создан меньше месяца назад
+            degree = _degree_reg_date_last_month
+        elif delta.days <= (365 * 1.5):  # Аккаунт создан меньше 1,5 лет назад
+            degree = _degree_reg_date_last_year
+        else:
+            degree = 0
+
     return degree
