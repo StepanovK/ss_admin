@@ -218,7 +218,10 @@ class DynamicTitleManager:
 
 def update_title_vk():
     logger.info('Dynamic title post started')
-    DynamicTitleManager().upload_title()
+    if config.debug:
+        logger.info('debug: Dynamic title post skipped')
+    else:
+        DynamicTitleManager().upload_title()
     logger.info('Dynamic title post finished')
 
 # if __name__ == "__main__":

@@ -134,9 +134,11 @@ class ADSManager:
 
 def check_ads_posts():
     logger.info('ADS posts checking started')
-    ADSManager().control_ads_posts()
+    if debug:
+        logger.info('debug: ADS posts checking skipped')
+    else:
+        ADSManager().control_ads_posts()
     logger.info('ADS posts checking finished')
-
 
 
 if __name__ == "__main__":

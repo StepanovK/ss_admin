@@ -3,6 +3,8 @@ from PIL import Image
 import os
 from datetime import datetime, date, timedelta
 import time
+
+import config
 from utils.Scripts.vk_birthday_manager.photo_creater import PhotoCreator
 import requests
 
@@ -153,7 +155,10 @@ class VKBirthdayManager:
 
 def send_happy_birthday():
     logger.info('send happy birthday started')
-    VKBirthdayManager().send_happy_birthday()
+    if config.debug:
+        logger.info('debug: send happy birthday skipped')
+    else:
+        VKBirthdayManager().send_happy_birthday()
     logger.info('send happy birthday finished')
 
 
