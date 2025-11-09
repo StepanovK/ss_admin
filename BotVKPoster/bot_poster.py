@@ -13,6 +13,7 @@ import keyboards
 import utils.get_hasgtags as get_hashtags
 from Models.Admins import Admin, get_admin_by_vk_id
 from Models.ChatMessages import ChatMessage
+from Models.Chats import SHIFT_CHAT_ID
 from Models.Comments import Comment
 from Models.ConversationMessages import ConversationMessage
 from Models.Conversations import Conversation
@@ -28,6 +29,7 @@ from PosterModels.PostSettings import PostSettings
 from PosterModels.PublishedPosts import PublishedPost
 from PosterModels.RepostedToConversationsPosts import RepostedToConversationPost
 from PosterModels.SortedHashtags import SortedHashtag
+from config import VK_URL, MAX_MESSAGE_SIZE
 from config import logger, debug
 from utils import text_formatter
 from utils import user_chek
@@ -37,9 +39,6 @@ from utils.Parser import attachments as attachment_parser
 from utils.connection_holder import ConnectionsHolder
 from utils.rabbit_connector import get_messages_from_chanel, send_message, get_messages
 from utils.watermark_creater import WatermarkCreator
-
-MAX_MESSAGE_SIZE = 4048
-vk_link = 'https://vk.ru/'
 
 
 class Server:
@@ -284,14 +283,11 @@ class Server:
         if user not in self._checked_users:
             user_danger_degree = user_chek.get_degree_of_user_danger(user)
             if user_danger_degree >= 10:
-                try:
-                    self.vk.messages.send(peer_id=self.chat_for_comments_check,
-                                          message=self._get_danger_comment_description(comment,
-                                                                                       user_danger_degree),
-                                          random_id=random.randint(10 ** 5, 10 ** 6),
-                                          )
-                except Exception as ex:
-                    logger.warning(f'Failed send message peer_id={self.chat_for_comments_check}\n{ex}')
+                message = f'Комментарий от подозрительного пользователя {comment.user} ' \
+                          f'(оценка опасности: {user_danger_degree})\n' \
+                          f'{comment.get_url()}\n' \
+                          f'Текст: {comment.text}'
+                self._send_from_group(self.chat_for_comments_check, message)
 
                 getter.send_user_info(user=user,
                                       vk_connection=self.vk,
@@ -328,6 +324,9 @@ class Server:
 
             user_danger_degree = user_chek.get_degree_of_user_danger(user)
 
+            chat_url = chat_message.chat.get_url()
+            chat_url_str = f' ({chat_url})' if chat_url else ''
+
             if user_danger_degree >= 13:
 
                 chat = chat_message.chat
@@ -350,55 +349,37 @@ class Server:
                     logger.error(f'Failed delete chat message {chat_message}\n{ex}')
 
                 if message_is_deleted:
-                    try:
-                        spam_text = ' и отмечено как спам' if mark_as_spam else ''
-                        self.vk.messages.send(
-                            peer_id=chat.chat_id,
-                            message=f'Сообщение от пользователя {chat_message.user} удалено ботом{spam_text}!',
-                            random_id=random.randint(10 ** 5, 10 ** 6),
-                        )
-                    except Exception as ex:
-                        logger.error(f'Failed to send chat message in {chat}\n{ex}')
+                    spam_text = ' и отмечено как спам' if mark_as_spam else ''
+                    message = f'Сообщение от пользователя {chat_message.user} удалено ботом{spam_text}!'
+                    self._send_from_group(chat.chat_id, message)
+
+                    message = f'Удалён спам от {user}' \
+                              f'\nв чате {chat_message.chat}{chat_url_str} ' \
+                              f'\nТекст: {chat_message.text}'
+                    self._send_from_group(self.chat_for_comments_check, message)
+
+                    getter.send_user_info(user=user,
+                                          vk_connection=self.vk,
+                                          peer_id=self.chat_for_comments_check)
 
                     try:
-                        self.vk.messages.send(peer_id=self.chat_for_comments_check,
-                                              message=f'Удалён спам от {user} в чате {chat}\n'
-                                                      f'Текст: {chat_message.text}',
-                                              random_id=random.randint(10 ** 5, 10 ** 6),
-                                              )
-                    except Exception as ex:
-                        logger.error(f'Failed to send chat message in chat_for_comments_check\n{ex}')
-
-                    try:
-                        chat_id_short = chat.chat_id - 2000000000
+                        chat_id_short = chat.chat_id - SHIFT_CHAT_ID
                         self.vk.messages.removeChatUser(chat_id=chat_id_short, user_id=user.id, member_id=user.id)
                     except Exception as ex:
                         logger.error(f'Failed delete user {user} from chat {chat}\n{ex}')
 
             elif user_danger_degree >= 10:
-                try:
-                    self.vk.messages.send(peer_id=self.chat_for_comments_check,
-                                          message=self._get_danger_chat_message_description(chat_message,
-                                                                                            user_danger_degree),
-                                          random_id=random.randint(10 ** 5, 10 ** 6),
-                                          )
-                except Exception as ex:
-                    logger.warning(f'Failed send message peer_id={self.chat_for_comments_check}\n{ex}')
+                message = f'Сообщение в чате {chat_message.chat}{chat_url_str} ' \
+                          f'от подозрительного пользователя {chat_message.user}' \
+                          f' (оценка опасности: {user_danger_degree})\n' \
+                          f'Текст: {chat_message.text}'
+                self._send_from_group(self.chat_for_comments_check, message)
 
+                getter.send_user_info(user=user,
+                                      vk_connection=self.vk,
+                                      peer_id=self.chat_for_comments_check)
             else:
                 self._checked_users.append(user)
-
-    @staticmethod
-    def _get_danger_comment_description(comment, user_danger_degree):
-        return f'Комментарий от подозрительного пользователя {comment.user} (оценка опасности: {user_danger_degree})\n' \
-               f'{comment.get_url()}\n' \
-               f'Текст: {comment.text}'
-
-    @staticmethod
-    def _get_danger_chat_message_description(chat_message, user_danger_degree):
-        return f'Сообщение в чате {chat_message.chat} от подозрительного пользователя {chat_message.user}' \
-               f' (оценка опасности: {user_danger_degree})\n' \
-               f'Текст: {chat_message.text}'
 
     def _proces_button_click(self, payload: dict, message_id: int = None, admin_id: int = None):
         if payload['command'] == 'publish_post':
@@ -876,6 +857,18 @@ class Server:
         thread = threading.Thread(target=target, *args, **kwargs)
         thread.start()
 
+    def _send_from_group(self, peer_id, message, attachment=None, keyboard=None):
+        try:
+            return self.vk.messages.send(
+                peer_id=peer_id,
+                random_id=random.randint(10 ** 5, 10 ** 6),
+                message=message,
+                attachment=attachment,
+                keyboard=keyboard,
+            )
+        except Exception as ex:
+            logger.error(f'Error sending message: {ex}')
+
     def run(self):
         if config.debug:
             self._start_polling()
@@ -1115,7 +1108,7 @@ def _add_watermark_photo(attachment: UploadedFile, logo_path: str, vk_admin):
 
 def _add_watermark_video(attachment: UploadedFile, logo_path: str, vk_admin):
     watermark = WatermarkCreator(logo_path)
-    video_url = f'{vk_link}video{attachment.owner_id}_{attachment.vk_id}'
+    video_url = f'{VK_URL}video{attachment.owner_id}_{attachment.vk_id}'
     try:
         video_file_name = watermark.download_video(video_url)
     except Exception as ex:

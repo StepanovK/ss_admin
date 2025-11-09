@@ -1,5 +1,9 @@
 from peewee import *
+
 from Models.base import BaseModel
+from config import VK_URL
+
+SHIFT_CHAT_ID = 2000000000
 
 
 class Chat(BaseModel):
@@ -10,8 +14,6 @@ class Chat(BaseModel):
     url = CharField(default='')
     private = BooleanField(default=False)
     is_deleted = BooleanField(default=False)
-
-    VK_LINK = 'https://vk.ru/'
 
     def __str__(self):
         if self.title is not None and self.title != '':
@@ -25,7 +27,13 @@ class Chat(BaseModel):
     class Meta:
         table_name = 'chats'
 
+    def get_url(self) -> str:
+        if isinstance(self.owner_id, int) and isinstance(self.chat_id, int):
+            owner_id = abs(self.owner_id)
+            short_id = self.chat_id - SHIFT_CHAT_ID
+            return f'{VK_URL}gim{owner_id}?sel=c{short_id}'
+        return ''
+
     @classmethod
     def generate_id(cls, owner_id, chat_id):
         return f'{owner_id}_{chat_id}'
-
