@@ -27,8 +27,6 @@ class ConnectionsHolder(metaclass=Singleton):
             if ConnectionsHolder.instance._rabbit_connection:
                 ConnectionsHolder.instance._rabbit_connection.close()
                 ConnectionsHolder.instance._rabbit_connection = None
-                if config.debug:
-                    config.logger.info("RabbitMQ connection closed")
 
     @staticmethod
     def close_vk_connections():
@@ -128,8 +126,6 @@ class RabbitConnector:
                                                     credentials=credentials)
             try:
                 rabbit_connection = pika.BlockingConnection(conn_params)
-                if config.debug:
-                    config.logger.info("Init RabbitMQ connection")
             except pika.exceptions.AMQPConnectionError:
                 config.logger.warning(
                     f'failed to connect to rabbitmq! ({config.rabbitmq_host}:{config.rabbitmq_port})')
