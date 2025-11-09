@@ -1,9 +1,11 @@
 from environs import Env
 import loguru
-import json
 
 logger = loguru.logger
 logger.add('Logs/bot_log.log', format='{time} {level} {message}', rotation='512 KB', compression='zip')
+
+VK_URL = 'https://vk.ru/'
+MAX_MESSAGE_SIZE = 4048
 
 env = Env()
 env.read_env()
@@ -21,7 +23,7 @@ chat_for_comments_check = env.int("chat_for_comments_check", 0)  # Уведом�
 advertising_conversation_id = env.int("advertising_conversation_id", 0)
 
 db_host = 'localhost'
-db_port = 5432
+db_port = env.int("POSTGRES_PORT", 5432)
 db_user = env.str("POSTGRES_USER")
 db_password = env.str("POSTGRES_PASSWORD")
 db_name = 'admin_ss'
