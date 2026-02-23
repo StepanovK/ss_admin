@@ -20,6 +20,7 @@ from Models.Conversations import Conversation
 from Models.Posts import Post, PostsHashtag, PostStatus
 from Models.PrivateMessages import PrivateMessage
 from Models.Relations import PostsAttachment
+from Models.Subscriptions import Subscription
 from Models.UploadedFiles import UploadedFile
 from Models.Users import User
 from Models.base import db as main_db
@@ -948,16 +949,60 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
     if post.posted_by is not None:
         text_status += f'\nадмином: {post.posted_by}'
 
-    message_text = ''
+    caption_pic = f'&#129296;' if post.caption_disabled else f'&#128226;'
+    author_info = f'Автор: {post.user} {caption_pic}\n'
+
+    # Проверяем дату регистрации пользователя
+    registration_warning = False
+    if post.user.registration_date and post.date:
+        post_date_only = post.date.date() if hasattr(post.date, 'date') else post.date
+        days_since_registration = (post_date_only - post.user.registration_date).days
+        if days_since_registration <= 30:
+            registration_warning = True
+            author_info += f'&#8252; Зарегистрирован {days_since_registration} дн. назад\n'
+
+    # Проверяем дату подписки пользователя
+    if post.user and not registration_warning:  # Если уже есть warning по регистрации, не проверяем подписку
+        subscription_on_post_date = Subscription.select().where(
+            (Subscription.user == post.user) &
+            (Subscription.date <= post.date)
+        ).order_by(Subscription.date.desc()).first()
+
+        subscription_on_post_date_warning = False
+        if subscription_on_post_date:
+            if subscription_on_post_date.is_subscribed and subscription_on_post_date.date:
+                days_since_subscription = (post.date - subscription_on_post_date.date).days
+                if days_since_subscription <= 0:
+                    subscription_on_post_date_warning = True
+                    author_info += f'&#10071; Подписан в день публикации\n'
+                elif days_since_subscription <= 7:
+                    subscription_on_post_date_warning = True
+                    author_info += f'&#10071; Подписан за {days_since_subscription} дн. до публикации\n'
+            else:
+                author_info += f'&#10071; НЕ подписан на момент публикации\n'
+                subscription_on_post_date_warning = True
+
+        last_subscription = Subscription.select().where(
+            Subscription.user == post.user
+        ).order_by(Subscription.date.desc()).first()
+
+        if last_subscription:
+            if last_subscription.is_subscribed and last_subscription.date:
+                days_since_subscription = (post.date - last_subscription.date).days
+                if days_since_subscription <= 7 and not subscription_on_post_date_warning:
+                    author_info += f'&#10071; Подписан {days_since_subscription} дн. назад\n'
+            else:
+                author_info += f'&#10071; НЕ подписан\n'
+
     p_messages = PrivateMessage.select(
     ).where((PrivateMessage.user == post.user)
             & (PrivateMessage.admin.is_null())).order_by(PrivateMessage.date.desc()).limit(1)
     user_comment = post.user.comment
     if user_comment is not None and user_comment != '':
-        message_text += f'({user_comment})' + '\n'
+        author_info += f'({user_comment})' + '\n'
     if len(p_messages) > 0:
         last_message = p_messages[0]
-        message_text += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}'
+        author_info += f'Писал в ЛС группы {last_message.date:%Y.%m.%d}'
 
         admin_messages = PrivateMessage.select(
         ).join(Admin).where((PrivateMessage.user == post.user)
@@ -965,11 +1010,11 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
                             & (Admin.is_bot == False)).order_by(PrivateMessage.date.desc())
         if len(admin_messages) > 0:
             last_admin = admin_messages[0].admin
-            message_text += '\n' + f'Последним общался {last_admin}'
+            author_info += '\n' + f'Последним общался {last_admin}'
 
-        message_text = message_text + '\n'
+        author_info = author_info + '\n'
 
-    message_text = message_text + f'Чат: {PrivateMessage.get_user_chat_url(-post.owner_id, post.user.id)}\n'
+    author_info = author_info + f'Чат: {PrivateMessage.get_user_chat_url(-post.owner_id, post.user.id)}\n'
 
     post_text = post.text
 
@@ -979,11 +1024,8 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
 
     post_text = '[Текст отсутствует]' if post_text == '' else f'Текст поста:\n{post_text}'
 
-    caption_pic = f'&#129296;' if post.caption_disabled else f'&#128226;'
-
     represent = f'{text_status}\n' \
-                f'Автор: {post.user} {caption_pic}\n' \
-                f'{message_text}' \
+                f'{author_info}' \
                 f'{post_text}\n'
 
     if with_hashtags:
