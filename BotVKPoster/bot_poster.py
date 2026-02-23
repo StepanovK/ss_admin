@@ -953,12 +953,10 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
     author_info = f'Автор: {post.user} {caption_pic}\n'
 
     # Проверяем дату регистрации пользователя
-    registration_warning = False
     if post.user.registration_date and post.date:
         post_date_only = post.date.date() if hasattr(post.date, 'date') else post.date
         days_since_registration = (post_date_only - post.user.registration_date).days
         if days_since_registration <= 30:
-            registration_warning = True
             author_info += f'&#8252; Зарегистрирован за {days_since_registration} дн. до публикации\n'
 
     # Проверяем подписку на момент публикации
