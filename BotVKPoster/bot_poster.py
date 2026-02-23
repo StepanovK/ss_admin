@@ -959,40 +959,40 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
         days_since_registration = (post_date_only - post.user.registration_date).days
         if days_since_registration <= 30:
             registration_warning = True
-            author_info += f'&#8252; Зарегистрирован {days_since_registration} дн. назад\n'
+            author_info += f'&#8252; Зарегистрирован за {days_since_registration} дней\n'
 
-    # Проверяем дату подписки пользователя
-    if post.user and not registration_warning:  # Если уже есть warning по регистрации, не проверяем подписку
-        subscription_on_post_date = Subscription.select().where(
-            (Subscription.user == post.user) &
-            (Subscription.date <= post.date)
-        ).order_by(Subscription.date.desc()).first()
+    # Проверяем подписку на момент публикации
+    subscription_on_post_date = Subscription.select().where(
+        (Subscription.user == post.user) &
+        (Subscription.date <= post.date)
+    ).order_by(Subscription.date.desc()).first()
 
-        subscription_on_post_date_warning = False
-        if subscription_on_post_date:
-            if subscription_on_post_date.is_subscribed and subscription_on_post_date.date:
-                days_since_subscription = (post.date - subscription_on_post_date.date).days
-                if days_since_subscription <= 0:
-                    subscription_on_post_date_warning = True
-                    author_info += f'&#10071; Подписан в день публикации\n'
-                elif days_since_subscription <= 7:
-                    subscription_on_post_date_warning = True
-                    author_info += f'&#10071; Подписан за {days_since_subscription} дн. до публикации\n'
-            else:
-                author_info += f'&#10071; НЕ подписан на момент публикации\n'
+    subscription_on_post_date_warning = False
+    if subscription_on_post_date:
+        if subscription_on_post_date.is_subscribed and subscription_on_post_date.date:
+            days_since_subscription = (post.date - subscription_on_post_date.date).days
+            if days_since_subscription <= 0:
                 subscription_on_post_date_warning = True
+                author_info += f'&#10071; Подписан в день публикации\n'
+            elif days_since_subscription <= 7:
+                subscription_on_post_date_warning = True
+                author_info += f'&#10071; Подписан за {days_since_subscription} дн. до публикации\n'
+        else:
+            author_info += f'&#10071; НЕ подписан на момент публикации\n'
+            subscription_on_post_date_warning = True
 
-        last_subscription = Subscription.select().where(
-            Subscription.user == post.user
-        ).order_by(Subscription.date.desc()).first()
+    # Проверяем подписку на текущий момент
+    last_subscription = Subscription.select().where(
+        Subscription.user == post.user
+    ).order_by(Subscription.date.desc()).first()
 
-        if last_subscription:
-            if last_subscription.is_subscribed and last_subscription.date:
-                days_since_subscription = (post.date - last_subscription.date).days
-                if days_since_subscription <= 7 and not subscription_on_post_date_warning:
-                    author_info += f'&#10071; Подписан {days_since_subscription} дн. назад\n'
-            else:
-                author_info += f'&#10071; НЕ подписан\n'
+    if last_subscription:
+        if last_subscription.is_subscribed and last_subscription.date:
+            days_since_subscription = (post.date - last_subscription.date).days
+            if days_since_subscription <= 7 and not subscription_on_post_date_warning:
+                author_info += f'&#10071; Подписан {days_since_subscription} дн. назад\n'
+        else:
+            author_info += f'&#10071; НЕ подписан\n'
 
     p_messages = PrivateMessage.select(
     ).where((PrivateMessage.user == post.user)
