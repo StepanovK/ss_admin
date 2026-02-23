@@ -959,7 +959,7 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
         days_since_registration = (post_date_only - post.user.registration_date).days
         if days_since_registration <= 30:
             registration_warning = True
-            author_info += f'&#8252; Зарегистрирован за {days_since_registration} дней\n'
+            author_info += f'&#8252; Зарегистрирован за {days_since_registration} дн. до публикации\n'
 
     # Проверяем подписку на момент публикации
     subscription_on_post_date = Subscription.select().where(
