@@ -55,7 +55,7 @@ class Server:
 
         logger.info('Bot listener started!')
 
-        time_to_update_last_posts = 20
+        time_to_update_last_posts = 60*60
         last_published_posts_update = None
         time_to_update_last_chat_messages = 20
         last_chat_messages_update = None

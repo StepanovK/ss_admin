@@ -239,6 +239,260 @@ class Server:
 
                 self._update_message_post(suggested_post.id)
 
+    def _show_published_posts_navigation(self, post_id, message_id: int = None, page: int = 0):
+        """Показывает навигацию по опубликованным постам для привязки"""
+        post = _get_post_by_id(post_id=post_id)
+        message_id = _get_posts_message_id(post_id, message_id)
+        if not post or not message_id:
+            return
+
+        # Получаем все опубликованные посты (не предложенные и не отклонённые)
+        published_posts = self._get_published_posts_for_navigation(page)
+
+        if not published_posts['posts']:
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message="❌ Нет опубликованных постов для привязки.\n\n"
+                        "Посты со статусами 'Предложен' или 'Отклонён' не отображаются.",
+                keyboard=keyboards.back_to_main_menu_keyboard(post)
+            )
+            return
+
+        current_post = published_posts['posts'][0]
+        current_index = published_posts['start_index']
+        total_posts = published_posts['total']
+
+        # Формируем описание поста
+        post_description = self._get_published_post_description(current_post)
+
+        # Проверяем, привязан ли уже этот пост
+        is_linked = (post.posted_in == current_post)
+
+        status_text = "✅ **УЖЕ ПРИВЯЗАН**" if is_linked else "📌 **НЕ ПРИВЯЗАН**"
+
+        navigation_text = (
+            f"🔍 **Выбор опубликованного поста**\n"
+            f"Пост {current_index + 1} из {total_posts}\n"
+            f"Статус: {status_text}\n\n"
+            f"{post_description}\n"
+        )
+
+        attachments = _get_post_attachments(current_post, show_deleted=False)
+        attachment_strings = [str(att) for att in attachments[:4]]
+
+        try:
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=navigation_text,
+                keyboard=keyboards.published_posts_navigation_keyboard(
+                    post,
+                    current_index,
+                    total_posts,
+                    current_post.id,
+                    is_linked
+                ),
+                attachment=attachment_strings,
+            )
+        except Exception as ex:
+            logger.warning(f'Failed to edit navigation message: {ex}')
+
+    def _get_published_posts_for_navigation(self, page: int = 0, posts_per_page: int = 1):
+        """
+        Получает опубликованные посты для навигации.
+        Исключаем посты со статусами SUGGESTED или REJECTED.
+        """
+        # Получаем посты, которые НЕ являются предложенными и НЕ отклонёнными
+        query = Post.select().where(
+            # Статус либо NULL, либо не SUGGESTED и не REJECTED
+            (
+                    (Post.suggest_status.is_null(True)) |
+                    (
+                            (Post.suggest_status != PostStatus.SUGGESTED.value) &
+                            (Post.suggest_status != PostStatus.REJECTED.value)
+                    )
+            )
+        ).order_by(Post.date.desc()).limit(100)
+
+        total = query.count()
+        posts = query.offset(page * posts_per_page).limit(posts_per_page)
+
+        if config.debug:
+            logger.info(f"Found {total} published posts for navigation (page {page})")
+
+        return {
+            'posts': list(posts),
+            'total': total,
+            'start_index': page * posts_per_page,
+            'page': page
+        }
+
+    def _get_published_post_description(self, post: Post) -> str:
+        """Формирует описание опубликованного поста для навигации"""
+        post_url = post.get_url()
+
+        # Информация об авторе
+        if post.user:
+            author_info = f"👤 Автор: {post.user}\n"
+            # Проверяем дату регистрации
+            if post.user.registration_date and post.date:
+                post_date_only = post.date.date() if hasattr(post.date, 'date') else post.date
+                days_since_registration = (post_date_only - post.user.registration_date).days
+                if days_since_registration <= 30:
+                    author_info += f"⚠️ Зарегистрирован за {days_since_registration} дн. до публикации\n"
+        else:
+            author_info = "👤 Автор: Неизвестен\n"
+
+        # Дата поста
+        if post.date:
+            author_info += f"📅 Дата: {post.date:%Y.%m.%d %H:%M}\n"
+
+        # Анонимность
+        if post.anonymously:
+            author_info += "🔒 Анонимно\n"
+
+        # Кто опубликовал
+        if post.posted_by:
+            author_info += f"👨‍💼 Опубликовал: {post.posted_by}\n"
+
+        # Текст поста (обрезаем если слишком длинный)
+        post_text = post.text if post.text else "[Текст отсутствует]"
+        if len(post_text) > 300:
+            post_text = post_text[:300] + "..."
+
+        # Хэштеги
+        hashtags = [str(ht.hashtag) for ht in post.hashtags]
+        hashtags_text = f"\n📌 Хэштеги: {', '.join(hashtags[:5])}" if hashtags else ""
+        if len(hashtags) > 5:
+            hashtags_text += f" (+{len(hashtags) - 5})"
+
+        # Вложения
+        attachments_count = PostsAttachment.select().where(
+            (PostsAttachment.post == post) &
+            (PostsAttachment.is_deleted == False)
+        ).count()
+        attachments_text = f"\n📎 Вложений: {attachments_count}" if attachments_count > 0 else ""
+
+        return (
+            f"🔗 **Ссылка:** {post_url}\n"
+            f"{author_info}"
+            f"{'─' * 40}\n"
+            f"📝 **Текст:**\n{post_text}\n"
+            f"{hashtags_text}{attachments_text}"
+        )
+
+    def _is_post_linked_to_suggested(self, published_post: Post, suggested_post: Post) -> bool:
+        """Проверяет, привязан ли уже опубликованный пост к данному посту из предложки"""
+        # Проверяем прямую связь через posted_in
+        return suggested_post.posted_in == published_post
+
+    def _link_published_post(self, suggested_post_id: str, published_post_id: str, admin_id: int = None):
+        """
+        Связывает пост из предложки с опубликованным постом.
+        Связь хранится в поле posted_in модели Post (основная БД).
+        """
+        suggested_post = _get_post_by_id(post_id=suggested_post_id)
+        published_post = _get_post_by_id(post_id=published_post_id)
+
+        if not suggested_post or not published_post:
+            logger.warning(f'Cannot link posts: suggested={suggested_post_id}, published={published_post_id}')
+            return False
+
+        # Проверяем, не привязан ли уже
+        if suggested_post.posted_in == published_post:
+            logger.info(f'Posts already linked: {suggested_post_id} -> {published_post_id}')
+            return True
+
+        # Если у опубликованного поста нет пользователя, берём из предложки
+        if not published_post.user and suggested_post.user:
+            published_post.user = suggested_post.user
+            published_post.save()
+            logger.info(f'Set user {suggested_post.user} for published post {published_post.id}')
+
+        # Обновляем статус предложенного поста
+        suggested_post.suggest_status = PostStatus.POSTED.value
+        if admin_id:
+            suggested_post.posted_by = get_admin_by_vk_id(admin_id)
+        suggested_post.posted_in = published_post
+        suggested_post.is_deleted = True
+        suggested_post.save()
+
+        # Копируем хэштеги из предложки в опубликованный пост (если нужно)
+        with main_db.atomic():
+            for ht in PostsHashtag.select().where(PostsHashtag.post == suggested_post):
+                PostsHashtag.get_or_create(post=published_post, hashtag=ht.hashtag)
+
+        # Обновляем сообщение в чате
+        self._update_message_post(suggested_post.id)
+
+        logger.info(f'Successfully linked suggested post {suggested_post.id} to published post {published_post.id}')
+        return True
+
+    def _unlink_published_post(self, suggested_post_id: str, admin_id: int = None):
+        """Отвязывает пост из предложки от опубликованного поста"""
+        suggested_post = _get_post_by_id(post_id=suggested_post_id)
+
+        if not suggested_post:
+            return False
+
+        # Сбрасываем связи
+        suggested_post.suggest_status = PostStatus.SUGGESTED.value
+        suggested_post.posted_by = None
+        suggested_post.posted_in = None
+        suggested_post.is_deleted = False
+        suggested_post.save()
+
+        # Обновляем сообщение в чате
+        self._update_message_post(suggested_post.id)
+
+        logger.info(f'Successfully unlinked suggested post {suggested_post.id}')
+        return True
+
+    def _show_prepared_text(self, post_id, message_id: int = None):
+        """Показывает подготовленный текст поста для копирования"""
+        post = _get_post_by_id(post_id=post_id)
+        message_id = _get_posts_message_id(post_id, message_id)
+        if not post or not message_id:
+            return
+
+        # Получаем текст в том виде, как он будет опубликован
+        prepared_text = self._get_prepared_post_text(post)
+
+        try:
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=prepared_text,
+                keyboard=keyboards.back_to_main_menu_keyboard(post)
+            )
+        except Exception as ex:
+            logger.warning(f'Failed to show prepared text for post {post_id}: {ex}')
+
+    def _get_prepared_post_text(self, post: Post) -> str:
+        """
+        Формирует текст поста в том виде, как он будет опубликован
+        (с учётом настроек форматирования, хэштегов и подписи автора)
+        """
+        message = post.text if post.text else ""
+
+        # Применяем форматирование текста если включено
+        settings = PostSettings.get_post_settings(post.id)
+        if settings['reformat_text']:
+            message = text_formatter.format_text(message)
+
+        # Добавляем подпись автора (если подпись не отключена или пост не анонимный)
+        if (not post.anonymously) and post.caption_disabled:
+            # Перенос - чтобы копировать вместе с тегом
+            message = message + '\n' + f'Автор: [id***{post.user.id}|{post.user.full_name()}]'
+
+        # Добавляем хэштеги
+        hashtags = [str(hashtag.hashtag) for hashtag in post.hashtags]
+        if len(hashtags) > 0:
+            message = message + '\n' + '\n'.join(hashtags)
+
+        return message.strip()
+
     @staticmethod
     def _answer_healthcheck_messages():
         message_type = f'{config.healthcheck_queue_name_prefix}_poster_requests'
@@ -431,6 +685,43 @@ class Server:
         elif payload['command'] == 'reformat_text':
             _set_reformat_text(post_id=payload['post_id'])
             self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'show_published_navigation':
+            self._show_published_posts_navigation(
+                post_id=payload['post_id'],
+                message_id=message_id,
+                page=payload.get('page', 0)
+            )
+        elif payload['command'] == 'navigate_published_posts':
+            self._show_published_posts_navigation(
+                post_id=payload['post_id'],
+                message_id=message_id,
+                page=payload.get('page', 0)
+            )
+        elif payload['command'] == 'select_published_post':
+            published_post_id = payload.get('published_post_id')
+            if published_post_id:
+                self._link_published_post(
+                    suggested_post_id=payload['post_id'],
+                    published_post_id=published_post_id,
+                    admin_id=admin_id
+                )
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'unlink_published_post':
+            self._unlink_published_post(
+                suggested_post_id=payload['post_id'],
+                admin_id=admin_id
+            )
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'show_prepared_text':
+            self._show_prepared_text(
+                post_id=payload['post_id'],
+                message_id=message_id
+            )
+        elif payload['command'] == 'show_publish_menu':
+            self._show_publish_menu(
+                post_id=payload['post_id'],
+                message_id=message_id
+            )
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
@@ -593,6 +884,37 @@ class Server:
                 conversation_message_id=message_id,
                 message=_get_post_description(post),
                 keyboard=keyboards.main_menu_keyboard(post),
+                disable_mentions=disable_mentions,
+                attachment=[str(att) for att in _get_post_attachments(post, post.is_deleted)]
+            )
+        except Exception as ex:
+            logger.warning(f'Failed to edit message ID={message_id} for post ID={post.id}\n{ex}')
+
+    def _show_publish_menu(self, post_id, message_id: int = None):
+
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+        if post.suggest_status is None or post.suggest_status == '':
+            suggested_posts = Post.select().where(Post.posted_in == post).limit(1).execute()
+            if len(suggested_posts) == 1:
+                post = suggested_posts[0]
+            else:
+                return
+        message_id = _get_posts_message_id(post.id, message_id)
+        if not message_id:
+            post_record = _get_posts_message_record(post.id)
+            if not post_record:
+                self._add_new_message_post(post.id)
+            return
+
+        disable_mentions = 1
+        try:
+            self.vk.messages.edit(
+                peer_id=self.chat_for_suggest,
+                conversation_message_id=message_id,
+                message=_get_post_description(post),
+                keyboard=keyboards.publish_menu_keyboard(post),
                 disable_mentions=disable_mentions,
                 attachment=[str(att) for att in _get_post_attachments(post, post.is_deleted)]
             )
