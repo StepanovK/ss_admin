@@ -26,9 +26,9 @@ def main_menu_keyboard(post: Post):
     can_edit = post.suggest_status == PostStatus.SUGGESTED.value and not post.is_deleted
 
     if can_edit:
-        keyboard.add_callback_button(label='Опубликовать',
-                                     color=VkKeyboardColor.POSITIVE,
-                                     payload={"command": "publish_post", "post_id": post.id})
+        keyboard.add_callback_button(label='Публикация....',
+                                     color=VkKeyboardColor.PRIMARY,
+                                     payload={"command": "show_publish_menu", "post_id": post.id})
         if post.anonymously:
             keyboard.add_callback_button(label='&#9989; анонимно',
                                          color=VkKeyboardColor.PRIMARY,
@@ -37,9 +37,6 @@ def main_menu_keyboard(post: Post):
             keyboard.add_callback_button(label='&#9725; анонимно',
                                          color=VkKeyboardColor.SECONDARY,
                                          payload={"command": "set_anonymously", "post_id": post.id, 'val': True})
-        keyboard.add_callback_button(label='&#128336; В отложку',
-                                     color=VkKeyboardColor.POSITIVE,
-                                     payload={"command": "publish_post_pending", "post_id": post.id})
 
         keyboard.add_line()
         keyboard.add_callback_button(label='# Редактировать хэштеги',
@@ -66,6 +63,9 @@ def main_menu_keyboard(post: Post):
         keyboard.add_callback_button(label='&#128394;',
                                      color=color,
                                      payload={"command": "reformat_text", "post_id": post.id})
+        keyboard.add_callback_button(label='📋 Копировать',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_prepared_text", "post_id": post.id})
 
     if not can_edit and _post_has_unmarked_attachments(post.posted_in):
         keyboard.add_line()
@@ -78,11 +78,97 @@ def main_menu_keyboard(post: Post):
         keyboard.add_callback_button(label='&#128259; Обновить информацию',
                                      color=VkKeyboardColor.SECONDARY,
                                      payload={"command": "update_post", "post_id": post.id})
+
+        keyboard.add_callback_button(label='📌 Связать с постом...',
+                                     color=VkKeyboardColor.PRIMARY,
+                                     payload={"command": "show_published_navigation", "post_id": post.id, 'page': 0})
+
+    else:
+
+        keyboard.add_callback_button(label='📌 Изменить связь...',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "show_published_navigation", "post_id": post.id, 'page': 0})
+
+    return keyboard.get_keyboard()
+
+
+def publish_menu_keyboard(post: Post):
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    can_edit = post.suggest_status == PostStatus.SUGGESTED.value and not post.is_deleted
+
+    if can_edit:
+        keyboard.add_callback_button(label='Опубликовать',
+                                     color=VkKeyboardColor.POSITIVE,
+                                     payload={"command": "publish_post", "post_id": post.id})
+        keyboard.add_line()
+        keyboard.add_callback_button(label='&#128336; В отложку',
+                                     color=VkKeyboardColor.POSITIVE,
+                                     payload={"command": "publish_post_pending", "post_id": post.id})
         keyboard.add_line()
         keyboard.add_callback_button(label='Отклонить',
                                      color=VkKeyboardColor.NEGATIVE,
                                      payload={"command": "reject_post", "post_id": post.id})
+        keyboard.add_line()
 
+    keyboard.add_callback_button(label='🏠 Вернуться в главное меню',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_main_menu", "post_id": post.id})
+
+    return keyboard.get_keyboard()
+
+
+def published_posts_navigation_keyboard(post: Post, current_index: int, total_posts: int,
+                                        current_post_id: str, is_linked: bool = False):
+    """Клавиатура для навигации по опубликованным постам"""
+    keyboard = VkKeyboard(one_time=False, inline=True)
+
+    # Строка 1: Навигация (Назад и Далее в одной строке)
+    if current_index > 0:
+        keyboard.add_callback_button(label='◀ Назад',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "navigate_published_posts",
+                                              "post_id": post.id,
+                                              "page": current_index - 1})
+
+    if current_index + 1 < total_posts:
+        keyboard.add_callback_button(label='Далее ▶',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "navigate_published_posts",
+                                              "post_id": post.id,
+                                              "page": current_index + 1})
+
+    # Если есть хотя бы одна навигационная кнопка, добавляем разделитель строк
+    if current_index > 0 or current_index + 1 < total_posts:
+        keyboard.add_line()
+
+    # Строка 2: Действие (Выбрать/Отменить)
+    if is_linked:
+        keyboard.add_callback_button(label='❌ Отменить связь',
+                                     color=VkKeyboardColor.NEGATIVE,
+                                     payload={"command": "unlink_published_post", "post_id": post.id})
+    else:
+        keyboard.add_callback_button(label='✅ Выбрать этот пост',
+                                     color=VkKeyboardColor.POSITIVE,
+                                     payload={"command": "select_published_post",
+                                              "post_id": post.id,
+                                              "published_post_id": current_post_id})
+
+    # Строка 3: Возврат в меню
+    keyboard.add_line()
+    keyboard.add_callback_button(label='🏠 Главное меню',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_main_menu", "post_id": post.id})
+
+    return keyboard.get_keyboard()
+
+
+def back_to_main_menu_keyboard(post: Post):
+    """Простая клавиатура с кнопкой возврата в главное меню"""
+    keyboard = VkKeyboard(one_time=False, inline=True)
+    keyboard.add_callback_button(label='🏠 Вернуться в главное меню',
+                                 color=VkKeyboardColor.PRIMARY,
+                                 payload={"command": "show_main_menu", "post_id": post.id})
     return keyboard.get_keyboard()
 
 
