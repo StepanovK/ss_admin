@@ -24,6 +24,7 @@ from Models.Users import User
 from Models.base import db
 from Models.create_db import check_and_create_db
 from Models.db_transfer import export_models
+from Models.migration_manager import run_migrations
 from config import logger
 from utils import regvk
 from utils.GettingUserInfo.getter import get_user_from_message, send_user_info, parse_event
@@ -38,6 +39,9 @@ class Server:
     vk_link = 'https://vk.ru/'
 
     def __init__(self):
+
+        self._run_migrations()
+
         self.group_id = config.group_id
         self.chat_bot = ChatBot()
 
@@ -200,6 +204,17 @@ class Server:
             if not last_healthcheck or (now - last_healthcheck).total_seconds() >= time_to_healthcheck:
                 self._run_in_thread(target=self._answer_healthcheck_messages)
                 last_healthcheck = datetime.datetime.now()
+
+    def _run_migrations(self):
+        """Запускает все необходимые миграции базы данных"""
+        try:
+            if db.is_closed():
+                db.connect()
+
+            run_migrations(db)
+            logger.info("Database migrations completed successfully")
+        except Exception as ex:
+            logger.error(f"Failed to run migrations: {ex}")
 
     def _check_token_on_startup(self):
         """Проверяет наличие и валидность токена при запуске бота"""
