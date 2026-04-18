@@ -17,8 +17,21 @@ class AppToken(BaseModel):
         table_name = 'app_tokens'
 
     @classmethod
+    def table_exists(cls):
+        """Проверяет существование таблицы в БД"""
+        from Models.base import db
+        try:
+            db.execute_sql('SELECT 1 FROM "{}" LIMIT 1'.format(cls._meta.table_name))
+            return True
+        except Exception:
+            return False
+
+    @classmethod
     def get_master_token(cls):
         """Получить актуальный мастер-токен"""
+        if not cls.table_exists():
+            return None
+
         try:
             token_record = cls.get(token_type='master')
             return token_record
@@ -28,6 +41,9 @@ class AppToken(BaseModel):
     @classmethod
     def update_token(cls, access_token, refresh_token=None, expires_in=None, expires_at=None):
         """Обновить токен в БД"""
+        if not cls.table_exists():
+            return None
+
         token_record, created = cls.get_or_create(token_type='master')
         token_record.access_token = access_token
         token_record.updated_at = datetime.datetime.now()
@@ -46,12 +62,11 @@ class AppToken(BaseModel):
         token_record.save()
         return token_record
 
-    def is_expired(self, buffer_minutes=5):
+    def is_expired(self, buffer_seconds=5):
         """Проверить, истёк ли токен (с буфером)"""
         if not self.expires_at:
             return False
-        # Добавляем буфер в 5 секунд для безопасности
-        buffer = datetime.timedelta(seconds=5)
+        buffer = datetime.timedelta(seconds=buffer_seconds)
         return datetime.datetime.now() + buffer >= self.expires_at
 
     def seconds_until_expiry(self):
@@ -65,6 +80,11 @@ class AppToken(BaseModel):
     def init_from_env(cls):
         """Инициализирует токен из переменных окружения (при первом запуске)"""
         import config
+
+        # Проверяем существование таблицы
+        if not cls.table_exists():
+            config.logger.warning("Table 'app_tokens' does not exist yet. Will be created by migrations.")
+            return None
 
         # Проверяем, есть ли уже токен в БД
         existing = cls.get_master_token()
