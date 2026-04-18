@@ -6,6 +6,8 @@ import config as config
 import psycopg2
 import psycopg2.extras
 import os
+
+from Models.AppTokens import AppToken
 from config import logger
 from Models.base import db
 from Models.Admins import Admin
@@ -34,6 +36,7 @@ def create_all_tables():
 def all_models():
     models = [
         Admin,
+        AppToken,
         User,
         BanedUser,
         UploadedFile,

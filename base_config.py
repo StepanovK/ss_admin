@@ -14,10 +14,13 @@ group_id = env.int("group_id")
 group_token = env.str("group_token")
 group_token_poster = env.str("group_token_poster")
 
-# OAuth настройки
-vk_oauth_client_id = env.str("CLIENT_ID")  # ID OAuth-приложения
-vk_oauth_client_secret = env.str("YOUR_SECRET")  # Секретный ключ приложения
-vk_oauth_redirect_uri = 'https://oauth.vk.com/blank.html'  # Стандартный URI для VK
+# OAuth настройки (для получения токенов, если понадобится)
+CLIENT_ID = env.str("CLIENT_ID", None)
+CLIENT_SECRET = env.str("CLIENT_SECRET", None)
+
+ADMIN_ACCESS_TOKEN = env.str("ADMIN_ACCESS_TOKEN", None)
+ADMIN_REFRESH_TOKEN = env.str("ADMIN_REFRESH_TOKEN", None)
+ADMIN_TOKEN_EXPIRES_AT = env.str("ADMIN_TOKEN_EXPIRES_AT", None)
 
 
 chat_for_suggest = env.int("chat_for_suggest")

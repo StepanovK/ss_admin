@@ -1,12 +1,16 @@
 import datetime
+import random
+import threading
+import time
 
 import schedule
-import time
-from config import logger, debug
-import threading
 
+from Models.AppTokens import AppToken
+from config import debug
+from config import logger, healthcheck_chat_id
 from utils.Scripts import *
 from utils.healthcheck import start_status_check
+from utils.vk_oauth import VKOAuth
 
 healthcheck_listener = None
 healthcheck_poster = None
@@ -29,6 +33,62 @@ def start_healthcheck_poster():
     healthcheck_poster.start()
 
 
+def check_and_refresh_token():
+    """Проверяет токен и обновляет его при необходимости"""
+    logger.info('Проверка срока действия токена...')
+
+    token_record = AppToken.get_master_token()
+
+    if not token_record:
+        logger.warning('Токен не найден в БД! Необходима первоначальная авторизация.')
+        send_token_expired_warning('Токен не найден в БД. Требуется ручная авторизация.')
+        return
+
+    # Проверяем, не истёк ли токен
+    if token_record.is_expired():
+        logger.info(f'Токен истекает. Осталось {token_record.seconds_until_expiry():.0f} сек. Обновляем...')
+
+        oauth = VKOAuth()
+
+        if token_record.refresh_token:
+            # Обновляем через refresh_token
+            new_tokens = oauth.refresh_token(token_record.refresh_token)
+
+            if new_tokens:
+                AppToken.update_token(
+                    access_token=new_tokens['access_token'],
+                    refresh_token=new_tokens.get('refresh_token'),
+                    expires_in=new_tokens.get('expires_in')
+                )
+                logger.info('Токен успешно обновлён через refresh_token')
+            else:
+                logger.error('Не удалось обновить токен через refresh_token')
+                send_token_expired_warning('Не удалось обновить токен автоматически')
+        else:
+            logger.error('Нет refresh_token для обновления')
+            send_token_expired_warning('Отсутствует refresh_token для обновления токена')
+    else:
+        logger.info(f'Токен актуален. Истекает через {token_record.seconds_until_expiry():.0f} сек.')
+
+
+def send_token_expired_warning(message):
+    """Отправляет предупреждение о проблемах с токеном в чат"""
+    try:
+        from utils.connection_holder import ConnectionsHolder
+        vk = ConnectionsHolder().vk_connection_group
+
+        vk.messages.send(
+            peer_id=healthcheck_chat_id,
+            message=f'⚠️ ПРОБЛЕМА С ТОКЕНОМ!\n\n{message}\n\n'
+                    f'Требуется ручное обновление токена.\n'
+                    f'Для обновления перейдите по ссылке:\n'
+                    f'{VKOAuth().get_auth_url()}',
+            random_id=random.randint(10 ** 5, 10 ** 6)
+        )
+    except Exception as ex:
+        logger.error(f'Не удалось отправить предупреждение о токене: {ex}')
+
+
 start_healthcheck()
 
 if debug:
@@ -47,6 +107,7 @@ schedule.every(time_conversation_cleaning).minutes.do(conversation_cleaning)
 schedule.every(time_check_ads_posts).minutes.do(check_ads_posts)
 schedule.every(time_update_title_vk).minutes.do(update_title_vk)
 schedule.every().day.at(time_send_happy_birthday).do(send_happy_birthday)
+schedule.every(30).minutes.do(check_and_refresh_token)
 
 logger.info(f'Starting...')
 while True:

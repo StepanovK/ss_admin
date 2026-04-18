@@ -50,6 +50,7 @@ class Server:
         self.chat_for_suggest = config.chat_for_suggest
         self.chat_for_comments_check = config.chat_for_comments_check
 
+        self._check_token_on_startup()
         self.vk_api_admin = None
         self.vk_admin = None
         self.vk_api_group = None
@@ -81,12 +82,22 @@ class Server:
         time_to_healthcheck = config.healthcheck_interval / 4
         last_healthcheck = None
 
+        token_check_interval = 5  # Интервал проверки токена
+        last_token_check = None
+
         """
         События очереди из брокера проверяются после ожидания событий от ВК, но не чаще time_to_update_broker
         Время ожидания событий от вк задаётся параметром wait класса VkBotLongPoll
         С периодичностью time_to_update_published_posts в предложенных постах записывается ID опубликованных 
         """
         while True:
+
+            # Проверяем токен с заданной периодичностью
+            now = datetime.datetime.now()
+            if not last_token_check or (now - last_token_check).total_seconds() >= token_check_interval:
+                self._check_token_and_reconnect_if_needed()
+                last_token_check = now
+
             for event in self._longpoll.check():
                 if event.type == VkBotEventType.MESSAGE_EVENT:
                     payload = event.object.get('payload', {})
@@ -151,6 +162,110 @@ class Server:
             if not last_healthcheck or (now - last_healthcheck).total_seconds() >= time_to_healthcheck:
                 self._run_in_thread(target=self._answer_healthcheck_messages)
                 last_healthcheck = datetime.datetime.now()
+
+    def _check_token_on_startup(self):
+        """Проверяет наличие и валидность токена при запуске бота"""
+        try:
+            from Models.AppTokens import AppToken
+
+            token_record = AppToken.get_master_token()
+
+            if not token_record:
+                logger.error("=" * 60)
+                logger.error("❌ НЕТ ТОКЕНА АДМИНИСТРАТОРА!")
+                logger.error("=" * 60)
+                logger.error("Для работы бота необходимо добавить в .env файл:")
+                logger.error("  ADMIN_ACCESS_TOKEN=ваш_токен")
+                logger.error("  ADMIN_REFRESH_TOKEN=ваш_refresh_токен (опционально)")
+                logger.error("  ADMIN_TOKEN_EXPIRES_AT=2024-01-01T00:00:00 (опционально)")
+                logger.error("=" * 60)
+
+                # Отправляем сообщение в healthcheck-чат если возможно
+                message = '❌ Бот запущен без токена администратора!\n\n' \
+                          'Добавьте ADMIN_ACCESS_TOKEN в .env файл и перезапустите бота.'
+                try:
+                    if self.vk:
+                        self.vk.messages.send(
+                            peer_id=config.healthcheck_chat_id,
+                            message=message,
+                            random_id=random.randint(10 ** 5, 10 ** 6)
+                        )
+                except:
+                    logger.error(message)
+                return
+
+            if token_record.is_expired(buffer_minutes=0):
+                logger.warning(f"⚠️ Токен администратора ИСТЁК! Действителен был до: {token_record.expires_at}")
+                logger.warning("Обновите ADMIN_ACCESS_TOKEN в .env файле")
+            else:
+                expires_in = token_record.seconds_until_expiry()
+                logger.info(f"✅ Токен администратора валиден. Истекает через {expires_in / 3600:.1f} часов")
+
+        except Exception as ex:
+            logger.error(f"Error checking token on startup: {ex}")
+
+    def _check_token_and_reconnect_if_needed(self):
+        """Проверяет токен и переподключается при необходимости"""
+        try:
+            from Models.AppTokens import AppToken
+            token_record = AppToken.get_master_token()
+
+            if not token_record:
+                return
+
+            # Если токен истёк или истекает менее чем через 30 секунд
+            if token_record.is_expired() or token_record.seconds_until_expiry() < 30:
+                config.logger.warning(
+                    f"Token is expiring soon ({token_record.seconds_until_expiry():.0f}s). Waiting for refresh...")
+
+                # Ждём до 60 секунд, пока шедуллер обновит токен
+                for _ in range(60):
+                    datetime.time.sleep(1)
+                    token_record = AppToken.get_master_token()
+                    if token_record and not token_record.is_expired() and token_record.seconds_until_expiry() > 60:
+                        # Токен обновлён
+                        config.logger.info("Token has been refreshed. Reconnecting...")
+                        self._reconnect_admin_api()
+                        return True
+                    elif token_record and token_record.seconds_until_expiry() > 10:
+                        # Ещё есть время
+                        continue
+
+                # Если за 60 секунд не обновилось
+                self._send_healthcheck_alert("Токен не обновлён более 60 секунд!")
+                return False
+
+        except Exception as ex:
+            config.logger.error(f"Error checking token: {ex}")
+
+        return True
+
+    def _reconnect_admin_api(self):
+        """Переподключает API админа с новым токеном"""
+        from utils.connection_holder import ConnectionsHolder
+
+        # Сбрасываем соединение в ConnectionHolder
+        holder = ConnectionsHolder()
+        holder._vk_api_admin = None
+        holder._vk_connection_admin = None
+
+        # Обновляем локальные ссылки
+        self.vk_api_admin = holder.vk_api_admin
+        self.vk_connection_admin = holder.vk_connection_admin
+
+        config.logger.info("Admin API reconnected successfully")
+
+    def _send_healthcheck_alert(self, message):
+        """Отправляет сообщение в чат healthcheck"""
+        try:
+            if self.vk_connection_group:
+                self.vk_connection_group.messages.send(
+                    peer_id=config.healthcheck_chat_id,
+                    message=f'🚨 {message}\n\nБот может работать некорректно. Проверьте токен администратора.',
+                    random_id=random.randint(10 ** 5, 10 ** 6)
+                )
+        except Exception as ex:
+            config.logger.error(f"Failed to send healthcheck alert: {ex}")
 
     def _start_consuming(self):
         rabbit_connection = ConnectionsHolder().rabbit_connection
