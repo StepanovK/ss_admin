@@ -1,7 +1,5 @@
 import random
-
 import pika
-
 from utils.singleton import Singleton
 from vk_api import vk_api
 import config as config
@@ -15,7 +13,8 @@ class ConnectionsHolder(metaclass=Singleton):
         self._vk_api_admin = None
         self._vk_connection_admin = None
         self._rabbit_connection = None
-        self._token_expiry_warning_sent = None
+        self._token_initialized = False
+        self._token_expiry_warning_sent = False
 
     @staticmethod
     def close():
