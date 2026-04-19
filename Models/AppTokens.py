@@ -111,3 +111,35 @@ class AppToken(BaseModel):
         else:
             config.logger.warning("No admin token found in .env file! Some features may not work.")
             return None
+
+    @classmethod
+    def force_update_from_env(cls):
+        """Принудительно обновляет токен из .env (создаёт таблицу если нужно)"""
+        import config
+
+        # Убеждаемся, что таблица существует
+        from Models.base import db
+        from Models.migration_manager import run_migrations
+
+        # Запускаем миграции для создания таблицы
+        run_migrations(db)
+
+        # Загружаем токен из .env
+        if config.admin_access_token:
+            config.logger.info("Loading admin token from .env file")
+
+            expires_at = None
+            if config.admin_token_expires_at:
+                try:
+                    expires_at = datetime.datetime.fromisoformat(config.admin_token_expires_at)
+                except:
+                    config.logger.warning(f"Invalid expires_at format: {config.admin_token_expires_at}")
+
+            return cls.update_token(
+                access_token=config.admin_access_token,
+                refresh_token=config.admin_refresh_token,
+                expires_at=expires_at
+            )
+        else:
+            config.logger.warning("No admin token found in .env file!")
+            return None

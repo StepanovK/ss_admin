@@ -1,3 +1,5 @@
+# main.py - добавить функцию init_token() и вызвать её при старте
+
 import datetime
 import random
 import threading
@@ -6,6 +8,8 @@ import time
 import schedule
 
 from Models.AppTokens import AppToken
+from Models.base import db
+from Models.migration_manager import run_migrations
 from config import debug
 from config import logger, healthcheck_chat_id
 from utils.Scripts import *
@@ -14,6 +18,35 @@ from utils.vk_oauth import VKOAuth
 
 healthcheck_listener = None
 healthcheck_poster = None
+
+
+def init_token():
+    """Инициализирует токен при старте шедулера"""
+    logger.info("Initializing token from .env...")
+
+    try:
+        # Подключаемся к БД если нужно
+        if db.is_closed():
+            db.connect()
+
+        # Запускаем миграции (создадут таблицу если нужно)
+        run_migrations(db)
+
+        # Принудительно обновляем токен из .env
+        token_record = AppToken.force_update_from_env()
+
+        if token_record:
+            if token_record.is_expired(buffer_seconds=0):
+                logger.warning(f"⚠️ Token is already expired! Expired at: {token_record.expires_at}")
+                logger.warning("Please update ADMIN_ACCESS_TOKEN in .env file")
+            else:
+                expires_in = token_record.seconds_until_expiry()
+                logger.info(f"✅ Token initialized successfully. Expires in {expires_in / 3600:.1f} hours")
+        else:
+            logger.warning("No token available. Admin API features may not work")
+
+    except Exception as ex:
+        logger.error(f"Failed to initialize token: {ex}")
 
 
 def start_healthcheck():
@@ -40,9 +73,12 @@ def check_and_refresh_token():
     token_record = AppToken.get_master_token()
 
     if not token_record:
-        logger.warning('Токен не найден в БД! Необходима первоначальная авторизация.')
-        send_token_expired_warning('Токен не найден в БД. Требуется ручная авторизация.')
-        return
+        logger.warning('Токен не найден в БД! Пытаемся загрузить из .env...')
+        token_record = AppToken.force_update_from_env()
+
+        if not token_record:
+            send_token_expired_warning('Токен не найден в БД и в .env файле. Требуется ручная настройка.')
+            return
 
     # Проверяем, не истёк ли токен
     if token_record.is_expired():
@@ -88,6 +124,9 @@ def send_token_expired_warning(message):
     except Exception as ex:
         logger.error(f'Не удалось отправить предупреждение о токене: {ex}')
 
+
+# Инициализируем токен при старте
+init_token()
 
 start_healthcheck()
 
