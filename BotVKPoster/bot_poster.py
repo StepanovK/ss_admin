@@ -375,10 +375,10 @@ class Server:
         attachments_text = f"\n📎 Вложений: {attachments_count}" if attachments_count > 0 else ""
 
         return (
-            f"🔗 **Ссылка:** {post_url}\n"
+            f"🔗 Ссылка: {post_url}\n"
             f"{author_info}"
             f"{'─' * 40}\n"
-            f"📝 **Текст:**\n{post_text}\n"
+            f"📝 Текст:\n{post_text}\n"
             f"{hashtags_text}{attachments_text}"
         )
 
@@ -722,6 +722,17 @@ class Server:
                 post_id=payload['post_id'],
                 message_id=message_id
             )
+        elif payload['command'] == 'mark_as_deleted':
+            self._mark_as_deleted_post(
+                post_id=payload['post_id']
+            )
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
+        elif payload['command'] == 'mark_rejected':
+            self._mark_rejected_post(
+                post_id=payload['post_id'],
+                admin_id=admin_id
+            )
+            self._update_message_post(post_id=payload['post_id'], message_id=message_id)
 
     def _publish_post(self, post_id: str, admin_id: int = None, time_to_post: Optional[datetime.datetime] = None):
         post = _get_post_by_id(post_id=post_id)
@@ -812,6 +823,33 @@ class Server:
                 post.posted_by, _ = Admin.get_or_create(user=admin_user)
             post.save()
 
+            self._delete_sorted_hashtags(post_id=post.id)
+            self._delete_post_hashtags(post_id=post.id)
+
+    def _mark_rejected_post(self, post_id: str, admin_id: int = None):
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+
+        post.suggest_status = PostStatus.REJECTED.value
+        post.is_deleted = True
+        if admin_id:
+            admin_user, _ = User.get_or_create(id=admin_id)
+            post.posted_by, _ = Admin.get_or_create(user=admin_user)
+        post.save()
+
+        self._delete_sorted_hashtags(post_id=post.id)
+        self._delete_post_hashtags(post_id=post.id)
+
+    def _mark_as_deleted_post(self, post_id: str):
+        post = _get_post_by_id(post_id=post_id)
+        if not post:
+            return
+
+        post.is_deleted = not post.is_deleted
+        post.save()
+
+        if post.is_deleted:
             self._delete_sorted_hashtags(post_id=post.id)
             self._delete_post_hashtags(post_id=post.id)
 
@@ -1264,7 +1302,7 @@ def _get_post_description(post: Post, with_hashtags: bool = True):
         anon_text = ' анонимно' if post.anonymously else ''
         text_status = f'[ОПУБЛИКОВАН{anon_text}] {post_url}'
     elif post.suggest_status == PostStatus.REJECTED.value:
-        text_status = '[ОТКЛОНЁН]'
+        text_status = f'[ОТКЛОНЁН] {post}'
     else:
         text_status = f'Неизвестный пост {post}'
 

@@ -52,6 +52,11 @@ def main_menu_keyboard(post: Post):
                                  color=VkKeyboardColor.SECONDARY,
                                  payload={"command": "show_user_info", "post_id": post.id})
 
+    if post.is_deleted and not post.suggest_status == PostStatus.REJECTED.value:
+        keyboard.add_callback_button(label='Отменить удаление',
+                                     color=VkKeyboardColor.SECONDARY,
+                                     payload={"command": "mark_as_deleted", "post_id": post.id})
+
     keyboard.add_line()
     keyboard.add_callback_button(label='&#128172; Переслать в обсуждение',
                                  color=VkKeyboardColor.SECONDARY,
@@ -110,6 +115,16 @@ def publish_menu_keyboard(post: Post):
                                      color=VkKeyboardColor.NEGATIVE,
                                      payload={"command": "reject_post", "post_id": post.id})
         keyboard.add_line()
+
+    keyboard.add_callback_button(label='Удалён',
+                                 color=VkKeyboardColor.NEGATIVE,
+                                 payload={"command": "mark_as_deleted", "post_id": post.id})
+
+    keyboard.add_callback_button(label='Отклонён',
+                                 color=VkKeyboardColor.NEGATIVE,
+                                 payload={"command": "mark_rejected", "post_id": post.id})
+
+    keyboard.add_line()
 
     keyboard.add_callback_button(label='🏠 Вернуться в главное меню',
                                  color=VkKeyboardColor.PRIMARY,
