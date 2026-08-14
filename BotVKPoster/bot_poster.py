@@ -303,16 +303,9 @@ class Server:
         Получает опубликованные посты для навигации.
         Исключаем посты со статусами SUGGESTED или REJECTED.
         """
-        # Получаем посты, которые НЕ являются предложенными и НЕ отклонёнными
+        # Получаем посты, которые НЕ являются предложенными
         query = Post.select().where(
-            # Статус либо NULL, либо не SUGGESTED и не REJECTED
-            (
-                    (Post.suggest_status.is_null(True)) |
-                    (
-                            (Post.suggest_status != PostStatus.SUGGESTED.value) &
-                            (Post.suggest_status != PostStatus.REJECTED.value)
-                    )
-            )
+            (Post.suggest_status.is_null(True))
         ).order_by(Post.date.desc()).limit(100)
 
         total = query.count()
